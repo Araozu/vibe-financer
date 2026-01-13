@@ -2,13 +2,20 @@ import { listAccounts } from '$lib/application/account/list-accounts';
 import { createAccount } from '$lib/application/account/create-account';
 import { createTransaction } from '$lib/application/transaction/create-transaction';
 import { listTransactionsByAccount } from '$lib/application/transaction/list-transactions';
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import type { AccountType } from '$lib/domain/account';
 import type { TransactionType } from '$lib/domain/transaction';
 
-export const load: PageServerLoad = async () => {
-	const accounts = await listAccounts();
+export const load: PageServerLoad = async ({ locals }) => {
+	// Require authentication
+	if (!locals.user) {
+		throw redirect(302, '/login');
+	}
+
+	const allAccounts = await listAccounts();
+	// Filter accounts by user
+	const accounts = allAccounts.filter(acc => acc.userId === locals.user!.id);
 	
 	const accountsWithData = await Promise.all(accounts.map(async (account) => {
 		const transactions = await listTransactionsByAccount(account.id);
@@ -67,7 +74,11 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	createAccount: async ({ request }) => {
+	createAccount: async ({ request, locals }) => {
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
 		const formData = await request.formData();
 		const name = formData.get('name') as string;
 		const description = formData.get('description') as string;
@@ -81,6 +92,7 @@ export const actions: Actions = {
 
 		try {
 			await createAccount({
+				userId: locals.user.id,
 				name,
 				description: description || null,
 				type,
@@ -95,7 +107,11 @@ export const actions: Actions = {
 			return fail(400, { error: error.message });
 		}
 	},
-	createTransaction: async ({ request }) => {
+	createTransaction: async ({ request, locals }) => {
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
 		const formData = await request.formData();
 		const accountId = formData.get('accountId') as string;
 		const type = formData.get('type') as TransactionType;

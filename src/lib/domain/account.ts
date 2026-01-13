@@ -2,6 +2,7 @@ export type AccountType = 'asset' | 'expense' | 'revenue' | 'liability';
 
 export interface Account {
 	id: string;
+	userId: string;
 	name: string;
 	description: string | null;
 	type: AccountType;
