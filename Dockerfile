@@ -15,6 +15,7 @@ COPY --from=install /temp/dev/node_modules node_modules
 COPY . .
 
 # Set environment to production for the build
+ARG DATABASE_URL
 ENV NODE_ENV=production
 RUN bun run build
 
