@@ -17,6 +17,8 @@
 		Plus
 	} from "@lucide/svelte";
 	import type { Account } from "$lib/domain/account";
+	import { toast } from "svelte-sonner";
+	import { onMount, tick } from "svelte";
 
 	let { open = $bindable(false), accounts = [] } = $props<{ open?: boolean, accounts: Account[] }>();
 	
@@ -35,6 +37,19 @@
 	let amount = $state("");
 	let category = $state("");
 	let payee = $state("");
+
+	let titleInput: HTMLInputElement | null = $state(null);
+
+	onMount(() => {
+		const stored = localStorage.getItem("createMoreTransactions");
+		if (stored !== null) {
+			createMore = stored === "true";
+		}
+	});
+
+	$effect(() => {
+		localStorage.setItem("createMoreTransactions", String(createMore));
+	});
 
 	const transactionTypes = [
 		{ value: "expense", label: "Expense", icon: ArrowDownRight, color: "text-rose-500" },
@@ -64,10 +79,15 @@
 			use:enhance={() => {
 				return async ({ result }) => {
 					if (result.type === 'success') {
+						toast.success("Transaction created successfully");
+						resetForm();
+						
 						if (!createMore) {
 							open = false;
+						} else {
+							await tick();
+							titleInput?.focus();
 						}
-						resetForm();
 					}
 				};
 			}} 
@@ -94,6 +114,7 @@
 						name="name" 
 						placeholder="Transaction title (e.g., Grocery Shopping)" 
 						bind:value={transactionName}
+						bind:ref={titleInput}
 						class="text-2xl! font-semibold border-none bg-transparent p-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 h-auto" 
 						required 
 					/>
@@ -113,7 +134,7 @@
 				<!-- Metadata Badges Row -->
 				<div class="flex flex-wrap gap-2 pt-2">
 					<!-- Amount Badge -->
-					<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
+					<div class="flex items-center bg-muted/50 rounded-md overflow-hidden border border-primary/30">
 						<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">AMT</div>
 						<div class="flex items-center px-2 gap-2">
 							<span class="text-xs text-muted-foreground/60">$</span>
@@ -132,7 +153,7 @@
 
 					<!-- Account Select Badge -->
 					<Select.Root type="single" bind:value={selectedAccountId}>
-						<Select.Trigger class="w-auto h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
+						<Select.Trigger class="w-auto min-w-40 h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
 							<Wallet class="h-3.5 w-3.5" />
 							<span>{accounts.find((a: Account) => a.id === selectedAccountId)?.name || "Select Account"}</span>
 						</Select.Trigger>
@@ -151,7 +172,7 @@
 
 					<!-- Type Select Badge -->
 					<Select.Root type="single" bind:value={selectedType}>
-						<Select.Trigger class="w-auto h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
+						<Select.Trigger class="w-32 h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
 							{@const currentType = transactionTypes.find(t => t.value === selectedType)}
 							{#if currentType}
 								<currentType.icon class="h-3.5 w-3.5 {currentType.color}" />
