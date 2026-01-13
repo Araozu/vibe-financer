@@ -45,12 +45,12 @@
 	});
 
 	// Filter accounts for transfer destination (same currency, different account)
-	$derived availableToAccounts = selectedType === 'transfer' && selectedAccountId 
+	let availableToAccounts = $derived(selectedType === 'transfer' && selectedAccountId 
 		? accounts.filter(acc => {
 			const fromAccount = accounts.find(a => a.id === selectedAccountId);
 			return acc.id !== selectedAccountId && acc.currencyCode === fromAccount?.currencyCode;
 		})
-		: [];
+		: []);
 
 	$effect(() => {
 		// Reset to account when changing from account or switching to transfer
@@ -269,18 +269,19 @@
 
 			<!-- Payee Badge (hidden for transfers) -->
 			{#if selectedType !== 'transfer'}
-			<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
-				<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">PAY</div>
-				<div class="flex items-center px-2 gap-2">
-					<UserIcon class="h-3.5 w-3.5 text-muted-foreground/60" />
-					<Input 
-						name="payee" 
-						bind:value={payee}
-						placeholder="Payee..."
-						class="w-28 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
-					/>
+				<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
+					<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">PAY</div>
+					<div class="flex items-center px-2 gap-2">
+						<UserIcon class="h-3.5 w-3.5 text-muted-foreground/60" />
+						<Input 
+							name="payee" 
+							bind:value={payee}
+							placeholder="Payee..."
+							class="w-28 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
+						/>
+					</div>
 				</div>
-			</div>
+			{/if}
 		</div>
 	</div>
 
