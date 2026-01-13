@@ -7,21 +7,17 @@
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
 	import CreateTransactionDialog from "$lib/components/transaction/create-transaction-dialog.svelte";
 	import CreateTransactionForm from "$lib/components/transaction/create-transaction-form.svelte";
-	import { 
+		import { 
 		Wallet, 
 		TrendingUp, 
 		TrendingDown, 
 		PiggyBank, 
-		Plus, 
-		CreditCard,
 		Utensils,
 		Car,
 		Home,
 		ShoppingBag,
-		ArrowUpRight,
-		ArrowDownRight,
 		Tag,
-		DollarSign
+		Settings
 	} from "@lucide/svelte";
 	import logo from "$lib/assets/plain_icon.svg";
 
@@ -118,6 +114,12 @@
 			</a>
 			<CreateAccountDialog />
 			<CreateTransactionDialog accounts={data.accounts} />
+			<a href="/settings">
+				<Button variant="outline" size="sm">
+					<Settings class="mr-2 h-4 w-4" />
+					Settings
+				</Button>
+			</a>
 			<form method="POST" action="/logout">
 				<Button variant="ghost" size="sm" type="submit">
 					Logout
