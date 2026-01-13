@@ -21,6 +21,8 @@ RUN bun --bun run build
 
 # Stage 3: Production runner
 FROM base AS release
+COPY --from=build /app/.svelte-kit .svelte-kit
+COPY --from=build /app/drizzle drizzle
 COPY --from=build /app/build build
 COPY --from=build /app/package.json .
 
