@@ -15,7 +15,7 @@ export interface Session {
 	expiresAt: Date;
 }
 
-export type CreateSessionDTO = Omit<Session, ''>;
+export type CreateSessionDTO = Session;
 
 export function validateUserAge(age: number | null): boolean {
     if (age === null) return true;
