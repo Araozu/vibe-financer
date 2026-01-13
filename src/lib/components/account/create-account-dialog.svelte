@@ -12,8 +12,10 @@
 		Coins, 
 		CircleDollarSign,
 		ChevronRight,
-        Plus
+        Plus,
+        Loader2
 	} from "@lucide/svelte";
+	import { toast } from "svelte-sonner";
 
 	let { open = $bindable(false) } = $props();
 	
@@ -25,6 +27,7 @@
 	let currencyCode = $state("USD");
 	let currencySymbol = $state("$");
 	let color = $state("#3b82f6");
+	let isLoading = $state(false);
 
 	const accountTypes = [
 		{ value: "asset", label: "Asset", icon: CreditCard },
@@ -53,12 +56,17 @@
 			method="POST" 
 			action="?/createAccount" 
 			use:enhance={() => {
+				isLoading = true;
 				return async ({ result }) => {
+					isLoading = false;
 					if (result.type === 'success') {
+						toast.success("Account created successfully");
 						if (!createMore) {
 							open = false;
 						}
 						resetForm();
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.error || "Failed to create account");
 					}
 				};
 			}} 
@@ -189,9 +197,13 @@
 					<Label for="create-more" class="text-xs text-muted-foreground font-medium cursor-pointer">Create more</Label>
 				</div>
 				<div class="flex items-center gap-2">
-					<Button type="submit" size="sm">
-						<Plus class="mr-2 h-4 w-4" />
-						Create Account
+					<Button type="submit" size="sm" disabled={isLoading}>
+						{#if isLoading}
+							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+						{:else}
+							<Plus class="mr-2 h-4 w-4" />
+						{/if}
+						{isLoading ? 'Creating...' : 'Create Account'}
 					</Button>
 				</div>
 			</div>

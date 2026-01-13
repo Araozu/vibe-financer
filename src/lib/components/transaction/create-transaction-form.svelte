@@ -8,12 +8,14 @@
 	import { 
 		ArrowDownRight, 
 		ArrowUpRight, 
+		ArrowLeftRight,
 		Type, 
 		Tag,
 		User as UserIcon,
 		Wallet,
 		ChevronRight,
-		Plus
+		Plus,
+		Loader2
 	} from "@lucide/svelte";
 	import type { Account } from "$lib/domain/account";
 	import { toast } from "svelte-sonner";
@@ -33,10 +35,34 @@
 	
 	let selectedType = $state("expense");
 	let selectedAccountId = $state("");
+	let selectedToAccountId = $state("");
+	let isLoading = $state(false);
 	
 	$effect(() => {
 		if (accounts.length > 0 && !selectedAccountId) {
 			selectedAccountId = accounts[0].id;
+		}
+	});
+
+	// Filter accounts for transfer destination (same currency, different account)
+	let availableToAccounts = $derived(selectedType === 'transfer' && selectedAccountId 
+		? accounts.filter(acc => {
+			const fromAccount = accounts.find(a => a.id === selectedAccountId);
+			return acc.id !== selectedAccountId && acc.currencyCode === fromAccount?.currencyCode;
+		})
+		: []);
+
+	$effect(() => {
+		// Reset to account when changing from account or switching to transfer
+		if (selectedType === 'transfer' && availableToAccounts.length > 0) {
+			// Only update if current selection is invalid
+			const isCurrentValid = selectedToAccountId && availableToAccounts.find(a => a.id === selectedToAccountId);
+			if (!isCurrentValid) {
+				selectedToAccountId = availableToAccounts[0].id;
+			}
+		} else if (selectedType !== 'transfer') {
+			// Clear selection when not in transfer mode
+			selectedToAccountId = "";
 		}
 	});
 
@@ -69,6 +95,7 @@
 	const transactionTypes = [
 		{ value: "expense", label: "Expense", icon: ArrowDownRight, color: "text-rose-500" },
 		{ value: "income", label: "Income", icon: ArrowUpRight, color: "text-emerald-500" },
+		{ value: "transfer", label: "Transfer", icon: ArrowLeftRight, color: "text-blue-500" },
 	];
 
 	function resetForm() {
@@ -77,6 +104,7 @@
 		amount = "";
 		category = "";
 		payee = "";
+		selectedToAccountId = "";
 	}
 </script>
 
@@ -84,7 +112,9 @@
 	method="POST" 
 	action="?/createTransaction" 
 	use:enhance={() => {
+		isLoading = true;
 		return async ({ result }) => {
+			isLoading = false;
 			if (result.type === 'success') {
 				toast.success("Transaction created successfully");
 				resetForm();
@@ -95,6 +125,8 @@
 				
 				await tick();
 				titleInput?.focus();
+			} else if (result.type === 'failure') {
+				toast.error(result.data?.error || "Failed to create transaction");
 			}
 		};
 	}} 
@@ -197,33 +229,64 @@
 			</Select.Root>
 			<input type="hidden" name="type" value={selectedType} />
 
-			<!-- Category Badge -->
-			<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
-				<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">CAT</div>
-				<div class="flex items-center px-2 gap-2">
-					<Tag class="h-3.5 w-3.5 text-muted-foreground/60" />
-					<Input 
-						name="category" 
-						bind:value={category}
-						placeholder="Category..."
-						class="w-28 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
-					/>
-				</div>
-			</div>
+			<!-- To Account Select Badge (for transfers) -->
+			{#if selectedType === 'transfer'}
+				{#if availableToAccounts.length > 0}
+					<Select.Root type="single" bind:value={selectedToAccountId}>
+						<Select.Trigger class="w-auto min-w-40 h-8 px-2.5 py-1.5 text-xs font-medium bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-colors rounded-md gap-2">
+							<ArrowLeftRight class="h-3.5 w-3.5 text-blue-500" />
+							<span>To: {availableToAccounts.find((a: Account) => a.id === selectedToAccountId)?.name || "Select Account"}</span>
+						</Select.Trigger>
+						<Select.Content>
+							{#each availableToAccounts as account}
+								<Select.Item value={account.id} label={account.name} class="text-xs">
+									<div class="flex items-center gap-2">
+										<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
+										{account.name}
+									</div>
+								</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+					<input type="hidden" name="toAccountId" value={selectedToAccountId} />
+				{:else}
+					<div class="flex items-center bg-rose-500/10 border border-rose-500/30 rounded-md px-3 py-1.5 text-xs text-rose-500">
+						No compatible accounts for transfer
+					</div>
+				{/if}
+			{/if}
 
-			<!-- Payee Badge -->
-			<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
-				<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">PAY</div>
-				<div class="flex items-center px-2 gap-2">
-					<UserIcon class="h-3.5 w-3.5 text-muted-foreground/60" />
-					<Input 
-						name="payee" 
-						bind:value={payee}
-						placeholder="Payee..."
-						class="w-28 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
-					/>
+			<!-- Category Badge (hidden for transfers) -->
+			{#if selectedType !== 'transfer'}
+				<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
+					<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">CAT</div>
+					<div class="flex items-center px-2 gap-2">
+						<Tag class="h-3.5 w-3.5 text-muted-foreground/60" />
+						<Input 
+							name="category" 
+							bind:value={category}
+							placeholder="Category..."
+							class="w-28 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
+						/>
+					</div>
 				</div>
-			</div>
+			{/if}
+
+			<!-- Payee Badge (hidden for transfers) -->
+			{#if selectedType !== 'transfer'}
+				<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
+					<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">PAY</div>
+					<div class="flex items-center px-2 gap-2">
+						<UserIcon class="h-3.5 w-3.5 text-muted-foreground/60" />
+						<Input 
+							name="payee" 
+							bind:value={payee}
+							placeholder="Payee..."
+							class="w-28 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
+						/>
+					</div>
+				</div>
+			{/if}
 		</div>
 	</div>
 
@@ -236,9 +299,13 @@
 			{/if}
 		</div>
 		<div class="flex items-center gap-2">
-			<Button type="submit" size="sm">
-				<Plus class="mr-2 h-4 w-4" />
-				Add Transaction
+			<Button type="submit" size="sm" disabled={isLoading || (selectedType === 'transfer' && availableToAccounts.length === 0)}>
+				{#if isLoading}
+					<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+				{:else}
+					<Plus class="mr-2 h-4 w-4" />
+				{/if}
+				{isLoading ? 'Adding...' : 'Add Transaction'}
 			</Button>
 		</div>
 	</div>
