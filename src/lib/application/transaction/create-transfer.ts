@@ -43,11 +43,16 @@ export async function createTransfer(data: CreateTransferDTO): Promise<Transacti
 			throw error(400, 'Cannot transfer between accounts with different currencies');
 		}
 
-		// 4. Calculate new balances
+		// 4. Validate sufficient balance
+		if (fromAccount.currentBalance < data.amount) {
+			throw error(400, 'Insufficient balance in source account');
+		}
+
+		// 5. Calculate new balances
 		const newFromBalance = fromAccount.currentBalance - data.amount;
 		const newToBalance = toAccount.currentBalance + data.amount;
 
-		// 5. Update both account balances
+		// 6. Update both account balances
 		await tx
 			.update(account)
 			.set({ currentBalance: newFromBalance, updatedAt: new Date() })
@@ -58,7 +63,7 @@ export async function createTransfer(data: CreateTransferDTO): Promise<Transacti
 			.set({ currentBalance: newToBalance, updatedAt: new Date() })
 			.where(eq(account.id, data.toAccountId));
 
-		// 6. Create the transfer transaction
+		// 7. Create the transfer transaction
 		const [newTransaction] = await tx
 			.insert(transaction)
 			.values({

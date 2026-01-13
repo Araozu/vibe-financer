@@ -132,7 +132,7 @@ export const actions: Actions = {
 					description: description || null,
 					category: category || null,
 					payee: payee || null,
-					targetAccountId: null
+					targetAccountId: targetAccountId || null
 				});
 			}
 			return { success: true };

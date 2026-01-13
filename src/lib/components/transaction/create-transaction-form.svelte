@@ -101,6 +101,9 @@
 		})
 		: [];
 
+	// Check if submit button should be disabled
+	$derived isSubmitDisabled = isSubmitting || (selectedType === 'transfer' && targetAccounts.length === 0);
+
 </script>
 
 <form 
@@ -206,23 +209,29 @@
 
 			<!-- Target Account Select Badge (for transfers) -->
 			{#if selectedType === 'transfer'}
-				<Select.Root type="single" bind:value={selectedTargetAccountId}>
-					<Select.Trigger class="w-auto min-w-40 h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
-						<Wallet class="h-3.5 w-3.5" />
-						<span>To: {accounts.find((a: Account) => a.id === selectedTargetAccountId)?.name || "Select Account"}</span>
-					</Select.Trigger>
-					<Select.Content>
-						{#each targetAccounts as account}
-							<Select.Item value={account.id} label={account.name} class="text-xs">
-								<div class="flex items-center gap-2">
-									<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
-									{account.name}
-								</div>
-							</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-				<input type="hidden" name="targetAccountId" value={selectedTargetAccountId} />
+				{#if targetAccounts.length === 0}
+					<div class="flex items-center gap-2 px-3 py-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-500 rounded-md border border-amber-200 dark:border-amber-900">
+						<span>No accounts with matching currency available for transfer</span>
+					</div>
+				{:else}
+					<Select.Root type="single" bind:value={selectedTargetAccountId}>
+						<Select.Trigger class="w-auto min-w-40 h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
+							<Wallet class="h-3.5 w-3.5" />
+							<span>To: {accounts.find((a: Account) => a.id === selectedTargetAccountId)?.name || "Select Account"}</span>
+						</Select.Trigger>
+						<Select.Content>
+							{#each targetAccounts as account}
+								<Select.Item value={account.id} label={account.name} class="text-xs">
+									<div class="flex items-center gap-2">
+										<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
+										{account.name}
+									</div>
+								</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+					<input type="hidden" name="targetAccountId" value={selectedTargetAccountId} />
+				{/if}
 			{/if}
 
 			<!-- Type Select Badge -->
@@ -286,7 +295,7 @@
 			{/if}
 		</div>
 		<div class="flex items-center gap-2">
-			<Button type="submit" size="sm" disabled={isSubmitting || (selectedType === 'transfer' && targetAccounts.length === 0)}>
+			<Button type="submit" size="sm" disabled={isSubmitDisabled}>
 				<Plus class="mr-2 h-4 w-4" />
 				{isSubmitting ? 'Creating...' : selectedType === 'transfer' ? 'Create Transfer' : 'Add Transaction'}
 			</Button>
