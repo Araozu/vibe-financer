@@ -4,11 +4,24 @@ import type { TransactionType } from '$lib/domain/transaction';
 
 export const user = sqliteTable('user', {
 	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+	email: text('email').notNull().unique(),
+	passwordHash: text('password_hash').notNull(),
 	age: integer('age')
+});
+
+export const session = sqliteTable('session', {
+	id: text('id').primaryKey(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull()
 });
 
 export const account = sqliteTable('account', {
 	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
 	name: text('name').notNull(),
 	description: text('description'),
 	type: text('type').$type<AccountType>().notNull(),

@@ -3,12 +3,17 @@ import { createAccount } from '$lib/application/account/create-account';
 import { createTransaction } from '$lib/application/transaction/create-transaction';
 import { createTransfer } from '$lib/application/transaction/create-transfer';
 import { listTransactionsByAccount } from '$lib/application/transaction/list-transactions';
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import type { AccountType } from '$lib/domain/account';
 import type { TransactionType } from '$lib/domain/transaction';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
+	// Check if user is authenticated
+	if (!locals.user) {
+		throw redirect(302, '/login');
+	}
+
 	const accounts = await listAccounts();
 	
 	const accountsWithData = await Promise.all(accounts.map(async (account) => {
@@ -68,7 +73,12 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	createAccount: async ({ request }) => {
+	createAccount: async ({ request, locals }) => {
+		// Check authentication
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
 		const formData = await request.formData();
 		const name = formData.get('name') as string;
 		const description = formData.get('description') as string;
@@ -82,6 +92,7 @@ export const actions: Actions = {
 
 		try {
 			await createAccount({
+				userId: locals.user.id,
 				name,
 				description: description || null,
 				type,
@@ -96,7 +107,12 @@ export const actions: Actions = {
 			return fail(400, { error: error.message });
 		}
 	},
-	createTransaction: async ({ request }) => {
+	createTransaction: async ({ request, locals }) => {
+		// Check authentication
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
 		const formData = await request.formData();
 		const accountId = formData.get('accountId') as string;
 		const type = formData.get('type') as TransactionType;
