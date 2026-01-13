@@ -16,3 +16,6 @@ if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
 
 const sqlite = new Database(env.DATABASE_URL);
 export const db = drizzle(sqlite);
+
+// Note: Automatic migrations have been removed to prevent conflicts.
+// Run `bun run db:push` manually to apply schema changes to the database.

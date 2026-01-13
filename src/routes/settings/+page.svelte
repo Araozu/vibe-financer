@@ -137,7 +137,7 @@
 								name="defaultCurrencyCode" 
 								placeholder="USD" 
 								bind:value={defaultCurrencyCode}
-								oninput={handleCurrencyCodeInput}
+								on:input={handleCurrencyCodeInput}
 								class="w-full uppercase"
 								maxlength="3"
 								required

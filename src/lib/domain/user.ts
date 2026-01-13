@@ -21,6 +21,7 @@ export function validateEmail(email: string | null): boolean {
     return emailRegex.test(email);
 }
 
-export function validateCurrencyCode(code: string): boolean {
+export function validateCurrencyCode(code: string | null | undefined): boolean {
+    if (!code) return false;
     return code.length === 3 && /^[A-Z]+$/.test(code);
 }

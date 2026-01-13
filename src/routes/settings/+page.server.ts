@@ -30,8 +30,8 @@ export const actions: Actions = {
 		const name = formData.get('name') as string;
 		const email = formData.get('email') as string;
 		const ageStr = formData.get('age') as string;
-		const defaultCurrencyCode = (formData.get('defaultCurrencyCode') as string)?.trim();
-		const defaultCurrencySymbol = (formData.get('defaultCurrencySymbol') as string)?.trim();
+		const defaultCurrencyCode = (formData.get('defaultCurrencyCode') as string)?.trim() || '';
+		const defaultCurrencySymbol = (formData.get('defaultCurrencySymbol') as string)?.trim() || '';
 
 		const age = ageStr ? parseInt(ageStr, 10) : null;
 
