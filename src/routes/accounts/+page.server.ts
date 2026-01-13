@@ -1,6 +1,3 @@
-import { createUser } from '$lib/application/user/create-user';
-import { updateUser } from '$lib/application/user/update-user';
-import { listUsers } from '$lib/application/user/list-users';
 import { listAccounts } from '$lib/application/account/list-accounts';
 import { createAccount } from '$lib/application/account/create-account';
 import { fail } from '@sveltejs/kit';
@@ -8,9 +5,8 @@ import type { Actions, PageServerLoad } from './$types';
 import type { AccountType } from '$lib/domain/account';
 
 export const load: PageServerLoad = async () => {
-	const users = await listUsers();
 	const accounts = await listAccounts();
-	return { users, accounts };
+	return { accounts };
 };
 
 export const actions: Actions = {
@@ -24,7 +20,7 @@ export const actions: Actions = {
 		const currencySymbol = formData.get('currencySymbol') as string;
 		const color = formData.get('color') as string;
 
-		const initialBalance = parseFloat(initialBalanceStr) * 100; // Convert to cents
+		const initialBalance = Math.round(parseFloat(initialBalanceStr) * 100); // Convert to cents and avoid floating point issues
 
 		try {
 			await createAccount({
@@ -37,33 +33,6 @@ export const actions: Actions = {
 				currencySymbol,
 				color
 			});
-			return { success: true };
-		} catch (error: any) {
-			return fail(400, { error: error.message });
-		}
-	},
-	create: async ({ request }) => {
-		const formData = await request.formData();
-		const ageStr = formData.get('age') as string;
-		const age = ageStr ? parseInt(ageStr, 10) : null;
-
-		try {
-			await createUser({ age });
-			return { success: true };
-		} catch (error: any) {
-			return fail(400, { error: error.message });
-		}
-	},
-	update: async ({ request }) => {
-		const formData = await request.formData();
-		const id = formData.get('id') as string;
-		const ageStr = formData.get('age') as string;
-		const age = ageStr ? parseInt(ageStr, 10) : null;
-
-		if (!id) return fail(400, { error: 'User ID is required' });
-
-		try {
-			await updateUser(id, { age });
 			return { success: true };
 		} catch (error: any) {
 			return fail(400, { error: error.message });

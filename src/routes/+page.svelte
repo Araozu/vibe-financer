@@ -21,11 +21,14 @@
 
 	let { data } = $props();
 
+	let totalBalance = $derived(data.accounts?.reduce((acc, curr) => acc + curr.currentBalance, 0) || 0);
+	let formattedTotalBalance = $derived((totalBalance / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
+
 	// Mock Data for UI demonstration
-	const summaryStats = [
+	const summaryStats = $derived([
 		{
 			title: "Total Balance",
-			amount: "$12,450.00",
+			amount: formattedTotalBalance,
 			change: "+2.5% from last month",
 			icon: Wallet,
 			color: "text-blue-500"
@@ -51,7 +54,7 @@
 			icon: PiggyBank,
 			color: "text-purple-500"
 		}
-	];
+	]);
 
 	const recentTransactions = [
 		{
@@ -121,6 +124,12 @@
 			</div>
 		</div>
 		<div class="flex gap-2">
+			<a href="/accounts">
+				<Button variant="outline" size="sm">
+					<Wallet class="mr-2 h-4 w-4" />
+					View Accounts
+				</Button>
+			</a>
 			<CreateAccountDialog />
 			<Button size="sm">
 				<Plus class="mr-2 h-4 w-4" />

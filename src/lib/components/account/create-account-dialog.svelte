@@ -45,7 +45,7 @@
 	<Dialog.Trigger>
 		<Button variant="outline" size="sm">
 			<CreditCard class="mr-2 h-4 w-4" />
-			Accounts
+			Create Account
 		</Button>
 	</Dialog.Trigger>
 	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl bg-background">
