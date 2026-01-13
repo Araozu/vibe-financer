@@ -6,6 +6,7 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
 	import CreateTransactionDialog from "$lib/components/transaction/create-transaction-dialog.svelte";
+	import CreateTransactionForm from "$lib/components/transaction/create-transaction-form.svelte";
 	import { 
 		Wallet, 
 		TrendingUp, 
@@ -141,6 +142,13 @@
 	<div class="grid gap-8 md:grid-cols-7">
 		<!-- Main Content: Transactions & Charts -->
 		<div class="md:col-span-4 space-y-8">
+			<Card.Root class="overflow-hidden py-0">
+				<CreateTransactionForm 
+					accounts={data.accounts} 
+					showCreateMore={false} 
+				/>
+			</Card.Root>
+
 			<!-- Spending Overview (Mock Chart) -->
 			<Card.Root>
 				<Card.Header>
