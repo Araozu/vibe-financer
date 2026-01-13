@@ -163,8 +163,8 @@
 
     /* Animations and keyframes */
 
-    --animate-in: enter var(--tw-animation-duration, var(--tw-duration, 150ms)) var(--tw-ease, ease) var(--tw-animation-delay, 0s) var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
-    --animate-out: exit var(--tw-animation-duration, var(--tw-duration, 150ms)) var(--tw-ease, ease) var(--tw-animation-delay, 0s) var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
+    --animate-in: enter var(--tw-animation-duration, var(--tw-duration, 75ms)) var(--tw-ease, ease) var(--tw-animation-delay, 0s) var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
+    --animate-out: exit var(--tw-animation-duration, var(--tw-duration, 75ms)) var(--tw-ease, ease) var(--tw-animation-delay, 0s) var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
 
     @keyframes enter {
         from {
@@ -182,10 +182,10 @@
         }
     }
 
-    --animate-accordion-down: accordion-down var(--tw-animation-duration, var(--tw-duration, 200ms)) var(--tw-ease, ease-out) var(--tw-animation-delay, 0s) var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
-    --animate-accordion-up: accordion-up var(--tw-animation-duration, var(--tw-duration, 200ms)) var(--tw-ease, ease-out) var(--tw-animation-delay, 0s) var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
-    --animate-collapsible-down: collapsible-down var(--tw-animation-duration, var(--tw-duration, 200ms)) var(--tw-ease, ease-out) var(--tw-animation-delay, 0s) var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
-    --animate-collapsible-up: collapsible-up var(--tw-animation-duration, var(--tw-duration, 200ms)) var(--tw-ease, ease-out) var(--tw-animation-delay, 0s) var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
+    --animate-accordion-down: accordion-down var(--tw-animation-duration, var(--tw-duration, 100ms)) var(--tw-ease, ease-out) var(--tw-animation-delay, 0s) var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
+    --animate-accordion-up: accordion-up var(--tw-animation-duration, var(--tw-duration, 100ms)) var(--tw-ease, ease-out) var(--tw-animation-delay, 0s) var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
+    --animate-collapsible-down: collapsible-down var(--tw-animation-duration, var(--tw-duration, 100ms)) var(--tw-ease, ease-out) var(--tw-animation-delay, 0s) var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
+    --animate-collapsible-up: collapsible-up var(--tw-animation-duration, var(--tw-duration, 100ms)) var(--tw-ease, ease-out) var(--tw-animation-delay, 0s) var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
 
     @keyframes accordion-down {
         from {
