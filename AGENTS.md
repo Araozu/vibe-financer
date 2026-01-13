@@ -42,3 +42,11 @@ src/lib/
   ├── infra/         # Persistence (Drizzle, Repos)
   └── components/    # UI (Presentation)
 ```
+
+## UI
+
+- Always prefer shadcn components.
+- If a shadcn component is not available, install it: `bun x shadcn-svelte@latest add card -y`
+- When installing, use the `-y` flag for autoinstall
+- Always prefer shadcn styles, variants, etc; rather than manual tailwind classes
+
