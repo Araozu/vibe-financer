@@ -94,15 +94,15 @@
 	}
 
 	// Filter target accounts for transfers (only same currency, exclude source account)
-	$derived targetAccounts = selectedType === "transfer" 
+	let targetAccounts = $derived(selectedType === "transfer" 
 		? accounts.filter(a => {
 			const sourceAccount = accounts.find(acc => acc.id === selectedAccountId);
 			return a.id !== selectedAccountId && sourceAccount && a.currencyCode === sourceAccount.currencyCode;
 		})
-		: [];
+		: []);
 
 	// Check if submit button should be disabled
-	$derived isSubmitDisabled = isSubmitting || (selectedType === 'transfer' && targetAccounts.length === 0);
+	let isSubmitDisabled = $derived(isSubmitting || (selectedType === 'transfer' && targetAccounts.length === 0));
 
 </script>
 
