@@ -15,7 +15,8 @@
 		ArrowUpRight,
 		ArrowDownLeft,
 		Wallet,
-		ArrowRight
+		ArrowRight,
+		Settings
 	} from "@lucide/svelte";
 	import { scaleTime, scaleLinear } from "d3-scale";
 	import { BarChart } from "layerchart";
@@ -65,6 +66,12 @@
 			</div>
 		</div>
 		<div class="flex gap-2">
+			<a href="/settings">
+				<Button variant="outline" size="sm">
+					<Settings class="mr-2 h-4 w-4" />
+					Settings
+				</Button>
+			</a>
 			<CreateAccountDialog />
 			<CreateTransactionDialog accounts={data.accounts} />
 		</div>

@@ -4,7 +4,11 @@ import type { TransactionType } from '$lib/domain/transaction';
 
 export const user = sqliteTable('user', {
 	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
-	age: integer('age')
+	name: text('name'),
+	email: text('email'),
+	age: integer('age'),
+	defaultCurrencyCode: text('default_currency_code').notNull().default('USD'),
+	defaultCurrencySymbol: text('default_currency_symbol').notNull().default('$')
 });
 
 export const account = sqliteTable('account', {

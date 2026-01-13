@@ -21,7 +21,8 @@
 		ArrowUpRight,
 		ArrowDownRight,
 		Tag,
-		DollarSign
+		DollarSign,
+		Settings
 	} from "@lucide/svelte";
 	import logo from "$lib/assets/plain_icon.svg";
 
@@ -110,6 +111,12 @@
 			</div>
 		</div>
 		<div class="flex gap-2">
+			<a href="/settings">
+				<Button variant="outline" size="sm">
+					<Settings class="mr-2 h-4 w-4" />
+					Settings
+				</Button>
+			</a>
 			<a href="/accounts">
 				<Button variant="outline" size="sm">
 					<Wallet class="mr-2 h-4 w-4" />
