@@ -4,7 +4,7 @@
 	import { Label } from "$lib/components/ui/label/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
-	import { enhance } from '$app/forms';
+	import { enhance, applyAction } from '$app/forms';
 	import { 
 		ArrowDownRight, 
 		ArrowUpRight, 
@@ -111,7 +111,7 @@
 	action="?/createTransaction" 
 	use:enhance={() => {
 		isSubmitting = true;
-		return async ({ result }) => {
+		return async ({ result, update }) => {
 			isSubmitting = false;
 			if (result.type === 'success') {
 				toast.success(`${selectedType === 'transfer' ? 'Transfer' : 'Transaction'} created successfully`);
@@ -124,7 +124,13 @@
 				await tick();
 				titleInput?.focus();
 			} else if (result.type === 'failure') {
-				toast.error(result.data?.error || 'Failed to create transaction');
+				// Show error toast with the error message from the server
+				const errorMessage = result.data?.error || 'Failed to create transaction';
+				toast.error(errorMessage);
+				// Don't call update() to preserve form data and keep dialog open
+			} else {
+				// For other result types, apply default behavior
+				await applyAction(result);
 			}
 		};
 	}} 
