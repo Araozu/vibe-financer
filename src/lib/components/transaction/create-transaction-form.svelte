@@ -93,10 +93,8 @@
 					onSuccess(createMore);
 				}
 				
-				if (createMore) {
-					await tick();
-					titleInput?.focus();
-				}
+				await tick();
+				titleInput?.focus();
 			}
 		};
 	}} 
