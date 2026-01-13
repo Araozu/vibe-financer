@@ -10,20 +10,17 @@
 		CreditCard, 
 		Type, 
 		Coins, 
-		Palette, 
 		CircleDollarSign,
-		Maximize2,
-		X,
 		ChevronRight,
-		Check
+        Plus
 	} from "@lucide/svelte";
-	import { cn } from "$lib/utils";
 
 	let { open = $bindable(false) } = $props();
 	
 	let selectedType = $state("asset");
 	let createMore = $state(false);
 	let accountName = $state("");
+	let description = $state("");
 	let initialBalance = $state("");
 	let currencyCode = $state("USD");
 	let currencySymbol = $state("$");
@@ -38,6 +35,7 @@
 
 	function resetForm() {
 		accountName = "";
+		description = "";
 		initialBalance = "";
 		// Keep other defaults or current selections
 	}
@@ -50,7 +48,7 @@
 			Accounts
 		</Button>
 	</Dialog.Trigger>
-	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden border-none shadow-2xl bg-background">
+	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl bg-background">
 		<form 
 			method="POST" 
 			action="?/createAccount" 
@@ -77,12 +75,6 @@
 					<span>New Account</span>
 				</div>
 				<div class="flex items-center gap-1">
-					<Button variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground hover:text-foreground">
-						<Maximize2 class="h-3.5 w-3.5" />
-					</Button>
-					<Button variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground hover:text-foreground" onclick={() => open = false}>
-						<X class="h-4 w-4" />
-					</Button>
 				</div>
 			</div>
 
@@ -90,30 +82,46 @@
 			<div class="px-6 py-8 space-y-6">
 				<div class="space-y-2">
 					<Input 
+						variant="background"
 						id="name" 
 						name="name" 
 						placeholder="Account title" 
 						bind:value={accountName}
-						class="text-2xl font-semibold border-none bg-transparent p-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 h-auto" 
+						class="text-2xl! font-semibold border-none bg-transparent p-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 h-auto" 
 						required 
 					/>
 					<div class="flex items-center gap-2">
-						<CircleDollarSign class="h-4 w-4 text-muted-foreground/60" />
+						<Type class="h-4 w-4 text-muted-foreground/60" />
 						<Input 
-							id="initialBalance" 
-							name="initialBalance" 
-							type="number" 
-							step="0.01" 
-							placeholder="Initial balance..." 
-							bind:value={initialBalance}
-							class="text-sm border-none bg-transparent p-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 h-auto w-full" 
-							required 
+							variant="background"
+							id="description" 
+							name="description" 
+							placeholder="Add a description..." 
+							bind:value={description}
+							class="text-sm! border-none bg-transparent p-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 h-auto w-full" 
 						/>
 					</div>
 				</div>
 
 				<!-- Metadata Badges Row -->
 				<div class="flex flex-wrap gap-2 pt-2">
+					<!-- Initial Balance Badge -->
+					<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
+						<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">BAL</div>
+						<div class="flex items-center px-2 gap-2">
+							<span class="text-xs text-muted-foreground/60">{currencySymbol}</span>
+							<Input 
+								id="initialBalance" 
+								name="initialBalance" 
+								type="number" 
+								step="0.01" 
+								placeholder="0.00" 
+								bind:value={initialBalance}
+								class="w-20 h-8 px-2 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
+								required 
+							/>
+						</div>
+					</div>
 					<!-- Type Select Badge -->
 					<Select.Root type="single" bind:value={selectedType}>
 						<Select.Trigger class="w-auto h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
@@ -181,7 +189,8 @@
 					<Label for="create-more" class="text-xs text-muted-foreground font-medium cursor-pointer">Create more</Label>
 				</div>
 				<div class="flex items-center gap-2">
-					<Button type="submit" size="sm" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 shadow-lg shadow-indigo-500/20">
+					<Button type="submit" size="sm">
+						<Plus class="mr-2 h-4 w-4" />
 						Create Account
 					</Button>
 				</div>

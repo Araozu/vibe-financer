@@ -9,6 +9,7 @@ export const user = sqliteTable('user', {
 export const account = sqliteTable('account', {
 	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
 	name: text('name').notNull(),
+	description: text('description'),
 	type: text('type').$type<AccountType>().notNull(),
 	currentBalance: integer('current_balance').notNull(),
 	initialBalance: integer('initial_balance').notNull(),

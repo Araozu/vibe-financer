@@ -15,6 +15,7 @@ export const actions: Actions = {
 	createAccount: async ({ request }) => {
 		const formData = await request.formData();
 		const name = formData.get('name') as string;
+		const description = formData.get('description') as string;
 		const type = formData.get('type') as AccountType;
 		const initialBalanceStr = formData.get('initialBalance') as string;
 		const currencyCode = formData.get('currencyCode') as string;
@@ -26,6 +27,7 @@ export const actions: Actions = {
 		try {
 			await createAccount({
 				name,
+				description: description || null,
 				type,
 				initialBalance,
 				currentBalance: initialBalance,

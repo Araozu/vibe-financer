@@ -3,6 +3,7 @@ export type AccountType = 'asset' | 'expense' | 'revenue' | 'liability';
 export interface Account {
 	id: string;
 	name: string;
+	description: string | null;
 	type: AccountType;
 	currentBalance: number;
 	initialBalance: number;
