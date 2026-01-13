@@ -6,6 +6,12 @@ export const user = sqliteTable('user', {
 	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
 	email: text('email').notNull().unique(),
 	passwordHash: text('password_hash').notNull(),
+	firstName: text('first_name'),
+	lastName: text('last_name'),
+	phoneNumber: text('phone_number'),
+	dateOfBirth: integer('date_of_birth', { mode: 'timestamp' }),
+	preferredCurrency: text('preferred_currency').default('USD'),
+	timezone: text('timezone').default('UTC'),
 	age: integer('age'),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date())
 });
