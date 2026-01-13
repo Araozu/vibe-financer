@@ -8,6 +8,7 @@
 	import { 
 		ArrowDownRight, 
 		ArrowUpRight, 
+		ArrowLeftRight,
 		Type, 
 		Tag,
 		User as UserIcon,
@@ -33,10 +34,22 @@
 	
 	let selectedType = $state("expense");
 	let selectedAccountId = $state("");
+	let selectedTargetAccountId = $state("");
+	let isSubmitting = $state(false);
 	
 	$effect(() => {
 		if (accounts.length > 0 && !selectedAccountId) {
 			selectedAccountId = accounts[0].id;
+		}
+	});
+
+	$effect(() => {
+		// When type changes to transfer, set target account to second account
+		if (selectedType === "transfer" && accounts.length > 1) {
+			const otherAccount = accounts.find(a => a.id !== selectedAccountId);
+			if (otherAccount) {
+				selectedTargetAccountId = otherAccount.id;
+			}
 		}
 	});
 
@@ -69,6 +82,7 @@
 	const transactionTypes = [
 		{ value: "expense", label: "Expense", icon: ArrowDownRight, color: "text-rose-500" },
 		{ value: "income", label: "Income", icon: ArrowUpRight, color: "text-emerald-500" },
+		{ value: "transfer", label: "Transfer", icon: ArrowLeftRight, color: "text-blue-500" },
 	];
 
 	function resetForm() {
@@ -78,15 +92,26 @@
 		category = "";
 		payee = "";
 	}
+
+	// Filter target accounts for transfers (only same currency, exclude source account)
+	$derived targetAccounts = selectedType === "transfer" 
+		? accounts.filter(a => {
+			const sourceAccount = accounts.find(acc => acc.id === selectedAccountId);
+			return a.id !== selectedAccountId && sourceAccount && a.currencyCode === sourceAccount.currencyCode;
+		})
+		: [];
+
 </script>
 
 <form 
 	method="POST" 
 	action="?/createTransaction" 
 	use:enhance={() => {
+		isSubmitting = true;
 		return async ({ result }) => {
+			isSubmitting = false;
 			if (result.type === 'success') {
-				toast.success("Transaction created successfully");
+				toast.success(`${selectedType === 'transfer' ? 'Transfer' : 'Transaction'} created successfully`);
 				resetForm();
 				
 				if (onSuccess) {
@@ -95,6 +120,8 @@
 				
 				await tick();
 				titleInput?.focus();
+			} else if (result.type === 'failure') {
+				toast.error(result.data?.error || 'Failed to create transaction');
 			}
 		};
 	}} 
@@ -108,7 +135,7 @@
 				<span class="uppercase tracking-wider font-bold">Transactions</span>
 			</div>
 			<ChevronRight class="h-3 w-3 opacity-50" />
-			<span>New {selectedType === 'expense' ? 'Expense' : 'Income'}</span>
+			<span>New {selectedType === 'expense' ? 'Expense' : selectedType === 'income' ? 'Income' : 'Transfer'}</span>
 		</div>
 	</div>
 
@@ -162,7 +189,7 @@
 			<Select.Root type="single" bind:value={selectedAccountId}>
 				<Select.Trigger class="w-auto min-w-40 h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
 					<Wallet class="h-3.5 w-3.5" />
-					<span>{accounts.find((a: Account) => a.id === selectedAccountId)?.name || "Select Account"}</span>
+					<span>{selectedType === 'transfer' ? 'From: ' : ''}{accounts.find((a: Account) => a.id === selectedAccountId)?.name || "Select Account"}</span>
 				</Select.Trigger>
 				<Select.Content>
 					{#each accounts as account}
@@ -176,6 +203,27 @@
 				</Select.Content>
 			</Select.Root>
 			<input type="hidden" name="accountId" value={selectedAccountId} />
+
+			<!-- Target Account Select Badge (for transfers) -->
+			{#if selectedType === 'transfer'}
+				<Select.Root type="single" bind:value={selectedTargetAccountId}>
+					<Select.Trigger class="w-auto min-w-40 h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
+						<Wallet class="h-3.5 w-3.5" />
+						<span>To: {accounts.find((a: Account) => a.id === selectedTargetAccountId)?.name || "Select Account"}</span>
+					</Select.Trigger>
+					<Select.Content>
+						{#each targetAccounts as account}
+							<Select.Item value={account.id} label={account.name} class="text-xs">
+								<div class="flex items-center gap-2">
+									<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
+									{account.name}
+								</div>
+							</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				<input type="hidden" name="targetAccountId" value={selectedTargetAccountId} />
+			{/if}
 
 			<!-- Type Select Badge -->
 			<Select.Root type="single" bind:value={selectedType}>
@@ -197,33 +245,35 @@
 			</Select.Root>
 			<input type="hidden" name="type" value={selectedType} />
 
-			<!-- Category Badge -->
-			<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
-				<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">CAT</div>
-				<div class="flex items-center px-2 gap-2">
-					<Tag class="h-3.5 w-3.5 text-muted-foreground/60" />
-					<Input 
-						name="category" 
-						bind:value={category}
-						placeholder="Category..."
-						class="w-28 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
-					/>
+			<!-- Category Badge (hidden for transfers) -->
+			{#if selectedType !== 'transfer'}
+				<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
+					<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">CAT</div>
+					<div class="flex items-center px-2 gap-2">
+						<Tag class="h-3.5 w-3.5 text-muted-foreground/60" />
+						<Input 
+							name="category" 
+							bind:value={category}
+							placeholder="Category..."
+							class="w-28 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
+						/>
+					</div>
 				</div>
-			</div>
 
-			<!-- Payee Badge -->
-			<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
-				<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">PAY</div>
-				<div class="flex items-center px-2 gap-2">
-					<UserIcon class="h-3.5 w-3.5 text-muted-foreground/60" />
-					<Input 
-						name="payee" 
-						bind:value={payee}
-						placeholder="Payee..."
-						class="w-28 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
-					/>
+				<!-- Payee Badge -->
+				<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
+					<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">PAY</div>
+					<div class="flex items-center px-2 gap-2">
+						<UserIcon class="h-3.5 w-3.5 text-muted-foreground/60" />
+						<Input 
+							name="payee" 
+							bind:value={payee}
+							placeholder="Payee..."
+							class="w-28 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
+						/>
+					</div>
 				</div>
-			</div>
+			{/if}
 		</div>
 	</div>
 
@@ -236,9 +286,9 @@
 			{/if}
 		</div>
 		<div class="flex items-center gap-2">
-			<Button type="submit" size="sm">
+			<Button type="submit" size="sm" disabled={isSubmitting || (selectedType === 'transfer' && targetAccounts.length === 0)}>
 				<Plus class="mr-2 h-4 w-4" />
-				Add Transaction
+				{isSubmitting ? 'Creating...' : selectedType === 'transfer' ? 'Create Transfer' : 'Add Transaction'}
 			</Button>
 		</div>
 	</div>

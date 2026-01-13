@@ -12,13 +12,14 @@
 		Coins, 
 		CircleDollarSign,
 		ChevronRight,
-        Plus
 	} from "@lucide/svelte";
+	import { toast } from "svelte-sonner";
 
 	let { open = $bindable(false) } = $props();
 	
 	let selectedType = $state("asset");
 	let createMore = $state(false);
+	let isSubmitting = $state(false);
 	let accountName = $state("");
 	let description = $state("");
 	let initialBalance = $state("");
@@ -53,12 +54,17 @@
 			method="POST" 
 			action="?/createAccount" 
 			use:enhance={() => {
+				isSubmitting = true;
 				return async ({ result }) => {
+					isSubmitting = false;
 					if (result.type === 'success') {
+						toast.success("Account created successfully");
 						if (!createMore) {
 							open = false;
 						}
 						resetForm();
+					} else if (result.type === 'failure') {
+						toast.error(result.data?.error || 'Failed to create account');
 					}
 				};
 			}} 
@@ -189,9 +195,9 @@
 					<Label for="create-more" class="text-xs text-muted-foreground font-medium cursor-pointer">Create more</Label>
 				</div>
 				<div class="flex items-center gap-2">
-					<Button type="submit" size="sm">
+					<Button type="submit" size="sm" disabled={isSubmitting}>
 						<Plus class="mr-2 h-4 w-4" />
-						Create Account
+						{isSubmitting ? 'Creating...' : 'Create Account'}
 					</Button>
 				</div>
 			</div>

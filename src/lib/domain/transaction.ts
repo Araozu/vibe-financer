@@ -1,4 +1,4 @@
-export type TransactionType = 'expense' | 'income';
+export type TransactionType = 'expense' | 'income' | 'transfer';
 
 export interface Transaction {
 	id: string;
@@ -9,6 +9,7 @@ export interface Transaction {
 	description: string | null;
 	category: string | null;
 	payee: string | null;
+	targetAccountId: string | null; // For transfers
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -23,5 +24,17 @@ export function calculateNewBalance(currentBalance: number, amount: number, type
 	if (type === 'income') {
 		return currentBalance + amount;
 	}
-	return currentBalance - amount;
+	if (type === 'expense') {
+		return currentBalance - amount;
+	}
+	// For transfers, balance calculation is handled in the application layer
+	return currentBalance;
+}
+
+export function validateTransferCurrencies(fromCurrency: string, toCurrency: string): boolean {
+	return fromCurrency === toCurrency;
+}
+
+export function validateTransferAccounts(fromAccountId: string, toAccountId: string): boolean {
+	return fromAccountId !== toAccountId;
 }

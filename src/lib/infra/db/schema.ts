@@ -32,6 +32,7 @@ export const transaction = sqliteTable('transaction', {
 	description: text('description'),
 	category: text('category'),
 	payee: text('payee'),
+	targetAccountId: text('target_account_id').references(() => account.id, { onDelete: 'cascade' }),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date())
 });

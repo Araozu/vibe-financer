@@ -1,6 +1,7 @@
 import { listAccounts } from '$lib/application/account/list-accounts';
 import { createAccount } from '$lib/application/account/create-account';
 import { createTransaction } from '$lib/application/transaction/create-transaction';
+import { createTransfer } from '$lib/application/transaction/create-transfer';
 import { listTransactionsByAccount } from '$lib/application/transaction/list-transactions';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -104,19 +105,36 @@ export const actions: Actions = {
 		const description = formData.get('description') as string;
 		const category = formData.get('category') as string;
 		const payee = formData.get('payee') as string;
+		const targetAccountId = formData.get('targetAccountId') as string;
 
 		const amount = Math.round(parseFloat(amountStr) * 100);
 
 		try {
-			await createTransaction({
-				accountId,
-				type,
-				amount,
-				name: name || null,
-				description: description || null,
-				category: category || null,
-				payee: payee || null
-			});
+			// Handle transfer type
+			if (type === 'transfer') {
+				if (!targetAccountId) {
+					return fail(400, { error: 'Target account is required for transfers' });
+				}
+				await createTransfer({
+					fromAccountId: accountId,
+					toAccountId: targetAccountId,
+					amount,
+					name: name || null,
+					description: description || null
+				});
+			} else {
+				// Handle regular income/expense transactions
+				await createTransaction({
+					accountId,
+					type,
+					amount,
+					name: name || null,
+					description: description || null,
+					category: category || null,
+					payee: payee || null,
+					targetAccountId: null
+				});
+			}
 			return { success: true };
 		} catch (error: any) {
 			return fail(400, { error: error.message });
