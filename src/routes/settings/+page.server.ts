@@ -40,7 +40,7 @@ export const actions: Actions = {
 		const ageStr = formData.get('age') as string | null;
 
 		try {
-			const updateData: any = {};
+			const updateData: Partial<UpdateUserDTO> = {};
 			
 			if (firstName !== null) updateData.firstName = firstName || null;
 			if (lastName !== null) updateData.lastName = lastName || null;

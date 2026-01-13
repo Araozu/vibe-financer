@@ -12,6 +12,11 @@
 	let loadingProfile = $state(false);
 	let loadingPassword = $state(false);
 	let loadingEmail = $state(false);
+	
+	// Password form state for resetting
+	let currentPassword = $state('');
+	let newPassword = $state('');
+	let confirmPassword = $state('');
 
 	// Format date for input (YYYY-MM-DD)
 	function formatDateForInput(date: Date | null): string {
@@ -23,10 +28,17 @@
 	$effect(() => {
 		if (form?.success) {
 			toast.success(form.message || 'Changes saved successfully');
+			// Reset password fields on success
+			if (form.success && loadingPassword === false) {
+				currentPassword = '';
+				newPassword = '';
+				confirmPassword = '';
+			}
 		} else if (form?.error) {
 			toast.error(form.error);
 		}
 	});
+
 </script>
 
 <div class="min-h-screen bg-background">
@@ -234,14 +246,9 @@
 					action="?/changePassword"
 					use:enhance={() => {
 						loadingPassword = true;
-						return async ({ update, result }) => {
+						return async ({ update }) => {
 							await update();
 							loadingPassword = false;
-							// Clear form on success
-							if (result.type === 'success') {
-								const form = document.querySelector('form[action="?/changePassword"]') as HTMLFormElement;
-								form?.reset();
-							}
 						};
 					}}
 					class="space-y-4"
@@ -255,6 +262,7 @@
 							placeholder="••••••••"
 							required
 							disabled={loadingPassword}
+							bind:value={currentPassword}
 						/>
 					</div>
 
@@ -267,6 +275,7 @@
 							placeholder="••••••••"
 							required
 							disabled={loadingPassword}
+							bind:value={newPassword}
 						/>
 						<p class="text-xs text-muted-foreground">
 							Must be at least 8 characters long
@@ -282,6 +291,7 @@
 							placeholder="••••••••"
 							required
 							disabled={loadingPassword}
+							bind:value={confirmPassword}
 						/>
 					</div>
 

@@ -31,7 +31,8 @@ export function validateUserAge(age: number | null): boolean {
 export function validatePhoneNumber(phone: string | null): boolean {
     if (phone === null || phone === '') return true;
     // Basic phone validation - allows digits, spaces, dashes, parentheses, and plus sign
-    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    // TODO: Consider using a library like libphonenumber-js for more robust validation
+    const phoneRegex = /^[\d\s\-+()]+$/;
     return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
 }
 
