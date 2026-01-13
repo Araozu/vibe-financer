@@ -54,10 +54,15 @@
 
 	$effect(() => {
 		// Reset to account when changing from account or switching to transfer
-		if (selectedType === 'transfer') {
-			if (!selectedToAccountId || !availableToAccounts.find(a => a.id === selectedToAccountId)) {
-				selectedToAccountId = availableToAccounts[0]?.id || "";
+		if (selectedType === 'transfer' && availableToAccounts.length > 0) {
+			// Only update if current selection is invalid
+			const isCurrentValid = selectedToAccountId && availableToAccounts.find(a => a.id === selectedToAccountId);
+			if (!isCurrentValid) {
+				selectedToAccountId = availableToAccounts[0].id;
 			}
+		} else if (selectedType !== 'transfer') {
+			// Clear selection when not in transfer mode
+			selectedToAccountId = "";
 		}
 	});
 

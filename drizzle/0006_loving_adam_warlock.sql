@@ -1,1 +1,1 @@
-ALTER TABLE `transaction` ADD `to_account_id` text REFERENCES account(id);
+ALTER TABLE `transaction` ADD `to_account_id` text REFERENCES account(id) ON DELETE CASCADE;
