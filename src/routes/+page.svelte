@@ -5,6 +5,7 @@
 	import { Progress } from "$lib/components/ui/progress/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
+	import CreateTransactionDialog from "$lib/components/transaction/create-transaction-dialog.svelte";
 	import { 
 		Wallet, 
 		TrendingUp, 
@@ -15,7 +16,11 @@
 		Utensils,
 		Car,
 		Home,
-		ShoppingBag
+		ShoppingBag,
+		ArrowUpRight,
+		ArrowDownRight,
+		Tag,
+		DollarSign
 	} from "@lucide/svelte";
 	import logo from "$lib/assets/plain_icon.svg";
 
@@ -24,85 +29,65 @@
 	let totalBalance = $derived(data.accounts?.reduce((acc, curr) => acc + curr.currentBalance, 0) || 0);
 	let formattedTotalBalance = $derived((totalBalance / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
 
-	// Mock Data for UI demonstration
+	// Calculate real stats (filtered for current month)
+	const now = new Date();
+	const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+	let monthlyIncome = $derived(data.transactions
+		?.filter(tx => tx.type === 'income' && new Date(tx.createdAt) >= firstDayOfMonth)
+		.reduce((acc, curr) => acc + curr.amount, 0) || 0);
+	
+	let monthlyExpenses = $derived(data.transactions
+		?.filter(tx => tx.type === 'expense' && new Date(tx.createdAt) >= firstDayOfMonth)
+		.reduce((acc, curr) => acc + curr.amount, 0) || 0);
+
+	let formattedMonthlyIncome = $derived((monthlyIncome / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
+	let formattedMonthlyExpenses = $derived((monthlyExpenses / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
+
+	let savingsRate = $derived(monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0);
+
 	const summaryStats = $derived([
 		{
 			title: "Total Balance",
 			amount: formattedTotalBalance,
-			change: "+2.5% from last month",
+			change: "Overall net worth",
 			icon: Wallet,
 			color: "text-blue-500"
 		},
 		{
 			title: "Monthly Income",
-			amount: "$4,200.00",
-			change: "+10% from last month",
+			amount: formattedMonthlyIncome,
+			change: "This calendar month",
 			icon: TrendingUp,
 			color: "text-emerald-500"
 		},
 		{
 			title: "Monthly Expenses",
-			amount: "$2,150.00",
-			change: "-4.3% from last month",
+			amount: formattedMonthlyExpenses,
+			change: "This calendar month",
 			icon: TrendingDown,
 			color: "text-rose-500"
 		},
 		{
 			title: "Savings Rate",
-			amount: "48.8%",
-			change: "+5.2% from last month",
+			amount: `${savingsRate.toFixed(1)}%`,
+			change: "Monthly performance",
 			icon: PiggyBank,
 			color: "text-purple-500"
 		}
 	]);
 
-	const recentTransactions = [
-		{
-			id: "1",
-			date: "2024-03-10",
-			description: "Apple Store",
-			category: "Electronics",
-			amount: -1299.00,
-			type: "expense",
-			icon: ShoppingBag
-		},
-		{
-			id: "2",
-			date: "2024-03-09",
-			description: "Salary Deposit",
-			category: "Income",
-			amount: 4200.00,
-			type: "income",
-			icon: TrendingUp
-		},
-		{
-			id: "3",
-			date: "2024-03-08",
-			description: "Whole Foods",
-			category: "Groceries",
-			amount: -152.40,
-			type: "expense",
-			icon: Utensils
-		},
-		{
-			id: "4",
-			date: "2024-03-07",
-			description: "Gas Station",
-			category: "Transport",
-			amount: -45.00,
-			type: "expense",
-			icon: Car
-		},
-		{
-			id: "5",
-			date: "2024-03-06",
-			description: "Rent Payment",
-			category: "Housing",
-			amount: -1800.00,
-			type: "expense",
-			icon: Home
-		}
-	];
+	// Icon mapping for categories (simplified for now)
+	function getCategoryIcon(category: string | null) {
+		if (!category) return Tag;
+		const cat = category.toLowerCase();
+		if (cat.includes('food') || cat.includes('eat')) return Utensils;
+		if (cat.includes('car') || cat.includes('transport')) return Car;
+		if (cat.includes('home') || cat.includes('rent')) return Home;
+		if (cat.includes('shop')) return ShoppingBag;
+		if (cat.includes('income') || cat.includes('salary')) return TrendingUp;
+		return Tag;
+	}
 
 	const budgets = [
 		{ name: "Housing", spent: 1800, limit: 1800, color: "bg-blue-500" },
@@ -131,10 +116,7 @@
 				</Button>
 			</a>
 			<CreateAccountDialog />
-			<Button size="sm">
-				<Plus class="mr-2 h-4 w-4" />
-				Add Transaction
-			</Button>
+			<CreateTransactionDialog accounts={data.accounts} />
 		</div>
 	</div>
 
@@ -187,7 +169,7 @@
 				<Card.Header class="flex flex-row items-center justify-between">
 					<div>
 						<Card.Title>Recent Transactions</Card.Title>
-						<Card.Description>You have 12 transactions this week.</Card.Description>
+						<Card.Description>You have {data.transactions.length} transactions recorded.</Card.Description>
 					</div>
 					<Button variant="ghost" size="sm">View All</Button>
 				</Card.Header>
@@ -196,29 +178,42 @@
 						<Table.Header>
 							<Table.Row>
 								<Table.Head>Transaction</Table.Head>
+								<Table.Head class="hidden md:table-cell">Account</Table.Head>
 								<Table.Head class="hidden md:table-cell">Category</Table.Head>
 								<Table.Head class="text-right">Amount</Table.Head>
 							</Table.Row>
 						</Table.Header>
 						<Table.Body>
-							{#each recentTransactions as tx}
+							{#each data.transactions.slice(0, 10) as tx}
+								{@const account = data.accounts.find(a => a.id === tx.accountId)}
+								{@const Icon = getCategoryIcon(tx.category)}
 								<Table.Row>
 									<Table.Cell>
 										<div class="flex items-center gap-3">
 											<div class="p-2 bg-muted rounded-full">
-												<tx.icon class="h-4 w-4" />
+												<Icon class="h-4 w-4" />
 											</div>
 											<div>
-												<div class="font-medium">{tx.description}</div>
-												<div class="text-xs text-muted-foreground">{tx.date}</div>
+												<div class="font-medium">{tx.name || 'Untitled'}</div>
+												<div class="text-xs text-muted-foreground">
+													{new Date(tx.createdAt).toLocaleDateString()}
+												</div>
 											</div>
 										</div>
 									</Table.Cell>
 									<Table.Cell class="hidden md:table-cell">
-										<Badge variant="secondary">{tx.category}</Badge>
+										{#if account}
+											<div class="flex items-center gap-2">
+												<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
+												<span class="text-xs">{account.name}</span>
+											</div>
+										{/if}
 									</Table.Cell>
-									<Table.Cell class="text-right font-medium {tx.type === 'income' ? 'text-emerald-600' : ''}">
-										{tx.type === 'income' ? '+' : ''}{tx.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+									<Table.Cell class="hidden md:table-cell">
+										<Badge variant="secondary">{tx.category || 'Uncategorized'}</Badge>
+									</Table.Cell>
+									<Table.Cell class="text-right font-medium {tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}">
+										{tx.type === 'income' ? '+' : '-'}{(tx.amount / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
 									</Table.Cell>
 								</Table.Row>
 							{/each}

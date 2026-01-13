@@ -3,6 +3,7 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
+	import CreateTransactionDialog from "$lib/components/transaction/create-transaction-dialog.svelte";
 	import { 
 		CreditCard, 
 		TrendingUp, 
@@ -54,6 +55,7 @@
 		</div>
 		<div class="flex gap-2">
 			<CreateAccountDialog />
+			<CreateTransactionDialog accounts={data.accounts} />
 		</div>
 	</div>
 
