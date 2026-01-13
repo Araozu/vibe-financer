@@ -23,6 +23,11 @@ export const userRepo = {
 		return result;
 	},
 
+	async findByEmail(email: string): Promise<User | undefined> {
+		const [result] = await db.select().from(user).where(eq(user.email, email));
+		return result;
+	},
+
 	async findAll(): Promise<User[]> {
 		return await db.select().from(user);
 	}

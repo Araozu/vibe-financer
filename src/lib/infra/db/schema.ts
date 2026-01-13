@@ -6,7 +6,16 @@ export const user = sqliteTable('user', {
 	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
 	email: text('email').notNull().unique(),
 	passwordHash: text('password_hash').notNull(),
-	age: integer('age')
+	age: integer('age'),
+	createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date())
+});
+
+export const session = sqliteTable('session', {
+	id: text('id').primaryKey(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull()
 });
 
 export const session = sqliteTable('session', {

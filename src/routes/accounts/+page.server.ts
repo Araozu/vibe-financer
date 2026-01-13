@@ -9,12 +9,14 @@ import type { AccountType } from '$lib/domain/account';
 import type { TransactionType } from '$lib/domain/transaction';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	// Check if user is authenticated
+	// Require authentication
 	if (!locals.user) {
 		throw redirect(302, '/login');
 	}
 
-	const accounts = await listAccounts();
+	const allAccounts = await listAccounts();
+	// Filter accounts by user
+	const accounts = allAccounts.filter(acc => acc.userId === locals.user!.id);
 	
 	const accountsWithData = await Promise.all(accounts.map(async (account) => {
 		const transactions = await listTransactionsByAccount(account.id);
@@ -74,7 +76,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	createAccount: async ({ request, locals }) => {
-		// Check authentication
 		if (!locals.user) {
 			return fail(401, { error: 'Unauthorized' });
 		}
@@ -108,7 +109,6 @@ export const actions: Actions = {
 		}
 	},
 	createTransaction: async ({ request, locals }) => {
-		// Check authentication
 		if (!locals.user) {
 			return fail(401, { error: 'Unauthorized' });
 		}
