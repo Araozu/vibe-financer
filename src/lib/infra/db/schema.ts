@@ -18,14 +18,6 @@ export const session = sqliteTable('session', {
 	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull()
 });
 
-export const session = sqliteTable('session', {
-	id: text('id').primaryKey(),
-	userId: text('user_id')
-		.notNull()
-		.references(() => user.id, { onDelete: 'cascade' }),
-	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull()
-});
-
 export const account = sqliteTable('account', {
 	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
 	userId: text('user_id')
