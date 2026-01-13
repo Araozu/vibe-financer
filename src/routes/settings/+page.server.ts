@@ -39,11 +39,11 @@ export const actions: Actions = {
 			return fail(400, { error: 'User ID is required' });
 		}
 
-		if (!defaultCurrencyCode || defaultCurrencyCode.length === 0) {
+		if (!defaultCurrencyCode?.trim()) {
 			return fail(400, { error: 'Currency code is required' });
 		}
 
-		if (!defaultCurrencySymbol || defaultCurrencySymbol.length === 0) {
+		if (!defaultCurrencySymbol?.trim()) {
 			return fail(400, { error: 'Currency symbol is required' });
 		}
 
@@ -56,8 +56,9 @@ export const actions: Actions = {
 				defaultCurrencySymbol
 			});
 			return { success: true, message: 'Settings updated successfully!' };
-		} catch (error: any) {
-			return fail(400, { error: error.message });
+		} catch (error: unknown) {
+			const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+			return fail(400, { error: errorMessage });
 		}
 	}
 };

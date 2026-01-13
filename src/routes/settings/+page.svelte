@@ -16,8 +16,10 @@
 	let defaultCurrencySymbol = $state(data.user.defaultCurrencySymbol);
 
 	function handleCurrencyCodeInput(event: Event) {
-		const target = event.target as HTMLInputElement;
-		defaultCurrencyCode = target.value.toUpperCase();
+		const target = event.target;
+		if (target instanceof HTMLInputElement) {
+			defaultCurrencyCode = target.value.toUpperCase();
+		}
 	}
 
 	$effect(() => {
