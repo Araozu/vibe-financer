@@ -4,11 +4,7 @@
 	import * as Table from "$lib/components/ui/table/index.js";
 	import { Progress } from "$lib/components/ui/progress/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
-	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import { Label } from "$lib/components/ui/label/index.js";
-	import * as Select from "$lib/components/ui/select/index.js";
-	import { enhance } from '$app/forms';
+	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
 	import { 
 		Wallet, 
 		TrendingUp, 
@@ -24,9 +20,6 @@
 	import logo from "$lib/assets/plain_icon.svg";
 
 	let { data } = $props();
-
-	let isAccountDialogOpen = $state(false);
-	let selectedType = $state("asset");
 
 	// Mock Data for UI demonstration
 	const summaryStats = [
@@ -128,75 +121,7 @@
 			</div>
 		</div>
 		<div class="flex gap-2">
-			<Dialog.Root bind:open={isAccountDialogOpen}>
-				<Dialog.Trigger>
-					<Button variant="outline" size="sm">
-						<CreditCard class="mr-2 h-4 w-4" />
-						Accounts
-					</Button>
-				</Dialog.Trigger>
-				<Dialog.Content class="sm:max-w-160">
-					<Dialog.Header>
-						<Dialog.Title>Create Account</Dialog.Title>
-						<Dialog.Description>
-							Add a new account to your financial profile.
-						</Dialog.Description>
-					</Dialog.Header>
-					<form 
-						method="POST" 
-						action="?/createAccount" 
-						use:enhance={() => {
-							return async ({ result }) => {
-								if (result.type === 'success') {
-									isAccountDialogOpen = false;
-								}
-							};
-						}} 
-						class="grid gap-4 py-4"
-					>
-						<div class="grid grid-cols-4 items-center gap-4">
-							<Label for="name" class="text-right">Name</Label>
-							<Input id="name" name="name" placeholder="Savings Account" class="col-span-3" required />
-						</div>
-						<div class="grid grid-cols-4 items-center gap-4">
-							<Label for="type" class="text-right">Type</Label>
-							<div class="col-span-3">
-								<Select.Root type="single" bind:value={selectedType}>
-									<Select.Trigger class="w-full">
-										<Select.Value placeholder="Select type" />
-									</Select.Trigger>
-									<Select.Content>
-										<Select.Item value="asset" label="Asset">Asset</Select.Item>
-										<Select.Item value="expense" label="Expense">Expense</Select.Item>
-										<Select.Item value="revenue" label="Revenue">Revenue</Select.Item>
-										<Select.Item value="liability" label="Liability">Liability</Select.Item>
-									</Select.Content>
-								</Select.Root>
-								<input type="hidden" name="type" value={selectedType} />
-							</div>
-						</div>
-						<div class="grid grid-cols-4 items-center gap-4">
-							<Label for="initialBalance" class="text-right">Initial Balance</Label>
-							<Input id="initialBalance" name="initialBalance" type="number" step="0.01" placeholder="0.00" class="col-span-3" required />
-						</div>
-						<div class="grid grid-cols-4 items-center gap-4">
-							<Label for="currencyCode" class="text-right">Currency Code</Label>
-							<Input id="currencyCode" name="currencyCode" placeholder="USD" class="col-span-3" required />
-						</div>
-						<div class="grid grid-cols-4 items-center gap-4">
-							<Label for="currencySymbol" class="text-right">Symbol</Label>
-							<Input id="currencySymbol" name="currencySymbol" placeholder="$" class="col-span-3" required />
-						</div>
-						<div class="grid grid-cols-4 items-center gap-4">
-							<Label for="color" class="text-right">Color</Label>
-							<Input id="color" name="color" type="color" class="col-span-3 h-10" required />
-						</div>
-						<Dialog.Footer>
-							<Button type="submit">Create Account</Button>
-						</Dialog.Footer>
-					</form>
-				</Dialog.Content>
-			</Dialog.Root>
+			<CreateAccountDialog />
 			<Button size="sm">
 				<Plus class="mr-2 h-4 w-4" />
 				Add Transaction
