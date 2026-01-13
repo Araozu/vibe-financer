@@ -3,13 +3,16 @@ import { user } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import type { User, CreateUserDTO, UpdateUserDTO } from '../../domain/user';
 
+// Internal update type that allows updating sensitive fields
+type InternalUpdateUserDTO = Partial<Omit<CreateUserDTO, 'id' | 'createdAt'>>;
+
 export const userRepo = {
 	async create(data: CreateUserDTO): Promise<User> {
 		const [result] = await db.insert(user).values(data).returning();
 		return result;
 	},
 
-	async update(id: string, data: UpdateUserDTO): Promise<User | undefined> {
+	async update(id: string, data: UpdateUserDTO | InternalUpdateUserDTO): Promise<User | undefined> {
 		const [result] = await db
 			.update(user)
 			.set(data)

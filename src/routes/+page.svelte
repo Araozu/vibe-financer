@@ -21,7 +21,8 @@
 		ArrowUpRight,
 		ArrowDownRight,
 		Tag,
-		DollarSign
+		DollarSign,
+		Settings
 	} from "@lucide/svelte";
 	import logo from "$lib/assets/plain_icon.svg";
 
@@ -118,6 +119,12 @@
 			</a>
 			<CreateAccountDialog />
 			<CreateTransactionDialog accounts={data.accounts} />
+			<a href="/settings">
+				<Button variant="outline" size="sm">
+					<Settings class="mr-2 h-4 w-4" />
+					Settings
+				</Button>
+			</a>
 			<form method="POST" action="/logout">
 				<Button variant="ghost" size="sm" type="submit">
 					Logout
