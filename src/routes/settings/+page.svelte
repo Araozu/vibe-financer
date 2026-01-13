@@ -15,6 +15,11 @@
 	let defaultCurrencyCode = $state(data.user.defaultCurrencyCode);
 	let defaultCurrencySymbol = $state(data.user.defaultCurrencySymbol);
 
+	function handleCurrencyCodeInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		defaultCurrencyCode = target.value.toUpperCase();
+	}
+
 	$effect(() => {
 		if (form?.success) {
 			toast.success(form.message || 'Settings updated!');
@@ -132,6 +137,7 @@
 								name="defaultCurrencyCode" 
 								placeholder="USD" 
 								bind:value={defaultCurrencyCode}
+								oninput={handleCurrencyCodeInput}
 								class="w-full uppercase"
 								maxlength="3"
 								required
