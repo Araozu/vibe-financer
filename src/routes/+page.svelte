@@ -118,6 +118,11 @@
 			</a>
 			<CreateAccountDialog />
 			<CreateTransactionDialog accounts={data.accounts} />
+			<form method="POST" action="/logout">
+				<Button variant="ghost" size="sm" type="submit">
+					Logout
+				</Button>
+			</form>
 		</div>
 	</div>
 
