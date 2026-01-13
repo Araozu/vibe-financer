@@ -1,5 +1,6 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { AccountType } from '$lib/domain/account';
+import type { TransactionType } from '$lib/domain/transaction';
 
 export const user = sqliteTable('user', {
 	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -16,6 +17,21 @@ export const account = sqliteTable('account', {
 	currencyCode: text('currency_code').notNull(),
 	currencySymbol: text('currency_symbol').notNull(),
 	color: text('color').notNull(),
+	createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date())
+});
+
+export const transaction = sqliteTable('transaction', {
+	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+	accountId: text('account_id')
+		.notNull()
+		.references(() => account.id, { onDelete: 'cascade' }),
+	type: text('type').$type<TransactionType>().notNull(),
+	amount: integer('amount').notNull(),
+	name: text('name'),
+	description: text('description'),
+	category: text('category'),
+	payee: text('payee'),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date())
 });
