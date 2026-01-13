@@ -1,6 +1,7 @@
 import { listAccounts } from '$lib/application/account/list-accounts';
 import { createAccount } from '$lib/application/account/create-account';
 import { createTransaction } from '$lib/application/transaction/create-transaction';
+import { createTransfer } from '$lib/application/transaction/create-transfer';
 import { listTransactionsByAccount } from '$lib/application/transaction/list-transactions';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -116,6 +117,29 @@ export const actions: Actions = {
 				description: description || null,
 				category: category || null,
 				payee: payee || null
+			});
+			return { success: true };
+		} catch (error: any) {
+			return fail(400, { error: error.message });
+		}
+	},
+	createTransfer: async ({ request }) => {
+		const formData = await request.formData();
+		const fromAccountId = formData.get('fromAccountId') as string;
+		const toAccountId = formData.get('toAccountId') as string;
+		const amountStr = formData.get('amount') as string;
+		const name = formData.get('name') as string;
+		const description = formData.get('description') as string;
+
+		const amount = Math.round(parseFloat(amountStr) * 100);
+
+		try {
+			await createTransfer({
+				fromAccountId,
+				toAccountId,
+				amount,
+				name: name || null,
+				description: description || null
 			});
 			return { success: true };
 		} catch (error: any) {

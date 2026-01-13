@@ -25,6 +25,7 @@
 	let currencyCode = $state("USD");
 	let currencySymbol = $state("$");
 	let color = $state("#3b82f6");
+	let isSubmitting = $state(false);
 
 	const accountTypes = [
 		{ value: "asset", label: "Asset", icon: CreditCard },
@@ -53,7 +54,9 @@
 			method="POST" 
 			action="?/createAccount" 
 			use:enhance={() => {
+				isSubmitting = true;
 				return async ({ result }) => {
+					isSubmitting = false;
 					if (result.type === 'success') {
 						if (!createMore) {
 							open = false;
@@ -189,9 +192,14 @@
 					<Label for="create-more" class="text-xs text-muted-foreground font-medium cursor-pointer">Create more</Label>
 				</div>
 				<div class="flex items-center gap-2">
-					<Button type="submit" size="sm">
-						<Plus class="mr-2 h-4 w-4" />
-						Create Account
+					<Button type="submit" size="sm" disabled={isSubmitting}>
+						{#if isSubmitting}
+							<span class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+							Creating...
+						{:else}
+							<Plus class="mr-2 h-4 w-4" />
+							Create Account
+						{/if}
 					</Button>
 				</div>
 			</div>

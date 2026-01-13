@@ -46,6 +46,7 @@
 	let amount = $state("");
 	let category = $state("");
 	let payee = $state("");
+	let isSubmitting = $state(false);
 
 	let titleInput: HTMLInputElement | null = $state(null);
 
@@ -84,7 +85,9 @@
 	method="POST" 
 	action="?/createTransaction" 
 	use:enhance={() => {
+		isSubmitting = true;
 		return async ({ result }) => {
+			isSubmitting = false;
 			if (result.type === 'success') {
 				toast.success("Transaction created successfully");
 				resetForm();
@@ -95,6 +98,8 @@
 				
 				await tick();
 				titleInput?.focus();
+			} else if (result.type === 'failure') {
+				toast.error(result.data?.error || "Failed to create transaction");
 			}
 		};
 	}} 
@@ -236,9 +241,14 @@
 			{/if}
 		</div>
 		<div class="flex items-center gap-2">
-			<Button type="submit" size="sm">
-				<Plus class="mr-2 h-4 w-4" />
-				Add Transaction
+			<Button type="submit" size="sm" disabled={isSubmitting}>
+				{#if isSubmitting}
+					<span class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+					Adding...
+				{:else}
+					<Plus class="mr-2 h-4 w-4" />
+					Add Transaction
+				{/if}
 			</Button>
 		</div>
 	</div>

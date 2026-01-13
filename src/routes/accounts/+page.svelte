@@ -6,6 +6,7 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
 	import CreateTransactionDialog from "$lib/components/transaction/create-transaction-dialog.svelte";
+	import CreateTransferDialog from "$lib/components/transaction/create-transfer-dialog.svelte";
 	import { 
 		CreditCard, 
 		TrendingUp, 
@@ -66,6 +67,7 @@
 		</div>
 		<div class="flex gap-2">
 			<CreateAccountDialog />
+			<CreateTransferDialog accounts={data.accounts} />
 			<CreateTransactionDialog accounts={data.accounts} />
 		</div>
 	</div>
@@ -224,13 +226,29 @@
 														<Table.Cell class="py-3">
 															<div class="flex flex-col">
 																<span class="font-semibold text-sm line-clamp-1">{tx.name || tx.payee || 'Untitled'}</span>
-																<span class="text-[10px] text-muted-foreground uppercase tracking-tighter">{tx.category || 'Uncategorized'}</span>
+																<span class="text-[10px] text-muted-foreground uppercase tracking-tighter">
+																	{#if tx.type === 'transfer'}
+																		{#if tx.toAccountId === account.id}
+																			Transfer In
+																		{:else}
+																			Transfer Out
+																		{/if}
+																	{:else}
+																		{tx.category || 'Uncategorized'}
+																	{/if}
+																</span>
 															</div>
 														</Table.Cell>
 														<Table.Cell class="text-right py-3 font-bold">
-															<span class={tx.type === 'income' ? 'text-emerald-500' : 'text-foreground'}>
-																{tx.type === 'income' ? '+' : '-'}{formatAmount(tx.amount, account.currencyCode, account.currencySymbol)}
-															</span>
+															{#if tx.type === 'transfer'}
+																<span class={tx.toAccountId === account.id ? 'text-emerald-500' : 'text-blue-500'}>
+																	{tx.toAccountId === account.id ? '+' : '-'}{formatAmount(tx.amount, account.currencyCode, account.currencySymbol)}
+																</span>
+															{:else}
+																<span class={tx.type === 'income' ? 'text-emerald-500' : 'text-foreground'}>
+																	{tx.type === 'income' ? '+' : '-'}{formatAmount(tx.amount, account.currencyCode, account.currencySymbol)}
+																</span>
+															{/if}
 														</Table.Cell>
 													</Table.Row>
 												{/each}
