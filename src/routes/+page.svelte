@@ -5,6 +5,8 @@
 	import * as Table from "$lib/components/ui/table/index.js";
 	import { Progress } from "$lib/components/ui/progress/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
+	import * as NavigationMenu from "$lib/components/ui/navigation-menu/index.js";
+	import { navigationMenuTriggerStyle } from "$lib/components/ui/navigation-menu/navigation-menu-trigger.svelte";
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
 	import CreateTransactionDialog from "$lib/components/transaction/create-transaction-dialog.svelte";
 	import CreateTransactionForm from "$lib/components/transaction/create-transaction-form.svelte";
@@ -17,8 +19,7 @@
 		Car,
 		Home,
 		ShoppingBag,
-		Tag,
-		Settings
+		Tag
 	} from "@lucide/svelte";
 	import logo from "$lib/assets/plain_icon.svg";
 	import type { Account } from '$lib/domain/account';
@@ -124,34 +125,41 @@
 
 <div class="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
 	<!-- Header -->
-	<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-		<div class="flex items-center gap-4">
-			<img src={logo} alt="Vibe Financer" class="h-12 w-12" />
-			<div>
-				<h1 class="text-3xl font-bold tracking-tight">Financial Dashboard</h1>
-				<p class="text-muted-foreground">Welcome back! Here's what's happening with your money.</p>
+	<div class="border-b pb-6 gap-4 w-full">
+		<div class="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 w-full justify-between">
+			<div class="flex items-center gap-4">
+				<img src={logo} alt="Vibe Financer" class="h-12 w-12" />
+				<div>
+					<h1 class="text-3xl font-bold tracking-tight">Financer</h1>
+					<p class="text-muted-foreground text-sm">Diamond hands</p>
+				</div>
 			</div>
-		</div>
-		<div class="flex gap-2">
-			<a href="/accounts">
-				<Button variant="outline" size="sm">
-					<Wallet class="mr-2 h-4 w-4" />
-					View Accounts
-				</Button>
-			</a>
-			<CreateAccountDialog />
-			<CreateTransactionDialog accounts={accounts} />
-			<a href="/settings">
-				<Button variant="outline" size="sm">
-					<Settings class="mr-2 h-4 w-4" />
-					Settings
-				</Button>
-			</a>
-			<form method="POST" action="/logout">
-				<Button variant="ghost" size="sm" type="submit">
-					Logout
-				</Button>
-			</form>
+
+			<NavigationMenu.Root>
+				<NavigationMenu.List>
+					<NavigationMenu.Item>
+						<a href="/">
+							<NavigationMenu.Link class={navigationMenuTriggerStyle()}>
+								Dashboard
+							</NavigationMenu.Link>
+						</a>
+					</NavigationMenu.Item>
+					<NavigationMenu.Item>
+						<a href="/accounts">
+							<NavigationMenu.Link class={navigationMenuTriggerStyle()}>
+								Accounts
+							</NavigationMenu.Link>
+						</a>
+					</NavigationMenu.Item>
+					<NavigationMenu.Item>
+						<a href="/settings">
+							<NavigationMenu.Link class={navigationMenuTriggerStyle()}>
+								Settings
+							</NavigationMenu.Link>
+						</a>
+					</NavigationMenu.Item>
+				</NavigationMenu.List>
+			</NavigationMenu.Root>
 		</div>
 	</div>
 
