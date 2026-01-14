@@ -5,6 +5,7 @@
 	import * as Select from "$lib/components/ui/select/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { enhance } from '$app/forms';
+	import { useQueryClient } from '@tanstack/svelte-query';
 	import { 
 		ArrowDownRight, 
 		ArrowUpRight, 
@@ -17,9 +18,18 @@
 		Plus,
 		Loader2
 	} from "@lucide/svelte";
-	import type { Account } from "$lib/domain/account";
 	import { toast } from "svelte-sonner";
 	import { onMount, tick } from "svelte";
+
+	// Minimal account type for what this component needs
+	interface AccountLike {
+		id: string;
+		name: string;
+		color: string;
+		currencyCode: string;
+	}
+
+	const queryClient = useQueryClient();
 
 	let { 
 		accounts = [], 
@@ -27,7 +37,7 @@
 		showCreateMore = true,
 		class: className = ""
 	}: { 
-		accounts: Account[], 
+		accounts: AccountLike[], 
 		onSuccess?: (createMore: boolean) => void,
 		showCreateMore?: boolean,
 		class?: string
@@ -117,6 +127,9 @@
 			isLoading = false;
 			if (result.type === 'success') {
 				toast.success("Transaction created successfully");
+				// Invalidate queries to refetch updated data
+				queryClient.invalidateQueries({ queryKey: ['transactions'] });
+				queryClient.invalidateQueries({ queryKey: ['accounts'] });
 				resetForm();
 				
 				if (onSuccess) {
@@ -195,7 +208,7 @@
 			<Select.Root type="single" bind:value={selectedAccountId}>
 				<Select.Trigger class="w-auto min-w-40 h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
 					<Wallet class="h-3.5 w-3.5" />
-					<span>{accounts.find((a: Account) => a.id === selectedAccountId)?.name || "Select Account"}</span>
+					<span>{accounts.find((a) => a.id === selectedAccountId)?.name ?? "Select Account"}</span>
 				</Select.Trigger>
 				<Select.Content>
 					{#each accounts as account}
@@ -236,7 +249,7 @@
 					<Select.Root type="single" bind:value={selectedToAccountId}>
 						<Select.Trigger class="w-auto min-w-40 h-8 px-2.5 py-1.5 text-xs font-medium bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-colors rounded-md gap-2">
 							<ArrowLeftRight class="h-3.5 w-3.5 text-blue-500" />
-							<span>To: {availableToAccounts.find((a: Account) => a.id === selectedToAccountId)?.name || "Select Account"}</span>
+							<span>To: {availableToAccounts.find((a) => a.id === selectedToAccountId)?.name ?? "Select Account"}</span>
 						</Select.Trigger>
 						<Select.Content>
 							{#each availableToAccounts as account}

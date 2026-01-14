@@ -6,6 +6,7 @@
 	import * as Select from "$lib/components/ui/select/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { enhance } from '$app/forms';
+	import { useQueryClient } from '@tanstack/svelte-query';
 	import { 
 		CreditCard, 
 		Type, 
@@ -16,6 +17,8 @@
         Loader2
 	} from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
+
+	const queryClient = useQueryClient();
 
 	let { open = $bindable(false) } = $props();
 	
@@ -61,12 +64,15 @@
 					isLoading = false;
 					if (result.type === 'success') {
 						toast.success("Account created successfully");
+						// Invalidate accounts queries to refetch
+						queryClient.invalidateQueries({ queryKey: ['accounts'] });
 						if (!createMore) {
 							open = false;
 						}
 						resetForm();
 					} else if (result.type === 'failure') {
-						toast.error(result.data?.error || "Failed to create account");
+						const errorMessage = typeof result.data?.error === 'string' ? result.data.error : "Failed to create account";
+						toast.error(errorMessage);
 					}
 				};
 			}} 

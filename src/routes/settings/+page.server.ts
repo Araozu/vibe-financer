@@ -1,28 +1,9 @@
-import type { PageServerLoad, Actions } from './$types';
-import { redirect, fail } from '@sveltejs/kit';
+import type { Actions } from './$types';
+import { fail } from '@sveltejs/kit';
 import { updateUser } from '$lib/application/user/update-user';
 import { changePassword } from '$lib/application/user/change-password';
 import { changeEmail } from '$lib/application/user/change-email';
-
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) {
-		throw redirect(302, '/login');
-	}
-
-	return {
-		user: {
-			id: locals.user.id,
-			email: locals.user.email,
-			firstName: locals.user.firstName,
-			lastName: locals.user.lastName,
-			phoneNumber: locals.user.phoneNumber,
-			dateOfBirth: locals.user.dateOfBirth,
-			preferredCurrency: locals.user.preferredCurrency,
-			timezone: locals.user.timezone,
-			age: locals.user.age,
-		}
-	};
-};
+import type { UpdateUserDTO } from '$lib/domain/user';
 
 export const actions: Actions = {
 	updateProfile: async ({ request, locals }) => {
@@ -42,12 +23,12 @@ export const actions: Actions = {
 		try {
 			const updateData: Partial<UpdateUserDTO> = {};
 			
-			if (firstName !== null) updateData.firstName = firstName || null;
-			if (lastName !== null) updateData.lastName = lastName || null;
-			if (phoneNumber !== null) updateData.phoneNumber = phoneNumber || null;
+			if (firstName !== null) updateData.firstName = firstName ?? null;
+			if (lastName !== null) updateData.lastName = lastName ?? null;
+			if (phoneNumber !== null) updateData.phoneNumber = phoneNumber ?? null;
 			if (dateOfBirth) updateData.dateOfBirth = new Date(dateOfBirth);
-			if (preferredCurrency !== null) updateData.preferredCurrency = preferredCurrency || null;
-			if (timezone !== null) updateData.timezone = timezone || null;
+			if (preferredCurrency !== null) updateData.preferredCurrency = preferredCurrency ?? null;
+			if (timezone !== null) updateData.timezone = timezone ?? null;
 			if (ageStr !== null) {
 				const age = parseInt(ageStr);
 				updateData.age = isNaN(age) ? null : age;

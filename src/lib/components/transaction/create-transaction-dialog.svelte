@@ -3,10 +3,17 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import * as Tooltip from "$lib/components/ui/tooltip/index.js";
 	import { Plus } from "@lucide/svelte";
-	import type { Account } from "$lib/domain/account";
 	import CreateTransactionForm from "./create-transaction-form.svelte";
 
-	let { open = $bindable(false), accounts = [] } = $props<{ open?: boolean, accounts: Account[] }>();
+	// Minimal account type for what this component needs
+	interface AccountLike {
+		id: string;
+		name: string;
+		color: string;
+		currencyCode: string;
+	}
+
+	let { open = $bindable(false), accounts = [] } = $props<{ open?: boolean, accounts: AccountLike[] }>();
 
 	const hasAccounts = $derived(accounts.length > 0);
 

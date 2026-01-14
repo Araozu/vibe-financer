@@ -1,15 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
-import type { Actions, PageServerLoad } from './$types';
+import type { Actions } from './$types';
 import { login } from '$lib/application/auth/login';
 import { signup } from '$lib/application/auth/signup';
-
-export const load: PageServerLoad = async ({ locals }) => {
-	// If user is already logged in, redirect to home
-	if (locals.user) {
-		throw redirect(302, '/');
-	}
-	return {};
-};
 
 export const actions: Actions = {
 	login: async ({ request, cookies }) => {

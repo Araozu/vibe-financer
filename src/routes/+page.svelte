@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { createQuery } from '@tanstack/svelte-query';
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Table from "$lib/components/ui/table/index.js";
@@ -7,7 +8,7 @@
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
 	import CreateTransactionDialog from "$lib/components/transaction/create-transaction-dialog.svelte";
 	import CreateTransactionForm from "$lib/components/transaction/create-transaction-form.svelte";
-		import { 
+	import { 
 		Wallet, 
 		TrendingUp, 
 		TrendingDown, 
@@ -20,23 +21,49 @@
 		Settings
 	} from "@lucide/svelte";
 	import logo from "$lib/assets/plain_icon.svg";
+	import type { Account } from '$lib/domain/account';
+	import type { Transaction } from '$lib/domain/transaction';
 
-	let { data } = $props();
+	// Serialized types from API (dates as strings)
+	interface SerializedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
+		createdAt: string;
+		updatedAt: string;
+	}
 
-	let totalBalance = $derived(data.accounts?.reduce((acc, curr) => acc + curr.currentBalance, 0) || 0);
+	interface SerializedTransaction extends Omit<Transaction, 'createdAt' | 'updatedAt'> {
+		createdAt: string;
+		updatedAt: string;
+	}
+
+	// Query for accounts
+	const accountsQuery = createQuery<SerializedAccount[]>(() => ({
+		queryKey: ['accounts'],
+		queryFn: async () => (await fetch('/api/accounts')).json(),
+	}));
+
+	// Query for transactions
+	const transactionsQuery = createQuery<SerializedTransaction[]>(() => ({
+		queryKey: ['transactions'],
+		queryFn: async () => (await fetch('/api/transactions')).json(),
+	}));
+
+	let accounts = $derived(accountsQuery.data ?? []);
+	let transactions = $derived(transactionsQuery.data ?? []);
+
+	let totalBalance = $derived(accounts.reduce((acc: number, curr) => acc + curr.currentBalance, 0));
 	let formattedTotalBalance = $derived((totalBalance / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
 
 	// Calculate real stats (filtered for current month)
 	const now = new Date();
 	const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-	let monthlyIncome = $derived(data.transactions
-		?.filter(tx => tx.type === 'income' && new Date(tx.createdAt) >= firstDayOfMonth)
-		.reduce((acc, curr) => acc + curr.amount, 0) || 0);
+	let monthlyIncome = $derived(transactions
+		.filter((tx) => tx.type === 'income' && new Date(tx.createdAt) >= firstDayOfMonth)
+		.reduce((acc: number, curr) => acc + curr.amount, 0));
 	
-	let monthlyExpenses = $derived(data.transactions
-		?.filter(tx => tx.type === 'expense' && new Date(tx.createdAt) >= firstDayOfMonth)
-		.reduce((acc, curr) => acc + curr.amount, 0) || 0);
+	let monthlyExpenses = $derived(transactions
+		.filter((tx) => tx.type === 'expense' && new Date(tx.createdAt) >= firstDayOfMonth)
+		.reduce((acc: number, curr) => acc + curr.amount, 0));
 
 	let formattedMonthlyIncome = $derived((monthlyIncome / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
 	let formattedMonthlyExpenses = $derived((monthlyExpenses / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
@@ -113,7 +140,7 @@
 				</Button>
 			</a>
 			<CreateAccountDialog />
-			<CreateTransactionDialog accounts={data.accounts} />
+			<CreateTransactionDialog accounts={accounts} />
 			<a href="/settings">
 				<Button variant="outline" size="sm">
 					<Settings class="mr-2 h-4 w-4" />
@@ -149,10 +176,10 @@
 	<div class="grid gap-8 md:grid-cols-7">
 		<!-- Main Content: Transactions & Charts -->
 		<div class="md:col-span-4 space-y-8">
-			{#if data.accounts?.length > 0}
+			{#if accounts.length > 0}
 				<Card.Root class="overflow-hidden py-0">
 					<CreateTransactionForm 
-						accounts={data.accounts} 
+						accounts={accounts} 
 						showCreateMore={false} 
 					/>
 				</Card.Root>
@@ -199,7 +226,7 @@
 				<Card.Header class="flex flex-row items-center justify-between">
 					<div>
 						<Card.Title>Recent Transactions</Card.Title>
-						<Card.Description>You have {data.transactions.length} transactions recorded.</Card.Description>
+						<Card.Description>You have {transactions.length} transactions recorded.</Card.Description>
 					</div>
 					<Button variant="ghost" size="sm">View All</Button>
 				</Card.Header>
@@ -214,8 +241,8 @@
 							</Table.Row>
 						</Table.Header>
 						<Table.Body>
-							{#each data.transactions.slice(0, 10) as tx}
-								{@const account = data.accounts.find(a => a.id === tx.accountId)}
+							{#each transactions.slice(0, 10) as tx}
+								{@const account = accounts.find((a) => a.id === tx.accountId)}
 								{@const Icon = getCategoryIcon(tx.category)}
 								<Table.Row>
 									<Table.Cell>
@@ -224,7 +251,7 @@
 												<Icon class="h-4 w-4" />
 											</div>
 											<div>
-												<div class="font-medium">{tx.name || 'Untitled'}</div>
+												<div class="font-medium">{tx.name ?? 'Untitled'}</div>
 												<div class="text-xs text-muted-foreground">
 													{new Date(tx.createdAt).toLocaleDateString()}
 												</div>
@@ -240,7 +267,7 @@
 										{/if}
 									</Table.Cell>
 									<Table.Cell class="hidden md:table-cell">
-										<Badge variant="secondary">{tx.category || 'Uncategorized'}</Badge>
+										<Badge variant="secondary">{tx.category ?? 'Uncategorized'}</Badge>
 									</Table.Cell>
 									<Table.Cell class="text-right font-medium {tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}">
 										{tx.type === 'income' ? '+' : '-'}{(tx.amount / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
