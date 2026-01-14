@@ -5,8 +5,8 @@ CREATE TABLE `session` (
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-ALTER TABLE `account` ADD `user_id` text NOT NULL REFERENCES user(id);--> statement-breakpoint
-ALTER TABLE `user` ADD `email` text NOT NULL;--> statement-breakpoint
-ALTER TABLE `user` ADD `password_hash` text NOT NULL;--> statement-breakpoint
-ALTER TABLE `user` ADD `created_at` integer NOT NULL;--> statement-breakpoint
+ALTER TABLE `account` ADD `user_id` text NOT NULL DEFAULT '0' REFERENCES user(id);--> statement-breakpoint
+ALTER TABLE `user` ADD `email` text NOT NULL DEFAULT '';--> statement-breakpoint
+ALTER TABLE `user` ADD `password_hash` text NOT NULL DEFAULT '';--> statement-breakpoint
+ALTER TABLE `user` ADD `created_at` integer NOT NULL DEFAULT 0;--> statement-breakpoint
 CREATE UNIQUE INDEX `user_email_unique` ON `user` (`email`);

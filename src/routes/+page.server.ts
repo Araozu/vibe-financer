@@ -43,7 +43,8 @@ export const actions: Actions = {
 		const currencySymbol = formData.get('currencySymbol') as string;
 		const color = formData.get('color') as string;
 
-		const initialBalance = parseFloat(initialBalanceStr) * 100; // Convert to cents
+		const parsedBalance = parseFloat(initialBalanceStr);
+		const initialBalance = isNaN(parsedBalance) ? 0 : Math.round(parsedBalance * 100);
 
 		try {
 			await createAccount({
@@ -75,6 +76,7 @@ export const actions: Actions = {
 		const description = formData.get('description') as string;
 		const category = formData.get('category') as string;
 		const payee = formData.get('payee') as string;
+		const toAccountId = formData.get('toAccountId') as string | null;
 
 		const amount = Math.round(parseFloat(amountStr) * 100);
 
@@ -86,7 +88,8 @@ export const actions: Actions = {
 				name: name || null,
 				description: description || null,
 				category: category || null,
-				payee: payee || null
+				payee: payee || null,
+				toAccountId: toAccountId || null
 			});
 			return { success: true };
 		} catch (error: any) {

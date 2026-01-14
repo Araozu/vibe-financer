@@ -26,12 +26,12 @@
 		onSuccess, 
 		showCreateMore = true,
 		class: className = ""
-	} = $props<{ 
+	}: { 
 		accounts: Account[], 
 		onSuccess?: (createMore: boolean) => void,
 		showCreateMore?: boolean,
 		class?: string
-	}>();
+	}= $props();
 	
 	let selectedType = $state("expense");
 	let selectedAccountId = $state("");

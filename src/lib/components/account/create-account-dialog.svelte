@@ -126,7 +126,6 @@
 								placeholder="0.00" 
 								bind:value={initialBalance}
 								class="w-20 h-8 px-2 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
-								required 
 							/>
 						</div>
 					</div>

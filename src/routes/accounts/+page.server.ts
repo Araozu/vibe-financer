@@ -88,7 +88,8 @@ export const actions: Actions = {
 		const currencySymbol = formData.get('currencySymbol') as string;
 		const color = formData.get('color') as string;
 
-		const initialBalance = Math.round(parseFloat(initialBalanceStr) * 100);
+		const parsedBalance = parseFloat(initialBalanceStr);
+		const initialBalance = isNaN(parsedBalance) ? 0 : Math.round(parsedBalance * 100);
 
 		try {
 			await createAccount({
