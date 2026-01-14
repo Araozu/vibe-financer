@@ -5,10 +5,7 @@
 	import * as Table from "$lib/components/ui/table/index.js";
 	import { Progress } from "$lib/components/ui/progress/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
-	import * as NavigationMenu from "$lib/components/ui/navigation-menu/index.js";
-	import { navigationMenuTriggerStyle } from "$lib/components/ui/navigation-menu/navigation-menu-trigger.svelte";
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
-	import CreateTransactionDialog from "$lib/components/transaction/create-transaction-dialog.svelte";
 	import CreateTransactionForm from "$lib/components/transaction/create-transaction-form.svelte";
 	import { 
 		Wallet, 
@@ -21,7 +18,6 @@
 		ShoppingBag,
 		Tag
 	} from "@lucide/svelte";
-	import logo from "$lib/assets/plain_icon.svg";
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
 
@@ -123,48 +119,8 @@
 
 </script>
 
-<div class="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
-	<!-- Header -->
-	<div class="border-b pb-6 gap-4 w-full">
-		<div class="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 w-full justify-between">
-			<div class="flex items-center gap-4">
-				<img src={logo} alt="Vibe Financer" class="h-12 w-12" />
-				<div>
-					<h1 class="text-3xl font-bold tracking-tight">Financer</h1>
-					<p class="text-muted-foreground text-sm">Diamond hands</p>
-				</div>
-			</div>
-
-			<NavigationMenu.Root>
-				<NavigationMenu.List>
-					<NavigationMenu.Item>
-						<a href="/">
-							<NavigationMenu.Link class={navigationMenuTriggerStyle()}>
-								Dashboard
-							</NavigationMenu.Link>
-						</a>
-					</NavigationMenu.Item>
-					<NavigationMenu.Item>
-						<a href="/accounts">
-							<NavigationMenu.Link class={navigationMenuTriggerStyle()}>
-								Accounts
-							</NavigationMenu.Link>
-						</a>
-					</NavigationMenu.Item>
-					<NavigationMenu.Item>
-						<a href="/settings">
-							<NavigationMenu.Link class={navigationMenuTriggerStyle()}>
-								Settings
-							</NavigationMenu.Link>
-						</a>
-					</NavigationMenu.Item>
-				</NavigationMenu.List>
-			</NavigationMenu.Root>
-		</div>
-	</div>
-
-	<!-- Summary Grid -->
-	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+<!-- Summary Grid -->
+<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 		{#each summaryStats as stat}
 			<Card.Root>
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -338,4 +294,3 @@
 			</Card.Root>
 		</div>
 	</div>
-</div>

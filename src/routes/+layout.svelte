@@ -6,6 +6,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { ModeWatcher } from 'mode-watcher';
 	import type { LayoutData } from './$types';
+	import Header from '$lib/components/layout/header.svelte';
 
 	let { children, data }: { children: any; data: LayoutData } = $props();
 </script>
@@ -15,6 +16,9 @@
 <Toaster />
 
 <QueryClientProvider client={data.queryClient}>
-	{@render children()}
+	<div class="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
+		<Header />
+		{@render children()}
+	</div>
 	<SvelteQueryDevtools initialIsOpen={false} />
 </QueryClientProvider>

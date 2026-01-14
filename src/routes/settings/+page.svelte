@@ -6,8 +6,7 @@
 	import { Label } from "$lib/components/ui/label/index.js";
 	import { enhance } from "$app/forms";
 	import { toast } from "svelte-sonner";
-	import { User, Lock, Mail, ArrowLeft } from "@lucide/svelte";
-	import logo from "$lib/assets/plain_icon.svg";
+	import { User, Lock, Mail } from "@lucide/svelte";
 
 	let { form } = $props();
 
@@ -68,25 +67,8 @@
 
 </script>
 
-<div class="min-h-screen bg-background">
-	<!-- Header -->
-	<div class="border-b bg-card">
-		<div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-			<div class="flex items-center gap-4">
-				<a href="/" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
-					<ArrowLeft class="h-5 w-5" />
-					<span class="text-sm">Back to Dashboard</span>
-				</a>
-			</div>
-			<div class="flex items-center gap-3">
-				<img src={logo} alt="Vibe Financer" class="h-8 w-8" />
-				<h1 class="text-xl font-bold">Settings</h1>
-			</div>
-		</div>
-	</div>
-
-	<!-- Content -->
-	{#if user}
+<!-- Content -->
+{#if user}
 		<div class="max-w-5xl mx-auto px-4 py-8 space-y-6">
 			<!-- Profile Information -->
 			<Card.Root>
@@ -341,4 +323,3 @@
 			</Card.Root>
 		</div>
 	{/if}
-</div>

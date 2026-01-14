@@ -6,13 +6,11 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
-	import CreateTransactionDialog from "$lib/components/transaction/create-transaction-dialog.svelte";
 	import { 
 		CreditCard, 
 		TrendingUp, 
 		TrendingDown, 
 		Coins,
-		ChevronLeft,
 		ArrowUpRight,
 		ArrowDownLeft,
 		Wallet,
@@ -102,25 +100,11 @@
 	}
 </script>
 
-<div class="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
-	<!-- Header -->
-	<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-		<div class="flex items-center gap-4">
-			<a href="/" class="p-2 hover:bg-muted rounded-full transition-colors">
-				<ChevronLeft class="h-5 w-5" />
-			</a>
-			<div>
-				<h1 class="text-3xl font-bold tracking-tight">Accounts</h1>
-				<p class="text-muted-foreground">Manage your financial accounts and balances.</p>
-			</div>
-		</div>
-		<div class="flex gap-2">
-			<CreateAccountDialog />
-			<CreateTransactionDialog accounts={basicAccounts} />
-		</div>
-	</div>
+<div class="flex justify-end gap-2 mb-8">
+	<CreateAccountDialog />
+</div>
 
-	{#if accounts.length === 0}
+{#if accounts.length === 0}
 		<Card.Root class="border-dashed flex flex-col items-center justify-center p-12 text-center">
 			<div class="p-4 bg-muted rounded-full mb-4">
 				<Wallet class="h-10 w-10 text-muted-foreground/40" />
@@ -302,4 +286,3 @@
 			{/each}
 		</div>
 	{/if}
-</div>
