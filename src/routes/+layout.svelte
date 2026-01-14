@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { QueryClientProvider } from '@tanstack/svelte-query';
+	import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools';
 	import { Toaster } from "$lib/components/ui/sonner/index.js";
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
@@ -15,4 +16,5 @@
 
 <QueryClientProvider client={data.queryClient}>
 	{@render children()}
+	<SvelteQueryDevtools initialIsOpen={false} />
 </QueryClientProvider>

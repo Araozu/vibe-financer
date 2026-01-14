@@ -8,6 +8,7 @@
         "@oslojs/crypto": "^1.0.1",
         "@oslojs/encoding": "^1.1.0",
         "@tanstack/svelte-query": "^6.0.14",
+        "@tanstack/svelte-query-devtools": "^6.0.3",
         "d3-array": "^3.2.4",
         "d3-scale": "^4.0.2",
         "d3-shape": "^3.2.0",
@@ -318,7 +319,11 @@
 
     "@tanstack/query-core": ["@tanstack/query-core@5.90.16", "", {}, "sha512-MvtWckSVufs/ja463/K4PyJeqT+HMlJWtw6PrCpywznd2NSgO3m4KwO9RqbFqGg6iDE8vVMFWMeQI4Io3eEYww=="],
 
+    "@tanstack/query-devtools": ["@tanstack/query-devtools@5.92.0", "", {}, "sha512-N8D27KH1vEpVacvZgJL27xC6yPFUy0Zkezn5gnB3L3gRCxlDeSuiya7fKge8Y91uMTnC8aSxBQhcK6ocY7alpQ=="],
+
     "@tanstack/svelte-query": ["@tanstack/svelte-query@6.0.14", "", { "dependencies": { "@tanstack/query-core": "5.90.16" }, "peerDependencies": { "svelte": "^5.25.0" } }, "sha512-gKuHxbyGP2pCQgE/Px9FtlyFmHTt0OV5xTrKrk7PMKGkv3LPWTTwDb7xlMDe1V7U2K5ci+jq1j3HsuTPqIZxjA=="],
+
+    "@tanstack/svelte-query-devtools": ["@tanstack/svelte-query-devtools@6.0.3", "", { "dependencies": { "@tanstack/query-devtools": "5.92.0", "esm-env": "^1.2.1" }, "peerDependencies": { "@tanstack/svelte-query": "^6.0.12", "svelte": "^5.25.0" } }, "sha512-AHc/vPiUWeMFXKvtrlZot7wIlsIm4z5vd0wDeQUKwE5XTfZODu0no1A4UCLzVnY2WpbBpakIEUMH+PmSMwYXKg=="],
 
     "@tybys/wasm-util": ["@tybys/wasm-util@0.10.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg=="],
 
