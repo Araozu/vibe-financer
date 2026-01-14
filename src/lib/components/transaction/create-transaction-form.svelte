@@ -126,7 +126,8 @@
 				await tick();
 				titleInput?.focus();
 			} else if (result.type === 'failure') {
-				toast.error(result.data?.error || "Failed to create transaction");
+				const errorMessage = typeof result.data?.error === 'string' ? result.data.error : "Failed to create transaction";
+				toast.error(errorMessage);
 			}
 		};
 	}} 
@@ -299,7 +300,7 @@
 			{/if}
 		</div>
 		<div class="flex items-center gap-2">
-			<Button type="submit" size="sm" disabled={isLoading || (selectedType === 'transfer' && availableToAccounts.length === 0)}>
+			<Button type="submit" size="sm" disabled={isLoading || accounts.length === 0 || (selectedType === 'transfer' && availableToAccounts.length === 0)}>
 				{#if isLoading}
 					<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 				{:else}

@@ -149,12 +149,27 @@
 	<div class="grid gap-8 md:grid-cols-7">
 		<!-- Main Content: Transactions & Charts -->
 		<div class="md:col-span-4 space-y-8">
-			<Card.Root class="overflow-hidden py-0">
-				<CreateTransactionForm 
-					accounts={data.accounts} 
-					showCreateMore={false} 
-				/>
-			</Card.Root>
+			{#if data.accounts?.length > 0}
+				<Card.Root class="overflow-hidden py-0">
+					<CreateTransactionForm 
+						accounts={data.accounts} 
+						showCreateMore={false} 
+					/>
+				</Card.Root>
+			{:else}
+				<Card.Root class="bg-muted/30 border-dashed">
+					<Card.Content class="flex flex-col items-center justify-center py-10 text-center space-y-4">
+						<div class="p-3 bg-background rounded-full shadow-sm">
+							<Wallet class="h-6 w-6 text-muted-foreground" />
+						</div>
+						<div class="max-w-[250px] space-y-1">
+							<h3 class="font-semibold">No accounts found</h3>
+							<p class="text-xs text-muted-foreground">You need to create at least one account before you can record transactions.</p>
+						</div>
+						<CreateAccountDialog />
+					</Card.Content>
+				</Card.Root>
+			{/if}
 
 			<!-- Spending Overview (Mock Chart) -->
 			<Card.Root>
