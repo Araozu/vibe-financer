@@ -49,7 +49,7 @@
 			</Tooltip.Root>
 		</Tooltip.Provider>
 	{/if}
-	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl bg-background">
+	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl">
 		<CreateTransactionForm {accounts} onSuccess={handleSuccess} />
 	</Dialog.Content>
 </Dialog.Root>

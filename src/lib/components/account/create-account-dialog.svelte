@@ -54,7 +54,7 @@
 			Create Account
 		</Button>
 	</Dialog.Trigger>
-	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl bg-background">
+	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl">
 		<form 
 			method="POST" 
 			action="?/createAccount" 
