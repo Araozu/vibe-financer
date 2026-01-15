@@ -6,6 +6,7 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
+	import EditAccountDialog from "$lib/components/account/edit-account-dialog.svelte";
 	import { 
 		CreditCard, 
 		TrendingUp, 
@@ -140,9 +141,12 @@
 									<Card.Description class="line-clamp-1">{account.description ?? 'No description'}</Card.Description>
 								</div>
 							</div>
-							<Badge variant="secondary" class="text-xs uppercase font-bold tracking-wider px-3 py-1">
-								{typeLabels[account.type]}
-							</Badge>
+							<div class="flex items-center gap-2">
+								<EditAccountDialog {account} />
+								<Badge variant="secondary" class="text-xs uppercase font-bold tracking-wider px-3 py-1">
+									{typeLabels[account.type]}
+								</Badge>
+							</div>
 						</div>
 					</Card.Header>
 					<Card.Content class="pt-8">

@@ -16,6 +16,7 @@ export interface Account {
 }
 
 export type CreateAccountDTO = Omit<Account, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateAccountDTO = Partial<Omit<Account, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>;
 
 export function validateAccountName(name: string): boolean {
 	return name.trim().length >= 1;
