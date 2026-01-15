@@ -54,13 +54,6 @@
 			<NavigationMenu.Root>
 				<NavigationMenu.List>
 					<NavigationMenu.Item>
-						<a href="/">
-							<NavigationMenu.Link class={navigationMenuTriggerStyle()}>
-								Dashboard
-							</NavigationMenu.Link>
-						</a>
-					</NavigationMenu.Item>
-					<NavigationMenu.Item>
 						<a href="/accounts">
 							<NavigationMenu.Link class={navigationMenuTriggerStyle()}>
 								Accounts
