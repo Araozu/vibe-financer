@@ -55,8 +55,10 @@ export const actions: Actions = {
 		const category = formData.get('category') as string;
 		const payee = formData.get('payee') as string;
 		const toAccountId = formData.get('toAccountId') as string | null;
+		const dateStr = formData.get('date') as string;
 
 		const amount = Math.round(parseFloat(amountStr) * 100);
+		const createdAt = dateStr ? new Date(dateStr) : new Date();
 
 		try {
 			await createTransaction({
@@ -67,7 +69,8 @@ export const actions: Actions = {
 				description: description ?? null,
 				category: category ?? null,
 				payee: payee ?? null,
-				toAccountId: toAccountId ?? null
+				toAccountId: toAccountId ?? null,
+				createdAt
 			});
 			return { success: true };
 		} catch (error: unknown) {

@@ -16,7 +16,8 @@
 		Wallet,
 		ChevronRight,
 		Plus,
-		Loader2
+		Loader2,
+		Calendar
 	} from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 	import { onMount, tick } from "svelte";
@@ -82,6 +83,7 @@
 	let amount = $state("");
 	let category = $state("");
 	let payee = $state("");
+	let transactionDate = $state(new Date().toISOString().split('T')[0]);
 
 	let titleInput: HTMLInputElement | null = $state(null);
 
@@ -115,6 +117,7 @@
 		category = "";
 		payee = "";
 		selectedToAccountId = "";
+		transactionDate = new Date().toISOString().split('T')[0];
 	}
 </script>
 
@@ -146,16 +149,76 @@
 	}} 
 	class="flex flex-col h-full {className}"
 >
-	<!-- Header / Breadcrumbs -->
-	<div class="px-4 py-3 flex items-center justify-between border-b border-border/40 bg-muted/30">
-		<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-			<div class="flex items-center gap-1 bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-				<Plus class="h-3 w-3" />
-				<span class="uppercase tracking-wider font-bold">Transactions</span>
-			</div>
-			<ChevronRight class="h-3 w-3 opacity-50" />
-			<span>New {selectedType === 'expense' ? 'Expense' : 'Income'}</span>
-		</div>
+	<!-- Header / Selectors -->
+	<div class="px-4 py-3 flex items-center gap-2 border-b border-border/40 bg-muted/30">
+		<!-- Type Select -->
+		<Select.Root type="single" bind:value={selectedType}>
+			<Select.Trigger class="w-32 h-8 px-2.5 py-1.5 text-xs font-medium bg-background border-none hover:bg-muted transition-colors rounded-md gap-2">
+				{@const currentType = transactionTypes.find(t => t.value === selectedType)}
+				{#if currentType}
+					<currentType.icon class="h-3.5 w-3.5 {currentType.color}" />
+					<span>{currentType.label}</span>
+				{/if}
+			</Select.Trigger>
+			<Select.Content>
+				{#each transactionTypes as type}
+					<Select.Item value={type.value} label={type.label} class="text-xs">
+						<type.icon class="mr-2 h-3.5 w-3.5 {type.color}" />
+						{type.label}
+					</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
+		<input type="hidden" name="type" value={selectedType} />
+
+		<ChevronRight class="h-3 w-3 opacity-30" />
+
+		<!-- Account Select -->
+		<Select.Root type="single" bind:value={selectedAccountId}>
+			<Select.Trigger class="w-auto h-8 px-2.5 py-1.5 text-xs font-medium bg-background border-none hover:bg-muted transition-colors rounded-md gap-2">
+				<Wallet class="h-3.5 w-3.5 text-muted-foreground/60" />
+				<span>{accounts.find((a) => a.id === selectedAccountId)?.name ?? "Select Account"}</span>
+			</Select.Trigger>
+			<Select.Content>
+				{#each accounts as account}
+					<Select.Item value={account.id} label={account.name} class="text-xs">
+						<div class="flex items-center gap-2">
+							<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
+							{account.name}
+						</div>
+					</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
+		<input type="hidden" name="accountId" value={selectedAccountId} />
+
+		<!-- To Account Select (for transfers) -->
+		{#if selectedType === 'transfer'}
+			<ChevronRight class="h-3 w-3 opacity-30" />
+			{#if availableToAccounts.length > 0}
+				<Select.Root type="single" bind:value={selectedToAccountId}>
+					<Select.Trigger class="w-auto h-8 px-2.5 py-1.5 text-xs font-medium bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-colors rounded-md gap-2">
+						<ArrowLeftRight class="h-3.5 w-3.5 text-blue-500" />
+						<span>{availableToAccounts.find((a) => a.id === selectedToAccountId)?.name ?? "To Account"}</span>
+					</Select.Trigger>
+					<Select.Content>
+						{#each availableToAccounts as account}
+							<Select.Item value={account.id} label={account.name} class="text-xs">
+								<div class="flex items-center gap-2">
+									<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
+									{account.name}
+								</div>
+							</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				<input type="hidden" name="toAccountId" value={selectedToAccountId} />
+			{:else}
+				<div class="flex items-center bg-rose-500/10 border border-rose-500/30 rounded-md px-2.5 py-1.5 text-xs text-rose-500 font-medium h-8">
+					No compatible accounts
+				</div>
+			{/if}
+		{/if}
 	</div>
 
 	<!-- Main Content -->
@@ -204,71 +267,22 @@
 				</div>
 			</div>
 
-			<!-- Account Select Badge -->
-			<Select.Root type="single" bind:value={selectedAccountId}>
-				<Select.Trigger class="w-auto min-w-40 h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
-					<Wallet class="h-3.5 w-3.5" />
-					<span>{accounts.find((a) => a.id === selectedAccountId)?.name ?? "Select Account"}</span>
-				</Select.Trigger>
-				<Select.Content>
-					{#each accounts as account}
-						<Select.Item value={account.id} label={account.name} class="text-xs">
-							<div class="flex items-center gap-2">
-								<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
-								{account.name}
-							</div>
-						</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-			<input type="hidden" name="accountId" value={selectedAccountId} />
-
-			<!-- Type Select Badge -->
-			<Select.Root type="single" bind:value={selectedType}>
-				<Select.Trigger class="w-32 h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
-					{@const currentType = transactionTypes.find(t => t.value === selectedType)}
-					{#if currentType}
-						<currentType.icon class="h-3.5 w-3.5 {currentType.color}" />
-						<span>{currentType.label}</span>
-					{/if}
-				</Select.Trigger>
-				<Select.Content>
-					{#each transactionTypes as type}
-						<Select.Item value={type.value} label={type.label} class="text-xs">
-							<type.icon class="mr-2 h-3.5 w-3.5 {type.color}" />
-							{type.label}
-						</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-			<input type="hidden" name="type" value={selectedType} />
-
-			<!-- To Account Select Badge (for transfers) -->
-			{#if selectedType === 'transfer'}
-				{#if availableToAccounts.length > 0}
-					<Select.Root type="single" bind:value={selectedToAccountId}>
-						<Select.Trigger class="w-auto min-w-40 h-8 px-2.5 py-1.5 text-xs font-medium bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-colors rounded-md gap-2">
-							<ArrowLeftRight class="h-3.5 w-3.5 text-blue-500" />
-							<span>To: {availableToAccounts.find((a) => a.id === selectedToAccountId)?.name ?? "Select Account"}</span>
-						</Select.Trigger>
-						<Select.Content>
-							{#each availableToAccounts as account}
-								<Select.Item value={account.id} label={account.name} class="text-xs">
-									<div class="flex items-center gap-2">
-										<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
-										{account.name}
-									</div>
-								</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-					<input type="hidden" name="toAccountId" value={selectedToAccountId} />
-				{:else}
-					<div class="flex items-center bg-rose-500/10 border border-rose-500/30 rounded-md px-3 py-1.5 text-xs text-rose-500">
-						No compatible accounts for transfer
-					</div>
-				{/if}
-			{/if}
+			<!-- Date Badge -->
+			<div class="flex items-center bg-muted/50 rounded-md overflow-hidden border border-primary/30">
+				<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">DATE</div>
+				<div class="flex items-center px-2 gap-2">
+					<Calendar class="h-3.5 w-3.5 text-muted-foreground/60" />
+					<Input 
+						id="date" 
+						name="date" 
+						type="date" 
+						bind:value={transactionDate}
+						class="w-32 h-8 px-2 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
+						style="color-scheme: dark"
+						required 
+					/>
+				</div>
+			</div>
 
 			<!-- Category Badge (hidden for transfers) -->
 			{#if selectedType !== 'transfer'}
