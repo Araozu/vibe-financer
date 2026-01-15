@@ -83,7 +83,7 @@
 	let amount = $state("");
 	let category = $state("");
 	let payee = $state("");
-	let transactionDate = $state(new Date().toISOString().split('T')[0]);
+	let transactionDate = $state("");
 
 	let titleInput: HTMLInputElement | null = $state(null);
 
@@ -117,7 +117,12 @@
 		category = "";
 		payee = "";
 		selectedToAccountId = "";
-		transactionDate = new Date().toISOString().split('T')[0];
+	}
+
+	function addDayToDate() {
+		const current = transactionDate ? new Date(transactionDate) : new Date();
+		current.setDate(current.getDate() + 1);
+		transactionDate = current.toISOString().split('T')[0];
 	}
 </script>
 
@@ -268,7 +273,7 @@
 			</div>
 
 			<!-- Date Badge -->
-			<div class="flex items-center bg-muted/50 rounded-md overflow-hidden border border-primary/30">
+			<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
 				<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">DATE</div>
 				<div class="flex items-center px-2 gap-2">
 					<Calendar class="h-3.5 w-3.5 text-muted-foreground/60" />
@@ -279,8 +284,16 @@
 						bind:value={transactionDate}
 						class="w-32 h-8 px-2 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
 						style="color-scheme: dark"
-						required 
 					/>
+					<Button 
+						type="button" 
+						variant="ghost" 
+						size="sm" 
+						class="h-6 w-8 px-0 text-[10px] font-bold text-muted-foreground hover:text-primary"
+						onclick={addDayToDate}
+					>
+						+1
+					</Button>
 				</div>
 			</div>
 
