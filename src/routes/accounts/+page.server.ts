@@ -69,7 +69,7 @@ export const actions: Actions = {
 				currencyCode,
 				currencySymbol,
 				color
-			});
+			}, locals.user.id);
 			return { success: true };
 		} catch (error: unknown) {
 			const message = error instanceof Error ? error.message : 'Unknown error';
@@ -106,7 +106,7 @@ export const actions: Actions = {
 				payee: payee ?? null,
 				toAccountId: toAccountId ?? null,
 				createdAt
-			});
+			}, locals.user.id);
 			return { success: true };
 		} catch (error: unknown) {
 			const message = error instanceof Error ? error.message : 'Unknown error';
@@ -114,3 +114,4 @@ export const actions: Actions = {
 		}
 	}
 };
+

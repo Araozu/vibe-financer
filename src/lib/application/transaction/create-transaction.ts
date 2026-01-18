@@ -1,59 +1,207 @@
 import { db } from '$lib/infra/db';
-import { account, transaction } from '$lib/infra/db/schema';
-import { eq } from 'drizzle-orm';
+import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
+import { getAccountState, getAccountVersion } from '../account/account-projection';
 import {
-	calculateNewBalance,
+	calculateBalanceChange,
+	canAcceptTransaction
+} from '$lib/domain/account-aggregate';
+import {
 	validateTransferAccounts,
 	type CreateTransactionDTO,
 	type Transaction
 } from '$lib/domain/transaction';
+import {
+	createTransactionCreatedEvent,
+	createTransferCreatedEvent,
+	type TransactionCreatedPayload,
+	type TransferCreatedPayload
+} from '$lib/domain/events';
 import { error } from '@sveltejs/kit';
 
-export async function createTransaction(data: CreateTransactionDTO): Promise<Transaction> {
-	return await db.transaction(async (tx) => {
-		// 1. Get the account to find the current balance
-		const [targetAccount] = await tx.select().from(account).where(eq(account.id, data.accountId));
+export async function createTransaction(
+	data: CreateTransactionDTO,
+	userId: string
+): Promise<Transaction> {
+	// 1. Get the source account state from event stream
+	const sourceAccount = await getAccountState(data.accountId);
 
-		if (!targetAccount) {
-			throw error(404, 'Account not found');
+	if (!sourceAccount || !canAcceptTransaction(sourceAccount)) {
+		throw error(404, 'Account not found or deleted');
+	}
+
+	const transactionId = crypto.randomUUID();
+	const transactionDate = data.createdAt ?? new Date();
+	const sourceVersion = await getAccountVersion(data.accountId);
+
+	// 2. Handle transfers specially (two accounts involved)
+	if (data.type === 'transfer') {
+		if (!data.toAccountId) {
+			throw error(400, 'Transfer requires a destination account');
 		}
 
-		// For transfers, validate that both accounts have the same currency
-		if (data.type === 'transfer') {
-			if (!data.toAccountId) {
-				throw error(400, 'Transfer requires a destination account');
-			}
+		const destAccount = await getAccountState(data.toAccountId);
 
-			const [toAccount] = await tx.select().from(account).where(eq(account.id, data.toAccountId));
-
-			if (!toAccount) {
-				throw error(404, 'Destination account not found');
-			}
-
-			if (!validateTransferAccounts(targetAccount.currencyCode, toAccount.currencyCode)) {
-				throw error(400, 'Cannot transfer between accounts with different currencies');
-			}
-
-			// Update destination account balance
-			const newToBalance = toAccount.currentBalance + data.amount;
-			await tx
-				.update(account)
-				.set({ currentBalance: newToBalance, updatedAt: new Date() })
-				.where(eq(account.id, data.toAccountId));
+		if (!destAccount || !canAcceptTransaction(destAccount)) {
+			throw error(404, 'Destination account not found or deleted');
 		}
 
-		// 2. Calculate the new balance for the source account
-		const newBalance = calculateNewBalance(targetAccount.currentBalance, data.amount, data.type);
+		if (!validateTransferAccounts(sourceAccount.currencyCode, destAccount.currencyCode)) {
+			throw error(400, 'Cannot transfer between accounts with different currencies');
+		}
 
-		// 3. Update the account balance
-		await tx
-			.update(account)
-			.set({ currentBalance: newBalance, updatedAt: new Date() })
-			.where(eq(account.id, data.accountId));
+		const destVersion = await getAccountVersion(data.toAccountId);
 
-		// 4. Create the transaction
-		const [newTransaction] = await tx.insert(transaction).values(data).returning();
+		// Calculate new balances
+		const fromBalanceAfter = sourceAccount.currentBalance - data.amount;
+		const toBalanceAfter = destAccount.currentBalance + data.amount;
 
-		return newTransaction;
+		// Create transfer event (stored in source account's stream)
+		const transferPayload: TransferCreatedPayload = {
+			transactionId,
+			fromAccountId: data.accountId,
+			toAccountId: data.toAccountId,
+			amount: data.amount,
+			name: data.name ?? null,
+			description: data.description ?? null,
+			category: data.category ?? null,
+			fromBalanceBefore: sourceAccount.currentBalance,
+			fromBalanceAfter,
+			toBalanceBefore: destAccount.currentBalance,
+			toBalanceAfter,
+			transactionDate
+		};
+
+		const sourceEvent = createTransferCreatedEvent(
+			data.accountId,
+			userId,
+			transferPayload,
+			sourceVersion + 1
+		);
+
+		// Create a corresponding event for the destination account
+		const destTransactionPayload: TransactionCreatedPayload = {
+			transactionId,
+			accountId: data.toAccountId,
+			type: 'income', // Transfer in is income for dest
+			amount: data.amount,
+			name: data.name ?? null,
+			description: `Transfer from ${sourceAccount.name}`,
+			category: data.category ?? null,
+			payee: null,
+			toAccountId: null,
+			balanceBefore: destAccount.currentBalance,
+			balanceAfter: toBalanceAfter,
+			transactionDate
+		};
+
+		const destEvent = createTransactionCreatedEvent(
+			data.toAccountId,
+			userId,
+			destTransactionPayload,
+			destVersion + 1
+		);
+
+		// Append both events (using individual calls for different streams)
+		await eventStoreRepo.append(sourceEvent, { expectedVersion: sourceVersion });
+		await eventStoreRepo.append(destEvent, { expectedVersion: destVersion });
+
+		// Update read models
+		await eventStoreRepo.updateAccountProjection(data.accountId, {
+			currentBalance: fromBalanceAfter
+		});
+		await eventStoreRepo.updateAccountProjection(data.toAccountId, {
+			currentBalance: toBalanceAfter
+		});
+
+		// Create transaction read model
+		await eventStoreRepo.createTransactionProjection({
+			id: transactionId,
+			accountId: data.accountId,
+			type: 'transfer',
+			amount: data.amount,
+			name: data.name ?? null,
+			description: data.description ?? null,
+			category: data.category ?? null,
+			payee: data.payee ?? null,
+			toAccountId: data.toAccountId,
+			createdAt: transactionDate
+		});
+
+		return {
+			id: transactionId,
+			accountId: data.accountId,
+			type: 'transfer',
+			amount: data.amount,
+			name: data.name ?? null,
+			description: data.description ?? null,
+			category: data.category ?? null,
+			payee: data.payee ?? null,
+			toAccountId: data.toAccountId,
+			createdAt: transactionDate,
+			updatedAt: transactionDate
+		};
+	}
+
+	// 3. Handle regular transactions (expense/income)
+	const balanceBefore = sourceAccount.currentBalance;
+	const balanceAfter = calculateBalanceChange(balanceBefore, data.amount, data.type);
+
+	const payload: TransactionCreatedPayload = {
+		transactionId,
+		accountId: data.accountId,
+		type: data.type,
+		amount: data.amount,
+		name: data.name ?? null,
+		description: data.description ?? null,
+		category: data.category ?? null,
+		payee: data.payee ?? null,
+		toAccountId: null,
+		balanceBefore,
+		balanceAfter,
+		transactionDate
+	};
+
+	const event = createTransactionCreatedEvent(
+		data.accountId,
+		userId,
+		payload,
+		sourceVersion + 1
+	);
+
+	// Append event with optimistic concurrency
+	await eventStoreRepo.append(event, { expectedVersion: sourceVersion });
+
+	// Update account read model
+	await eventStoreRepo.updateAccountProjection(data.accountId, {
+		currentBalance: balanceAfter
 	});
+
+	// Create transaction read model
+	await eventStoreRepo.createTransactionProjection({
+		id: transactionId,
+		accountId: data.accountId,
+		type: data.type,
+		amount: data.amount,
+		name: data.name ?? null,
+		description: data.description ?? null,
+		category: data.category ?? null,
+		payee: data.payee ?? null,
+		toAccountId: null,
+		createdAt: transactionDate
+	});
+
+	return {
+		id: transactionId,
+		accountId: data.accountId,
+		type: data.type,
+		amount: data.amount,
+		name: data.name ?? null,
+		description: data.description ?? null,
+		category: data.category ?? null,
+		payee: data.payee ?? null,
+		toAccountId: null,
+		createdAt: transactionDate,
+		updatedAt: transactionDate
+	};
 }
+
