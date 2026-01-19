@@ -31,6 +31,17 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 	const endDate = url.searchParams.get('endDate');
 	const includeAudit = url.searchParams.get('includeAudit') === 'true';
 
+	// Validate date parameters
+	if (asOf && isNaN(new Date(asOf).getTime())) {
+		return json({ error: 'Invalid asOf parameter; must be a valid ISO date string' }, { status: 400 });
+	}
+	if (startDate && isNaN(new Date(startDate).getTime())) {
+		return json({ error: 'Invalid startDate parameter; must be a valid ISO date string' }, { status: 400 });
+	}
+	if (endDate && isNaN(new Date(endDate).getTime())) {
+		return json({ error: 'Invalid endDate parameter; must be a valid ISO date string' }, { status: 400 });
+	}
+
 	try {
 		// Get account with full history
 		const accountWithHistory = await getAccountWithHistory(accountId);
@@ -94,6 +105,20 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 		return json(response);
 	} catch (error) {
 		console.error('Error fetching account history:', error);
+		
+		// Handle different error types
+		if (error && typeof error === 'object') {
+			const e = error as { status?: number; message?: string };
+			
+			// Propagate HTTP errors
+			if (typeof e.status === 'number' && e.status >= 400 && e.status < 600) {
+				return json(
+					{ error: e.message || 'Request failed' },
+					{ status: e.status }
+				);
+			}
+		}
+		
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
 };

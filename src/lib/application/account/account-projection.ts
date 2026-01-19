@@ -22,12 +22,40 @@ export interface AccountWithHistory extends AccountState {
 }
 
 /**
- * Configuration for snapshot behavior
+ * Configuration for snapshot behavior.
+ *
+ * These values are chosen to balance read performance (how many events we have to replay)
+ * against storage and write amplification (how many snapshots we keep and how often we write them).
+ *
+ * - SNAPSHOT_INTERVAL:
+ *   - We create a new snapshot after roughly this many new events have been appended.
+ *   - A value of 50 keeps the worst‑case replay size small enough for typical account
+ *     streams (tens of events per request) while avoiding excessive snapshot writes
+ *     on very active accounts.
+ *   - Lowering this value:
+ *       • Reduces the number of events that must be replayed on reads (better latency),
+ *       • But increases how often snapshots are written (more I/O and storage churn).
+ *   - Raising this value:
+ *       • Decreases snapshot write frequency and storage usage,
+ *       • But increases replay cost on reads as more events must be applied.
+ *
+ * - MAX_SNAPSHOTS_PER_STREAM:
+ *   - We keep only the latest N snapshots for each account stream.
+ *   - A value of 3 provides multiple recent checkpoints so that:
+ *       • Replay remains bounded even if the latest snapshot is relatively old, and
+ *       • Storage does not grow unbounded for long‑lived, high‑traffic accounts.
+ *   - Lowering this value reduces snapshot storage further but may increase replay
+ *     cost for very old streams.
+ *   - Raising this value keeps more historical checkpoints at the cost of additional
+ *     snapshot rows per stream.
+ *
+ * These defaults are conservative and can be tuned based on observed event volume and
+ * latency/storage requirements in a specific deployment.
  */
 const SNAPSHOT_CONFIG = {
-	/** Number of events after which to create a snapshot */
+	/** Number of new events on a stream after which we attempt to create a snapshot. */
 	SNAPSHOT_INTERVAL: 50,
-	/** Maximum number of snapshots to keep per stream */
+	/** Maximum number of snapshots to keep per stream before older ones are pruned. */
 	MAX_SNAPSHOTS_PER_STREAM: 3
 };
 
@@ -248,7 +276,11 @@ async function createSnapshot(accountId: string, state: AccountState): Promise<v
 	await eventStoreRepo.saveSnapshot(accountId, state, state.version);
 
 	// Cleanup old snapshots
-	const keepAfterVersion = state.version - SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL * SNAPSHOT_CONFIG.MAX_SNAPSHOTS_PER_STREAM;
+	const snapshotRetentionWindow =
+		SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL * SNAPSHOT_CONFIG.MAX_SNAPSHOTS_PER_STREAM;
+	// Clamp to 0 so we never produce a negative version; we only start deleting
+	// once we've advanced beyond the initial retention window.
+	const keepAfterVersion = Math.max(0, state.version - snapshotRetentionWindow);
 	if (keepAfterVersion > 0) {
 		await eventStoreRepo.deleteOldSnapshots(accountId, keepAfterVersion);
 	}

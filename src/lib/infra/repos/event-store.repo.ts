@@ -69,7 +69,7 @@ export const eventStoreRepo = {
 		return db.transaction(async (tx) => {
 			// Check for optimistic concurrency if expected version provided
 			if (options?.expectedVersion !== undefined) {
-				const currentVersion = await this.getStreamVersion(event.streamId, tx);
+				const currentVersion = await eventStoreRepo.getStreamVersion(event.streamId, tx);
 				if (currentVersion !== options.expectedVersion) {
 					throw new ConcurrencyError(
 						event.streamId,
@@ -110,7 +110,7 @@ export const eventStoreRepo = {
 		return db.transaction(async (tx) => {
 			// Check for optimistic concurrency on the first event's stream
 			if (options?.expectedVersion !== undefined && events.length > 0) {
-				const currentVersion = await this.getStreamVersion(events[0].streamId, tx);
+				const currentVersion = await eventStoreRepo.getStreamVersion(events[0].streamId, tx);
 				if (currentVersion !== options.expectedVersion) {
 					throw new ConcurrencyError(
 						events[0].streamId,

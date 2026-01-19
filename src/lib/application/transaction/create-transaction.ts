@@ -18,6 +18,17 @@ import {
 } from '$lib/domain/events';
 import { error } from '@sveltejs/kit';
 
+/**
+ * Create a new transaction (expense, income, or transfer) and persist as a TransactionCreated event.
+ * 
+ * @param data - The transaction details
+ * @param userId - The ID of the user creating the transaction (required for event sourcing audit trails)
+ * @returns The created transaction
+ * 
+ * The userId parameter is required for event sourcing to maintain a complete audit trail
+ * of who made each change. All events in the event store must be attributed to a user
+ * for compliance and debugging purposes.
+ */
 export async function createTransaction(
 	data: CreateTransactionDTO,
 	userId: string
@@ -169,7 +180,18 @@ export async function createTransaction(
 	);
 
 	// Append event with optimistic concurrency
-	await eventStoreRepo.append(event, { expectedVersion: sourceVersion });
+	try {
+		await eventStoreRepo.append(event, { expectedVersion: sourceVersion });
+	} catch (err: unknown) {
+		// Handle concurrent transaction creation gracefully
+		const e = err as { name?: string; code?: string };
+		if (e?.name === 'ConcurrencyError' || e?.code === 'ConcurrencyError') {
+			// Another transaction modified this account concurrently; surface a conflict instead of 500
+			throw error(409, 'Concurrent update detected while creating transaction. Please retry.');
+		}
+
+		throw err;
+	}
 
 	// Update account read model
 	await eventStoreRepo.updateAccountProjection(data.accountId, {
