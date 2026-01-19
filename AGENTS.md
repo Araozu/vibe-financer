@@ -2,6 +2,17 @@
 
 This project follows a simplified layered architecture to maintain separation of concerns without the overhead of full Clean Architecture ceremony (no mandatory interfaces or dependency injection containers).
 
+## Platform
+
+- Use bun
+- To run stuff, must use `bun --bun` to ensure using the bun runtime.
+
+
+## Language
+
+- Always use the Null coalescing operator `??`
+
+
 ## Layers
 
 ### 1. Domain Layer (`src/lib/domain/`)

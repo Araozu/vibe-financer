@@ -1,13 +1,13 @@
 <script lang="ts">
+	import { createQuery } from '@tanstack/svelte-query';
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Table from "$lib/components/ui/table/index.js";
 	import { Progress } from "$lib/components/ui/progress/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
-	import CreateTransactionDialog from "$lib/components/transaction/create-transaction-dialog.svelte";
 	import CreateTransactionForm from "$lib/components/transaction/create-transaction-form.svelte";
-		import { 
+	import { 
 		Wallet, 
 		TrendingUp, 
 		TrendingDown, 
@@ -16,27 +16,51 @@
 		Car,
 		Home,
 		ShoppingBag,
-		Tag,
-		Settings
+		Tag
 	} from "@lucide/svelte";
-	import logo from "$lib/assets/plain_icon.svg";
+	import type { Account } from '$lib/domain/account';
+	import type { Transaction } from '$lib/domain/transaction';
 
-	let { data } = $props();
+	// Serialized types from API (dates as strings)
+	interface SerializedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
+		createdAt: string;
+		updatedAt: string;
+	}
 
-	let totalBalance = $derived(data.accounts?.reduce((acc, curr) => acc + curr.currentBalance, 0) || 0);
+	interface SerializedTransaction extends Omit<Transaction, 'createdAt' | 'updatedAt'> {
+		createdAt: string;
+		updatedAt: string;
+	}
+
+	// Query for accounts
+	const accountsQuery = createQuery<SerializedAccount[]>(() => ({
+		queryKey: ['accounts'],
+		queryFn: async () => (await fetch('/api/accounts')).json(),
+	}));
+
+	// Query for transactions
+	const transactionsQuery = createQuery<SerializedTransaction[]>(() => ({
+		queryKey: ['transactions'],
+		queryFn: async () => (await fetch('/api/transactions')).json(),
+	}));
+
+	let accounts = $derived(accountsQuery.data ?? []);
+	let transactions = $derived(transactionsQuery.data ?? []);
+
+	let totalBalance = $derived(accounts.reduce((acc: number, curr) => acc + curr.currentBalance, 0));
 	let formattedTotalBalance = $derived((totalBalance / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
 
 	// Calculate real stats (filtered for current month)
 	const now = new Date();
 	const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-	let monthlyIncome = $derived(data.transactions
-		?.filter(tx => tx.type === 'income' && new Date(tx.createdAt) >= firstDayOfMonth)
-		.reduce((acc, curr) => acc + curr.amount, 0) || 0);
+	let monthlyIncome = $derived(transactions
+		.filter((tx) => tx.type === 'income' && new Date(tx.createdAt) >= firstDayOfMonth)
+		.reduce((acc: number, curr) => acc + curr.amount, 0));
 	
-	let monthlyExpenses = $derived(data.transactions
-		?.filter(tx => tx.type === 'expense' && new Date(tx.createdAt) >= firstDayOfMonth)
-		.reduce((acc, curr) => acc + curr.amount, 0) || 0);
+	let monthlyExpenses = $derived(transactions
+		.filter((tx) => tx.type === 'expense' && new Date(tx.createdAt) >= firstDayOfMonth)
+		.reduce((acc: number, curr) => acc + curr.amount, 0));
 
 	let formattedMonthlyIncome = $derived((monthlyIncome / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
 	let formattedMonthlyExpenses = $derived((monthlyExpenses / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
@@ -95,41 +119,8 @@
 
 </script>
 
-<div class="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
-	<!-- Header -->
-	<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-		<div class="flex items-center gap-4">
-			<img src={logo} alt="Vibe Financer" class="h-12 w-12" />
-			<div>
-				<h1 class="text-3xl font-bold tracking-tight">Financial Dashboard</h1>
-				<p class="text-muted-foreground">Welcome back! Here's what's happening with your money.</p>
-			</div>
-		</div>
-		<div class="flex gap-2">
-			<a href="/accounts">
-				<Button variant="outline" size="sm">
-					<Wallet class="mr-2 h-4 w-4" />
-					View Accounts
-				</Button>
-			</a>
-			<CreateAccountDialog />
-			<CreateTransactionDialog accounts={data.accounts} />
-			<a href="/settings">
-				<Button variant="outline" size="sm">
-					<Settings class="mr-2 h-4 w-4" />
-					Settings
-				</Button>
-			</a>
-			<form method="POST" action="/logout">
-				<Button variant="ghost" size="sm" type="submit">
-					Logout
-				</Button>
-			</form>
-		</div>
-	</div>
-
-	<!-- Summary Grid -->
-	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+<!-- Summary Grid -->
+<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 		{#each summaryStats as stat}
 			<Card.Root>
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -149,12 +140,27 @@
 	<div class="grid gap-8 md:grid-cols-7">
 		<!-- Main Content: Transactions & Charts -->
 		<div class="md:col-span-4 space-y-8">
-			<Card.Root class="overflow-hidden py-0">
-				<CreateTransactionForm 
-					accounts={data.accounts} 
-					showCreateMore={false} 
-				/>
-			</Card.Root>
+			{#if accounts.length > 0}
+				<Card.Root class="overflow-hidden py-0">
+					<CreateTransactionForm 
+						accounts={accounts} 
+						showCreateMore={false} 
+					/>
+				</Card.Root>
+			{:else}
+				<Card.Root class="bg-muted/30 border-dashed">
+					<Card.Content class="flex flex-col items-center justify-center py-10 text-center space-y-4">
+						<div class="p-3 bg-background rounded-full shadow-sm">
+							<Wallet class="h-6 w-6 text-muted-foreground" />
+						</div>
+						<div class="max-w-[250px] space-y-1">
+							<h3 class="font-semibold">No accounts found</h3>
+							<p class="text-xs text-muted-foreground">You need to create at least one account before you can record transactions.</p>
+						</div>
+						<CreateAccountDialog />
+					</Card.Content>
+				</Card.Root>
+			{/if}
 
 			<!-- Spending Overview (Mock Chart) -->
 			<Card.Root>
@@ -184,7 +190,7 @@
 				<Card.Header class="flex flex-row items-center justify-between">
 					<div>
 						<Card.Title>Recent Transactions</Card.Title>
-						<Card.Description>You have {data.transactions.length} transactions recorded.</Card.Description>
+						<Card.Description>You have {transactions.length} transactions recorded.</Card.Description>
 					</div>
 					<Button variant="ghost" size="sm">View All</Button>
 				</Card.Header>
@@ -199,8 +205,8 @@
 							</Table.Row>
 						</Table.Header>
 						<Table.Body>
-							{#each data.transactions.slice(0, 10) as tx}
-								{@const account = data.accounts.find(a => a.id === tx.accountId)}
+							{#each transactions.slice(0, 10) as tx}
+								{@const account = accounts.find((a) => a.id === tx.accountId)}
 								{@const Icon = getCategoryIcon(tx.category)}
 								<Table.Row>
 									<Table.Cell>
@@ -209,7 +215,7 @@
 												<Icon class="h-4 w-4" />
 											</div>
 											<div>
-												<div class="font-medium">{tx.name || 'Untitled'}</div>
+												<div class="font-medium">{tx.name ?? 'Untitled'}</div>
 												<div class="text-xs text-muted-foreground">
 													{new Date(tx.createdAt).toLocaleDateString()}
 												</div>
@@ -225,7 +231,7 @@
 										{/if}
 									</Table.Cell>
 									<Table.Cell class="hidden md:table-cell">
-										<Badge variant="secondary">{tx.category || 'Uncategorized'}</Badge>
+										<Badge variant="secondary">{tx.category ?? 'Uncategorized'}</Badge>
 									</Table.Cell>
 									<Table.Cell class="text-right font-medium {tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}">
 										{tx.type === 'income' ? '+' : '-'}{(tx.amount / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
@@ -288,4 +294,3 @@
 			</Card.Root>
 		</div>
 	</div>
-</div>

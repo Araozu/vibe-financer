@@ -1,17 +1,17 @@
 <script lang="ts">
+	import { createQuery } from '@tanstack/svelte-query';
 	import * as Card from "$lib/components/ui/card/index.js";
 	import * as Table from "$lib/components/ui/table/index.js";
 	import * as Chart from "$lib/components/ui/chart/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
-	import CreateTransactionDialog from "$lib/components/transaction/create-transaction-dialog.svelte";
+	import EditAccountDialog from "$lib/components/account/edit-account-dialog.svelte";
 	import { 
 		CreditCard, 
 		TrendingUp, 
 		TrendingDown, 
 		Coins,
-		ChevronLeft,
 		ArrowUpRight,
 		ArrowDownLeft,
 		Wallet,
@@ -20,31 +20,80 @@
 	import { scaleTime, scaleLinear } from "d3-scale";
 	import { BarChart } from "layerchart";
 	import ChartContainer from "$lib/components/ui/chart/chart-container.svelte";
+	import type { Account, AccountType } from '$lib/domain/account';
+	import type { TransactionType } from '$lib/domain/transaction';
 
-	let { data } = $props();
+	// Serialized types from API
+	interface SerializedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
+		createdAt: string;
+		updatedAt: string;
+	}
 
-	const typeIcons = {
+	// Detailed account type with transactions and chart data
+	interface DetailedTransaction {
+		id: string;
+		accountId: string;
+		type: TransactionType;
+		amount: number;
+		name: string | null;
+		description: string | null;
+		category: string | null;
+		payee: string | null;
+		toAccountId: string | null;
+		createdAt: string;
+		updatedAt: string;
+	}
+
+	interface ChartDataPoint {
+		date: string;
+		balance: number;
+	}
+
+	interface DetailedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
+		createdAt: string;
+		updatedAt: string;
+		last10Transactions: DetailedTransaction[];
+		chartData: ChartDataPoint[];
+	}
+
+	// Query for detailed accounts
+	const accountsQuery = createQuery<DetailedAccount[]>(() => ({
+		queryKey: ['accounts', 'detailed'],
+		queryFn: async () => (await fetch('/api/accounts/detailed')).json(),
+	}));
+
+	let accounts = $derived(accountsQuery.data ?? []);
+
+	// Also get basic accounts for the transaction dialog
+	const basicAccountsQuery = createQuery<SerializedAccount[]>(() => ({
+		queryKey: ['accounts'],
+		queryFn: async () => (await fetch('/api/accounts')).json(),
+	}));
+
+	let basicAccounts = $derived(basicAccountsQuery.data ?? []);
+
+	const typeIcons: Record<AccountType, typeof CreditCard> = {
 		asset: CreditCard,
 		expense: TrendingDown,
 		revenue: TrendingUp,
 		liability: Coins
 	};
 
-	const typeLabels = {
+	const typeLabels: Record<AccountType, string> = {
 		asset: "Asset",
 		expense: "Expense",
 		revenue: "Revenue",
 		liability: "Liability"
 	};
 
-    function formatAmount(amount: number, currencyCode: string, currencySymbol: string) {
-        return (amount / 100).toLocaleString('en-US', {
-            style: 'currency',
-            currency: currencyCode,
-        });
-    }
+	function formatAmount(amount: number, currencyCode: string, currencySymbol: string) {
+		return (amount / 100).toLocaleString('en-US', {
+			style: 'currency',
+			currency: currencyCode,
+		});
+	}
 
-	function formatDate(date: Date) {
+	function formatDate(date: string) {
 		return new Date(date).toLocaleDateString('en-US', {
 			month: 'short',
 			day: 'numeric'
@@ -52,25 +101,11 @@
 	}
 </script>
 
-<div class="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
-	<!-- Header -->
-	<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-		<div class="flex items-center gap-4">
-			<a href="/" class="p-2 hover:bg-muted rounded-full transition-colors">
-				<ChevronLeft class="h-5 w-5" />
-			</a>
-			<div>
-				<h1 class="text-3xl font-bold tracking-tight">Accounts</h1>
-				<p class="text-muted-foreground">Manage your financial accounts and balances.</p>
-			</div>
-		</div>
-		<div class="flex gap-2">
-			<CreateAccountDialog />
-			<CreateTransactionDialog accounts={data.accounts} />
-		</div>
-	</div>
+<div class="flex justify-end gap-2 mb-8">
+	<CreateAccountDialog />
+</div>
 
-	{#if data.accounts.length === 0}
+{#if accounts.length === 0}
 		<Card.Root class="border-dashed flex flex-col items-center justify-center p-12 text-center">
 			<div class="p-4 bg-muted rounded-full mb-4">
 				<Wallet class="h-10 w-10 text-muted-foreground/40" />
@@ -85,11 +120,12 @@
 		</Card.Root>
 	{:else}
 		<div class="grid gap-8 grid-cols-1">
-			{#each data.accounts as account}
-				{@const Icon = typeIcons[account.type] || Wallet}
+			{#each accounts as account}
+				{@const Icon = typeIcons[account.type] ?? Wallet}
 				{@const chartConfig = {
 					balance: { label: "Balance", color: account.color }
 				} satisfies Chart.ChartConfig}
+				{@const chartDataParsed = account.chartData.map((d: ChartDataPoint) => ({ ...d, date: new Date(d.date) }))}
 				<Card.Root class="overflow-hidden group hover:border-primary/30 transition-all border-2">
 					<Card.Header class="pb-6 border-b bg-muted/10">
 						<div class="flex justify-between items-start">
@@ -102,12 +138,15 @@
 								</div>
 								<div>
 									<Card.Title class="text-2xl group-hover:text-primary transition-colors">{account.name}</Card.Title>
-									<Card.Description class="line-clamp-1">{account.description || 'No description'}</Card.Description>
+									<Card.Description class="line-clamp-1">{account.description ?? 'No description'}</Card.Description>
 								</div>
 							</div>
-							<Badge variant="secondary" class="text-xs uppercase font-bold tracking-wider px-3 py-1">
-								{typeLabels[account.type]}
-							</Badge>
+							<div class="flex items-center gap-2">
+								<EditAccountDialog {account} />
+								<Badge variant="secondary" class="text-xs uppercase font-bold tracking-wider px-3 py-1">
+									{typeLabels[account.type]}
+								</Badge>
+							</div>
 						</div>
 					</Card.Header>
 					<Card.Content class="pt-8">
@@ -146,7 +185,7 @@
 								</h3>
 								<ChartContainer config={chartConfig} class="aspect-auto h-[280px] w-full">
 									<BarChart
-										data={account.chartData}
+										data={chartDataParsed}
 										x="date"
 										y="balance"
 										xScale={scaleTime()}
@@ -223,8 +262,8 @@
 														</Table.Cell>
 														<Table.Cell class="py-3">
 															<div class="flex flex-col">
-																<span class="font-semibold text-sm line-clamp-1">{tx.name || tx.payee || 'Untitled'}</span>
-																<span class="text-[10px] text-muted-foreground uppercase tracking-tighter">{tx.category || 'Uncategorized'}</span>
+																<span class="font-semibold text-sm line-clamp-1">{tx.name ?? tx.payee ?? 'Untitled'}</span>
+																<span class="text-[10px] text-muted-foreground uppercase tracking-tighter">{tx.category ?? 'Uncategorized'}</span>
 															</div>
 														</Table.Cell>
 														<Table.Cell class="text-right py-3 font-bold">
@@ -251,4 +290,3 @@
 			{/each}
 		</div>
 	{/if}
-</div>

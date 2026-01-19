@@ -14,7 +14,9 @@ export interface Transaction {
 	updatedAt: Date;
 }
 
-export type CreateTransactionDTO = Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>;
+export type CreateTransactionDTO = Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'> & {
+	createdAt?: Date;
+};
 
 export function validateTransactionAmount(amount: number): boolean {
 	return amount > 0;

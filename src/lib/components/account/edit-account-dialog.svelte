@@ -4,7 +4,6 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Label } from "$lib/components/ui/label/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
-	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { enhance } from '$app/forms';
 	import { useQueryClient } from '@tanstack/svelte-query';
 	import { 
@@ -13,24 +12,39 @@
 		Coins, 
 		CircleDollarSign,
 		ChevronRight,
-        Plus,
-        Loader2
+		Save,
+		Loader2,
+		Pencil
 	} from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
+	import type { Account } from "$lib/domain/account";
 
 	const queryClient = useQueryClient();
 
-	let { open = $bindable(false) } = $props();
+	// We use any here because the account might come from a serialized API response (dates as strings)
+	let { open = $bindable(false), account } = $props<{ open?: boolean, account: any }>();
 	
-	let selectedType = $state("asset");
-	let createMore = $state(false);
-	let accountName = $state("");
-	let description = $state("");
-	let initialBalance = $state("");
-	let currencyCode = $state("USD");
-	let currencySymbol = $state("$");
-	let color = $state("#3b82f6");
+	let selectedType = $state(account.type);
+	let accountName = $state(account.name);
+	let description = $state(account.description ?? "");
+	let initialBalance = $state((account.initialBalance / 100).toString());
+	let currencyCode = $state(account.currencyCode);
+	let currencySymbol = $state(account.currencySymbol);
+	let color = $state(account.color);
 	let isLoading = $state(false);
+
+	// Update local state if the account prop changes (though unlikely in this UI flow)
+	$effect(() => {
+		if (open) {
+			selectedType = account.type;
+			accountName = account.name;
+			description = account.description ?? "";
+			initialBalance = (account.initialBalance / 100).toString();
+			currencyCode = account.currencyCode;
+			currencySymbol = account.currencySymbol;
+			color = account.color;
+		}
+	});
 
 	const accountTypes = [
 		{ value: "asset", label: "Asset", icon: CreditCard },
@@ -38,46 +52,37 @@
 		{ value: "revenue", label: "Revenue", icon: CircleDollarSign },
 		{ value: "liability", label: "Liability", icon: Coins },
 	];
-
-	function resetForm() {
-		accountName = "";
-		description = "";
-		initialBalance = "";
-		// Keep other defaults or current selections
-	}
 </script>
 
 <Dialog.Root bind:open>
 	<Dialog.Trigger>
-		<Button variant="outline" size="sm">
-			<CreditCard class="mr-2 h-4 w-4" />
-			Create Account
+		<Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-primary">
+			<Pencil class="h-4 w-4" />
+			<span class="sr-only">Edit account</span>
 		</Button>
 	</Dialog.Trigger>
 	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl">
 		<form 
 			method="POST" 
-			action="?/createAccount" 
+			action="?/updateAccount" 
 			use:enhance={() => {
 				isLoading = true;
 				return async ({ result }) => {
 					isLoading = false;
 					if (result.type === 'success') {
-						toast.success("Account created successfully");
-						// Invalidate accounts queries to refetch
+						toast.success("Account updated successfully");
 						queryClient.invalidateQueries({ queryKey: ['accounts'] });
-						if (!createMore) {
-							open = false;
-						}
-						resetForm();
+						open = false;
 					} else if (result.type === 'failure') {
-						const errorMessage = typeof result.data?.error === 'string' ? result.data.error : "Failed to create account";
+						const errorMessage = typeof result.data?.error === 'string' ? result.data.error : "Failed to update account";
 						toast.error(errorMessage);
 					}
 				};
 			}} 
 			class="flex flex-col h-full"
 		>
+			<input type="hidden" name="id" value={account.id} />
+			
 			<!-- Header / Breadcrumbs -->
 			<div class="px-4 py-3 flex items-center justify-between border-b border-border/40 bg-muted/30">
 				<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
@@ -86,9 +91,7 @@
 						<span class="uppercase tracking-wider font-bold">Accounts</span>
 					</div>
 					<ChevronRight class="h-3 w-3 opacity-50" />
-					<span>New Account</span>
-				</div>
-				<div class="flex items-center gap-1">
+					<span>Edit {account.name}</span>
 				</div>
 			</div>
 
@@ -196,19 +199,15 @@
 			</div>
 
 			<!-- Footer -->
-			<div class="mt-auto px-4 py-3 flex items-center justify-between border-t border-border/40 bg-muted/10">
-				<div class="flex items-center gap-2">
-					<Switch id="create-more" bind:checked={createMore} />
-					<Label for="create-more" class="text-xs text-muted-foreground font-medium cursor-pointer">Create more</Label>
-				</div>
+			<div class="mt-auto px-4 py-3 flex items-center justify-end border-t border-border/40 bg-muted/10">
 				<div class="flex items-center gap-2">
 					<Button type="submit" size="sm" disabled={isLoading}>
 						{#if isLoading}
 							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 						{:else}
-							<Plus class="mr-2 h-4 w-4" />
+							<Save class="mr-2 h-4 w-4" />
 						{/if}
-						{isLoading ? 'Creating...' : 'Create Account'}
+						{isLoading ? 'Saving...' : 'Save Changes'}
 					</Button>
 				</div>
 			</div>

@@ -30,6 +30,12 @@ export async function signup(input: SignupInput): Promise<{ success: true; userI
 	const user = await userRepo.create({
 		email: input.email,
 		passwordHash,
+		firstName: null,
+		lastName: null,
+		phoneNumber: null,
+		dateOfBirth: null,
+		preferredCurrency: null,
+		timezone: null,
 		age: null
 	});
 

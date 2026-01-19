@@ -1,11 +1,21 @@
 <script lang="ts">
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import * as Tooltip from "$lib/components/ui/tooltip/index.js";
 	import { Plus } from "@lucide/svelte";
-	import type { Account } from "$lib/domain/account";
 	import CreateTransactionForm from "./create-transaction-form.svelte";
 
-	let { open = $bindable(false), accounts = [] } = $props<{ open?: boolean, accounts: Account[] }>();
+	// Minimal account type for what this component needs
+	interface AccountLike {
+		id: string;
+		name: string;
+		color: string;
+		currencyCode: string;
+	}
+
+	let { open = $bindable(false), accounts = [] } = $props<{ open?: boolean, accounts: AccountLike[] }>();
+
+	const hasAccounts = $derived(accounts.length > 0);
 
 	function handleSuccess(createMore: boolean) {
 		if (!createMore) {
@@ -15,13 +25,31 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger>
-		<Button size="sm">
-			<Plus class="mr-2 h-4 w-4" />
-			Add Transaction
-		</Button>
-	</Dialog.Trigger>
-	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl bg-background">
+	{#if hasAccounts}
+		<Dialog.Trigger>
+			<Button size="sm">
+				<Plus class="mr-2 h-4 w-4" />
+				Add Transaction
+			</Button>
+		</Dialog.Trigger>
+	{:else}
+		<Tooltip.Provider>
+			<Tooltip.Root>
+				<Tooltip.Trigger>
+					<div class="inline-block cursor-not-allowed">
+						<Button size="sm" disabled>
+							<Plus class="mr-2 h-4 w-4" />
+							Add Transaction
+						</Button>
+					</div>
+				</Tooltip.Trigger>
+				<Tooltip.Content>
+					<p>You need to create an account first</p>
+				</Tooltip.Content>
+			</Tooltip.Root>
+		</Tooltip.Provider>
+	{/if}
+	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl">
 		<CreateTransactionForm {accounts} onSuccess={handleSuccess} />
 	</Dialog.Content>
 </Dialog.Root>
