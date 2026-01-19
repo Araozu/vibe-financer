@@ -12,6 +12,16 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [x] Session-based authentication (login, signup, logout)
 - [x] Docker deployment support
 - [x] Modern UI with shadcn-svelte components
+- [x] **Event Sourcing Architecture** — All state changes stored as immutable events
+
+### Event Sourcing (NEW)
+- [x] Event store with versioning and optimistic concurrency
+- [x] Domain events: AccountCreated, AccountUpdated, AccountDeleted, TransactionCreated, TransferCreated, TransactionDeleted
+- [x] Aggregate projections to rebuild state from events
+- [x] Balance history with time-travel queries
+- [x] Full audit trail for compliance
+- [x] Net worth tracking over time
+- [x] Read models (projections) for fast queries
 
 ### User Management
 - [x] User registration and login
@@ -28,6 +38,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [x] Initial and current balance tracking
 - [x] Account listing with detailed view
 - [x] Balance history chart (month-to-date)
+- [x] **Historical balance queries** — Get balance at any point in time
 
 ### Transactions
 - [x] Create transactions (expense, income, transfer)
@@ -36,6 +47,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [x] Automatic balance updates on transaction creation
 - [x] Recent transactions list with pagination
 - [x] Transaction filtering by account
+- [x] **Balance snapshots** — Track balance before/after each transaction
 
 ### Dashboard
 - [x] Summary cards (total balance, monthly income, monthly expenses, savings rate)
@@ -43,6 +55,11 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [x] Spending overview chart (mock data)
 - [x] Quick transaction creation form
 - [x] Account creation when none exist
+
+### APIs (Event Sourced)
+- [x] `GET /api/accounts/[id]/history` — Account balance history and audit trail
+- [x] `GET /api/accounts/net-worth` — Net worth with time-travel and comparisons
+- [x] `GET /api/accounts/audit` — Global audit trail for all events
 
 ---
 

@@ -1,7 +1,33 @@
-import { accountRepo } from '$lib/infra/repos/account.repo';
-import { validateAccountName, validateCurrencyCode, type UpdateAccountDTO } from '$lib/domain/account';
+import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
+import { getAccountState, getAccountVersion } from './account-projection';
+import {
+	validateAccountName,
+	validateCurrencyCode,
+	type UpdateAccountDTO,
+	type Account
+} from '$lib/domain/account';
+import {
+	createAccountUpdatedEvent,
+	type AccountUpdatedPayload
+} from '$lib/domain/events';
 
-export async function updateAccount(id: string, data: UpdateAccountDTO) {
+/**
+ * Update an account's details and persist changes as an AccountUpdated event.
+ * 
+ * @param id - The account ID to update
+ * @param data - The fields to update (only changed fields are persisted)
+ * @param userId - The ID of the user making the change (required for event sourcing audit trails)
+ * @returns The updated account with new values
+ * 
+ * The userId parameter is required for event sourcing to maintain a complete audit trail
+ * of who made each change. All events in the event store must be attributed to a user
+ * for compliance and debugging purposes.
+ */
+export async function updateAccount(
+	id: string,
+	data: UpdateAccountDTO,
+	userId: string
+): Promise<Account> {
 	if (data.name !== undefined && !validateAccountName(data.name)) {
 		throw new Error('Invalid account name');
 	}
@@ -10,17 +36,105 @@ export async function updateAccount(id: string, data: UpdateAccountDTO) {
 		throw new Error('Invalid currency code (must be 3 uppercase letters)');
 	}
 
-	const existing = await accountRepo.findById(id);
-	if (!existing) {
+	// Get current state from event stream
+	const currentState = await getAccountState(id);
+	if (!currentState) {
 		throw new Error('Account not found');
 	}
 
-	const updateData: UpdateAccountDTO & { currentBalance?: number } = { ...data };
-
-	if (data.initialBalance !== undefined && data.initialBalance !== existing.initialBalance) {
-		const diff = data.initialBalance - existing.initialBalance;
-		updateData.currentBalance = existing.currentBalance + diff;
+	if (currentState.isDeleted) {
+		throw new Error('Account has been deleted');
 	}
 
-	return await accountRepo.update(id, updateData);
+	// Build the changes and previous values for the event
+	const changes: AccountUpdatedPayload['changes'] = {};
+	const previousValues: AccountUpdatedPayload['previousValues'] = {};
+
+	if (data.name !== undefined && data.name !== currentState.name) {
+		changes.name = data.name;
+		previousValues.name = currentState.name;
+	}
+	if (data.description !== undefined && data.description !== currentState.description) {
+		changes.description = data.description;
+		previousValues.description = currentState.description;
+	}
+	if (data.type !== undefined && data.type !== currentState.type) {
+		changes.type = data.type;
+		previousValues.type = currentState.type;
+	}
+	if (data.initialBalance !== undefined && data.initialBalance !== currentState.initialBalance) {
+		changes.initialBalance = data.initialBalance;
+		previousValues.initialBalance = currentState.initialBalance;
+	}
+	if (data.currencyCode !== undefined && data.currencyCode !== currentState.currencyCode) {
+		changes.currencyCode = data.currencyCode;
+		previousValues.currencyCode = currentState.currencyCode;
+	}
+	if (data.currencySymbol !== undefined && data.currencySymbol !== currentState.currencySymbol) {
+		changes.currencySymbol = data.currencySymbol;
+		previousValues.currencySymbol = currentState.currencySymbol;
+	}
+	if (data.color !== undefined && data.color !== currentState.color) {
+		changes.color = data.color;
+		previousValues.color = currentState.color;
+	}
+
+	// If no changes, return current state
+	if (Object.keys(changes).length === 0) {
+		return {
+			id: currentState.id,
+			userId: currentState.userId,
+			name: currentState.name,
+			description: currentState.description,
+			type: currentState.type,
+			initialBalance: currentState.initialBalance,
+			currentBalance: currentState.currentBalance,
+			currencyCode: currentState.currencyCode,
+			currencySymbol: currentState.currencySymbol,
+			color: currentState.color,
+			createdAt: currentState.createdAt,
+			updatedAt: currentState.updatedAt
+		};
+	}
+
+	// Get current version for optimistic concurrency
+	const currentVersion = await getAccountVersion(id);
+	const newVersion = currentVersion + 1;
+
+	// Create the update event
+	const payload: AccountUpdatedPayload = { changes, previousValues };
+	const event = createAccountUpdatedEvent(id, userId, payload, newVersion);
+
+	// Append to event store with optimistic concurrency check
+	await eventStoreRepo.append(event, { expectedVersion: currentVersion });
+
+	// Calculate new balance if initial balance changed
+	let newBalance = currentState.currentBalance;
+	if (changes.initialBalance !== undefined) {
+		const diff = changes.initialBalance - (previousValues.initialBalance ?? currentState.initialBalance);
+		newBalance = currentState.currentBalance + diff;
+	}
+
+	// Update read model (projection)
+	await eventStoreRepo.updateAccountProjection(id, {
+		...changes,
+		currentBalance: newBalance
+	});
+
+	// Return updated account
+	return {
+		id: currentState.id,
+		userId: currentState.userId,
+		name: changes.name ?? currentState.name,
+		description: changes.description !== undefined ? changes.description : currentState.description,
+		type: changes.type ?? currentState.type,
+		initialBalance: changes.initialBalance ?? currentState.initialBalance,
+		currentBalance: newBalance,
+		currencyCode: changes.currencyCode ?? currentState.currencyCode,
+		currencySymbol: changes.currencySymbol ?? currentState.currencySymbol,
+		color: changes.color ?? currentState.color,
+		createdAt: currentState.createdAt,
+		updatedAt: event.occurredAt
+	};
 }
+
