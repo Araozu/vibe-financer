@@ -197,8 +197,8 @@ export async function createTransaction(
 		await eventStoreRepo.append(event, { expectedVersion: sourceVersion });
 	} catch (err: unknown) {
 		// Handle concurrent transaction creation gracefully
-		const e = err as { name?: string; code?: string };
-		if (e?.name === 'ConcurrencyError' || e?.code === 'ConcurrencyError') {
+		const e = err as { name?: string };
+		if (e?.name === 'ConcurrencyError') {
 			// Another transaction modified this account concurrently; surface a conflict instead of 500
 			throw error(409, 'Concurrent update detected while creating transaction. Please retry.');
 		}

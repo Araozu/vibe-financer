@@ -60,6 +60,12 @@ const SNAPSHOT_CONFIG = {
 };
 
 /**
+ * Pre-calculated snapshot retention window to avoid recalculating on every cleanup
+ */
+const SNAPSHOT_RETENTION_WINDOW = 
+	SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL * SNAPSHOT_CONFIG.MAX_SNAPSHOTS_PER_STREAM;
+
+/**
  * Get the current state of an account using snapshot optimization
  * Loads the latest snapshot and only replays events after it
  */
@@ -301,11 +307,9 @@ async function createSnapshot(accountId: string, state: AccountState): Promise<v
 	await eventStoreRepo.saveSnapshot(accountId, state, state.version);
 
 	// Cleanup old snapshots
-	const snapshotRetentionWindow =
-		SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL * SNAPSHOT_CONFIG.MAX_SNAPSHOTS_PER_STREAM;
 	// Clamp to 0 so we never produce a negative version; we only start deleting
 	// once we've advanced beyond the initial retention window.
-	const keepAfterVersion = Math.max(0, state.version - snapshotRetentionWindow);
+	const keepAfterVersion = Math.max(0, state.version - SNAPSHOT_RETENTION_WINDOW);
 	if (keepAfterVersion > 0) {
 		await eventStoreRepo.deleteOldSnapshots(accountId, keepAfterVersion);
 	}
