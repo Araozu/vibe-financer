@@ -210,15 +210,29 @@ export async function getBalanceHistoryBetween(
 
 /**
  * Get net worth at a point in time (sum of all account balances)
+ * Uses batch query to avoid N+1 problem
  */
 export async function getNetWorthAsOf(userId: string, asOf: Date): Promise<number> {
-	const streamIds = await eventStoreRepo.getStreamIdsByUserAndType(userId, 'account');
-
+	// Fetch all events for user's accounts in a single query
+	const events = await eventStoreRepo.getEventsByUserAndTypeAsOf(userId, 'account', asOf);
+	
+	// Group events by stream ID
+	const eventsByStream = new Map<string, DomainEvent[]>();
+	for (const event of events) {
+		const streamEvents = eventsByStream.get(event.streamId) ?? [];
+		streamEvents.push(event);
+		eventsByStream.set(event.streamId, streamEvents);
+	}
+	
+	// Calculate balance for each account stream
 	let netWorth = 0;
-	for (const streamId of streamIds) {
-		const balance = await getAccountBalanceAsOf(streamId, asOf);
-		if (balance !== null) {
-			netWorth += balance;
+	for (const [streamId, streamEvents] of eventsByStream) {
+		const state = projectAccountState(streamEvents);
+		if (state && !state.isDeleted) {
+			const balance = getBalanceAtTime(streamEvents, asOf);
+			if (balance !== null) {
+				netWorth += balance;
+			}
 		}
 	}
 
@@ -227,18 +241,29 @@ export async function getNetWorthAsOf(userId: string, asOf: Date): Promise<numbe
 
 /**
  * Get balance snapshots for all accounts at a point in time
+ * Uses batch query to avoid N+1 problem
  */
 export async function getAllAccountBalancesAsOf(
 	userId: string,
 	asOf: Date
 ): Promise<Array<{ accountId: string; balance: number; name: string }>> {
-	const streamIds = await eventStoreRepo.getStreamIdsByUserAndType(userId, 'account');
-
+	// Fetch all events for user's accounts in a single query
+	const events = await eventStoreRepo.getEventsByUserAndTypeAsOf(userId, 'account', asOf);
+	
+	// Group events by stream ID
+	const eventsByStream = new Map<string, DomainEvent[]>();
+	for (const event of events) {
+		const streamEvents = eventsByStream.get(event.streamId) ?? [];
+		streamEvents.push(event);
+		eventsByStream.set(event.streamId, streamEvents);
+	}
+	
+	// Calculate balance and get name for each account stream
 	const balances: Array<{ accountId: string; balance: number; name: string }> = [];
-	for (const streamId of streamIds) {
-		const state = await getAccountStateAsOf(streamId, asOf);
+	for (const [streamId, streamEvents] of eventsByStream) {
+		const state = projectAccountState(streamEvents);
 		if (state && !state.isDeleted) {
-			const balance = await getAccountBalanceAsOf(streamId, asOf);
+			const balance = getBalanceAtTime(streamEvents, asOf);
 			if (balance !== null) {
 				balances.push({
 					accountId: streamId,

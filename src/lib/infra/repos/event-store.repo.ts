@@ -207,6 +207,49 @@ export const eventStoreRepo = {
 	},
 
 	/**
+	 * Get all events for a user's streams up to a specific point in time
+	 * This is a batch query to avoid N+1 problems
+	 */
+	async getEventsByUserAsOf(userId: string, asOf: Date): Promise<DomainEvent[]> {
+		const results = await db
+			.select()
+			.from(eventStore)
+			.where(
+				and(
+					eq(eventStore.userId, userId),
+					lte(eventStore.occurredAt, asOf)
+				)
+			)
+			.orderBy(asc(eventStore.streamId), asc(eventStore.version));
+
+		return results.map((r) => toDomainEvent(r as StoredEvent));
+	},
+
+	/**
+	 * Get all events for a user's streams by stream type up to a specific point in time
+	 * This is a batch query to avoid N+1 problems
+	 */
+	async getEventsByUserAndTypeAsOf(
+		userId: string,
+		streamType: StreamType,
+		asOf: Date
+	): Promise<DomainEvent[]> {
+		const results = await db
+			.select()
+			.from(eventStore)
+			.where(
+				and(
+					eq(eventStore.userId, userId),
+					eq(eventStore.streamType, streamType),
+					lte(eventStore.occurredAt, asOf)
+				)
+			)
+			.orderBy(asc(eventStore.streamId), asc(eventStore.version));
+
+		return results.map((r) => toDomainEvent(r as StoredEvent));
+	},
+
+	/**
 	 * Get all events of a specific type
 	 */
 	async getEventsByType(eventType: EventType): Promise<DomainEvent[]> {

@@ -112,30 +112,34 @@ export async function createTransaction(
 			destVersion + 1
 		);
 
-		// Append both events (using individual calls for different streams)
-		await eventStoreRepo.append(sourceEvent, { expectedVersion: sourceVersion });
-		await eventStoreRepo.append(destEvent, { expectedVersion: destVersion });
+		// Wrap both event appends and projection updates in a database transaction
+		// to ensure atomicity - if any operation fails, all are rolled back
+		await db.transaction(async (tx) => {
+			// Append both events
+			await eventStoreRepo.append(sourceEvent, { expectedVersion: sourceVersion });
+			await eventStoreRepo.append(destEvent, { expectedVersion: destVersion });
 
-		// Update read models
-		await eventStoreRepo.updateAccountProjection(data.accountId, {
-			currentBalance: fromBalanceAfter
-		});
-		await eventStoreRepo.updateAccountProjection(data.toAccountId, {
-			currentBalance: toBalanceAfter
-		});
+			// Update read models
+			await eventStoreRepo.updateAccountProjection(data.accountId, {
+				currentBalance: fromBalanceAfter
+			});
+			await eventStoreRepo.updateAccountProjection(data.toAccountId, {
+				currentBalance: toBalanceAfter
+			});
 
-		// Create transaction read model
-		await eventStoreRepo.createTransactionProjection({
-			id: transactionId,
-			accountId: data.accountId,
-			type: 'transfer',
-			amount: data.amount,
-			name: data.name ?? null,
-			description: data.description ?? null,
-			category: data.category ?? null,
-			payee: data.payee ?? null,
-			toAccountId: data.toAccountId,
-			createdAt: transactionDate
+			// Create transaction read model
+			await eventStoreRepo.createTransactionProjection({
+				id: transactionId,
+				accountId: data.accountId,
+				type: 'transfer',
+				amount: data.amount,
+				name: data.name ?? null,
+				description: data.description ?? null,
+				category: data.category ?? null,
+				payee: data.payee ?? null,
+				toAccountId: data.toAccountId,
+				createdAt: transactionDate
+			});
 		});
 
 		return {
