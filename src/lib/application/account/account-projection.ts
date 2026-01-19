@@ -59,11 +59,8 @@ const SNAPSHOT_CONFIG = {
 	MAX_SNAPSHOTS_PER_STREAM: 3
 };
 
-/**
- * Pre-calculated snapshot retention window to avoid recalculating on every cleanup
- */
-const SNAPSHOT_RETENTION_WINDOW = 
-	SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL * SNAPSHOT_CONFIG.MAX_SNAPSHOTS_PER_STREAM;
+/** Pre-calculated snapshot retention window to avoid recalculating on every cleanup */
+const SNAPSHOT_RETENTION_WINDOW = SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL * SNAPSHOT_CONFIG.MAX_SNAPSHOTS_PER_STREAM;
 
 /**
  * Get the current state of an account using snapshot optimization
