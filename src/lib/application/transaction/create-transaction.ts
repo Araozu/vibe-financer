@@ -18,6 +18,17 @@ import {
 } from '$lib/domain/events';
 import { error } from '@sveltejs/kit';
 
+/**
+ * Create a new transaction (expense, income, or transfer) and persist as a TransactionCreated event.
+ * 
+ * @param data - The transaction details
+ * @param userId - The ID of the user creating the transaction (required for event sourcing audit trails)
+ * @returns The created transaction
+ * 
+ * The userId parameter is required for event sourcing to maintain a complete audit trail
+ * of who made each change. All events in the event store must be attributed to a user
+ * for compliance and debugging purposes.
+ */
 export async function createTransaction(
 	data: CreateTransactionDTO,
 	userId: string
@@ -101,7 +112,20 @@ export async function createTransaction(
 			destVersion + 1
 		);
 
-		// Append both events (using individual calls for different streams)
+		// TODO: Implement proper atomic multi-stream event append
+		// Current limitation: The two appends below are not wrapped in a single
+		// database transaction because:
+		// 1. Each append() creates its own transaction for concurrency control
+		// 2. appendMany() only supports checking version for a single stream
+		// 3. Nested transactions are not fully supported in SQLite
+		//
+		// If the second append fails after the first succeeds, the system will be
+		// in an inconsistent state. This is mitigated by:
+		// - Optimistic concurrency checks on each append (will fail fast if version mismatch)
+		// - Projection rebuild capability to recover from inconsistent states
+		//
+		// A proper fix requires refactoring the event store to support
+		// multi-stream transactional append with concurrency checks on all streams.
 		await eventStoreRepo.append(sourceEvent, { expectedVersion: sourceVersion });
 		await eventStoreRepo.append(destEvent, { expectedVersion: destVersion });
 
@@ -169,7 +193,18 @@ export async function createTransaction(
 	);
 
 	// Append event with optimistic concurrency
-	await eventStoreRepo.append(event, { expectedVersion: sourceVersion });
+	try {
+		await eventStoreRepo.append(event, { expectedVersion: sourceVersion });
+	} catch (err: unknown) {
+		// Handle concurrent transaction creation gracefully
+		const e = err as { name?: string };
+		if (e?.name === 'ConcurrencyError') {
+			// Another transaction modified this account concurrently; surface a conflict instead of 500
+			throw error(409, 'Concurrent update detected while creating transaction. Please retry.');
+		}
+
+		throw err;
+	}
 
 	// Update account read model
 	await eventStoreRepo.updateAccountProjection(data.accountId, {

@@ -11,6 +11,18 @@ import {
 	type AccountUpdatedPayload
 } from '$lib/domain/events';
 
+/**
+ * Update an account's details and persist changes as an AccountUpdated event.
+ * 
+ * @param id - The account ID to update
+ * @param data - The fields to update (only changed fields are persisted)
+ * @param userId - The ID of the user making the change (required for event sourcing audit trails)
+ * @returns The updated account with new values
+ * 
+ * The userId parameter is required for event sourcing to maintain a complete audit trail
+ * of who made each change. All events in the event store must be attributed to a user
+ * for compliance and debugging purposes.
+ */
 export async function updateAccount(
 	id: string,
 	data: UpdateAccountDTO,

@@ -69,7 +69,7 @@ export const eventStoreRepo = {
 		return db.transaction(async (tx) => {
 			// Check for optimistic concurrency if expected version provided
 			if (options?.expectedVersion !== undefined) {
-				const currentVersion = await this.getStreamVersion(event.streamId, tx);
+				const currentVersion = await eventStoreRepo.getStreamVersion(event.streamId, tx);
 				if (currentVersion !== options.expectedVersion) {
 					throw new ConcurrencyError(
 						event.streamId,
@@ -110,7 +110,7 @@ export const eventStoreRepo = {
 		return db.transaction(async (tx) => {
 			// Check for optimistic concurrency on the first event's stream
 			if (options?.expectedVersion !== undefined && events.length > 0) {
-				const currentVersion = await this.getStreamVersion(events[0].streamId, tx);
+				const currentVersion = await eventStoreRepo.getStreamVersion(events[0].streamId, tx);
 				if (currentVersion !== options.expectedVersion) {
 					throw new ConcurrencyError(
 						events[0].streamId,
@@ -202,6 +202,49 @@ export const eventStoreRepo = {
 			.from(eventStore)
 			.where(eq(eventStore.userId, userId))
 			.orderBy(asc(eventStore.occurredAt));
+
+		return results.map((r) => toDomainEvent(r as StoredEvent));
+	},
+
+	/**
+	 * Get all events for a user's streams up to a specific point in time
+	 * This is a batch query to avoid N+1 problems
+	 */
+	async getEventsByUserAsOf(userId: string, asOf: Date): Promise<DomainEvent[]> {
+		const results = await db
+			.select()
+			.from(eventStore)
+			.where(
+				and(
+					eq(eventStore.userId, userId),
+					lte(eventStore.occurredAt, asOf)
+				)
+			)
+			.orderBy(asc(eventStore.streamId), asc(eventStore.version));
+
+		return results.map((r) => toDomainEvent(r as StoredEvent));
+	},
+
+	/**
+	 * Get all events for a user's streams by stream type up to a specific point in time
+	 * This is a batch query to avoid N+1 problems
+	 */
+	async getEventsByUserAndTypeAsOf(
+		userId: string,
+		streamType: StreamType,
+		asOf: Date
+	): Promise<DomainEvent[]> {
+		const results = await db
+			.select()
+			.from(eventStore)
+			.where(
+				and(
+					eq(eventStore.userId, userId),
+					eq(eventStore.streamType, streamType),
+					lte(eventStore.occurredAt, asOf)
+				)
+			)
+			.orderBy(asc(eventStore.streamId), asc(eventStore.version));
 
 		return results.map((r) => toDomainEvent(r as StoredEvent));
 	},

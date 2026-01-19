@@ -17,8 +17,17 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	const limit = parseInt(url.searchParams.get('limit') ?? '100', 10);
+	const rawLimit = url.searchParams.get('limit');
+	const limit = rawLimit === null ? 100 : Number.parseInt(rawLimit, 10);
 	const eventType = url.searchParams.get('eventType');
+
+	// Validate limit parameter
+	if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
+		return json(
+			{ error: 'Invalid "limit" parameter. Must be an integer between 1 and 1000.' },
+			{ status: 400 }
+		);
+	}
 
 	try {
 		// Get all events for this user
@@ -50,6 +59,20 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		});
 	} catch (error) {
 		console.error('Error fetching audit trail:', error);
+		
+		// Handle different error types
+		if (error && typeof error === 'object') {
+			const e = error as { status?: number; message?: string };
+			
+			// Propagate HTTP errors
+			if (typeof e.status === 'number' && e.status >= 400 && e.status < 600) {
+				return json(
+					{ error: e.message || 'Request failed' },
+					{ status: e.status }
+				);
+			}
+		}
+		
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
 };

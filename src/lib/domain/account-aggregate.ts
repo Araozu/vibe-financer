@@ -299,9 +299,3 @@ export function calculateBalanceChange(
 			return currentBalance - amount;
 	}
 }
-
-/**
- * Apply a single event to the state (exported for use in rebuild)
- * This is the core state machine
- */
-export { applyEvent };

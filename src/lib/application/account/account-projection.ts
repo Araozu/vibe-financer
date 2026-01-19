@@ -22,14 +22,45 @@ export interface AccountWithHistory extends AccountState {
 }
 
 /**
- * Configuration for snapshot behavior
+ * Configuration for snapshot behavior.
+ *
+ * These values are chosen to balance read performance (how many events we have to replay)
+ * against storage and write amplification (how many snapshots we keep and how often we write them).
+ *
+ * - SNAPSHOT_INTERVAL:
+ *   - We create a new snapshot after roughly this many new events have been appended.
+ *   - A value of 50 keeps the worst‑case replay size small enough for typical account
+ *     streams (tens of events per request) while avoiding excessive snapshot writes
+ *     on very active accounts.
+ *   - Lowering this value:
+ *       • Reduces the number of events that must be replayed on reads (better latency),
+ *       • But increases how often snapshots are written (more I/O and storage churn).
+ *   - Raising this value:
+ *       • Decreases snapshot write frequency and storage usage,
+ *       • But increases replay cost on reads as more events must be applied.
+ *
+ * - MAX_SNAPSHOTS_PER_STREAM:
+ *   - We keep only the latest N snapshots for each account stream.
+ *   - A value of 3 provides multiple recent checkpoints so that:
+ *       • Replay remains bounded even if the latest snapshot is relatively old, and
+ *       • Storage does not grow unbounded for long‑lived, high‑traffic accounts.
+ *   - Lowering this value reduces snapshot storage further but may increase replay
+ *     cost for very old streams.
+ *   - Raising this value keeps more historical checkpoints at the cost of additional
+ *     snapshot rows per stream.
+ *
+ * These defaults are conservative and can be tuned based on observed event volume and
+ * latency/storage requirements in a specific deployment.
  */
 const SNAPSHOT_CONFIG = {
-	/** Number of events after which to create a snapshot */
+	/** Number of new events on a stream after which we attempt to create a snapshot. */
 	SNAPSHOT_INTERVAL: 50,
-	/** Maximum number of snapshots to keep per stream */
+	/** Maximum number of snapshots to keep per stream before older ones are pruned. */
 	MAX_SNAPSHOTS_PER_STREAM: 3
 };
+
+/** Pre-calculated snapshot retention window to avoid recalculating on every cleanup */
+const SNAPSHOT_RETENTION_WINDOW = SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL * SNAPSHOT_CONFIG.MAX_SNAPSHOTS_PER_STREAM;
 
 /**
  * Get the current state of an account using snapshot optimization
@@ -182,15 +213,29 @@ export async function getBalanceHistoryBetween(
 
 /**
  * Get net worth at a point in time (sum of all account balances)
+ * Uses batch query to avoid N+1 problem
  */
 export async function getNetWorthAsOf(userId: string, asOf: Date): Promise<number> {
-	const streamIds = await eventStoreRepo.getStreamIdsByUserAndType(userId, 'account');
-
+	// Fetch all events for user's accounts in a single query
+	const events = await eventStoreRepo.getEventsByUserAndTypeAsOf(userId, 'account', asOf);
+	
+	// Group events by stream ID
+	const eventsByStream = new Map<string, DomainEvent[]>();
+	for (const event of events) {
+		const streamEvents = eventsByStream.get(event.streamId) ?? [];
+		streamEvents.push(event);
+		eventsByStream.set(event.streamId, streamEvents);
+	}
+	
+	// Calculate balance for each account stream
 	let netWorth = 0;
-	for (const streamId of streamIds) {
-		const balance = await getAccountBalanceAsOf(streamId, asOf);
-		if (balance !== null) {
-			netWorth += balance;
+	for (const [streamId, streamEvents] of eventsByStream) {
+		const state = projectAccountState(streamEvents);
+		if (state && !state.isDeleted) {
+			const balance = getBalanceAtTime(streamEvents, asOf);
+			if (balance !== null) {
+				netWorth += balance;
+			}
 		}
 	}
 
@@ -199,18 +244,29 @@ export async function getNetWorthAsOf(userId: string, asOf: Date): Promise<numbe
 
 /**
  * Get balance snapshots for all accounts at a point in time
+ * Uses batch query to avoid N+1 problem
  */
 export async function getAllAccountBalancesAsOf(
 	userId: string,
 	asOf: Date
 ): Promise<Array<{ accountId: string; balance: number; name: string }>> {
-	const streamIds = await eventStoreRepo.getStreamIdsByUserAndType(userId, 'account');
-
+	// Fetch all events for user's accounts in a single query
+	const events = await eventStoreRepo.getEventsByUserAndTypeAsOf(userId, 'account', asOf);
+	
+	// Group events by stream ID
+	const eventsByStream = new Map<string, DomainEvent[]>();
+	for (const event of events) {
+		const streamEvents = eventsByStream.get(event.streamId) ?? [];
+		streamEvents.push(event);
+		eventsByStream.set(event.streamId, streamEvents);
+	}
+	
+	// Calculate balance and get name for each account stream
 	const balances: Array<{ accountId: string; balance: number; name: string }> = [];
-	for (const streamId of streamIds) {
-		const state = await getAccountStateAsOf(streamId, asOf);
+	for (const [streamId, streamEvents] of eventsByStream) {
+		const state = projectAccountState(streamEvents);
 		if (state && !state.isDeleted) {
-			const balance = await getAccountBalanceAsOf(streamId, asOf);
+			const balance = getBalanceAtTime(streamEvents, asOf);
 			if (balance !== null) {
 				balances.push({
 					accountId: streamId,
@@ -248,7 +304,9 @@ async function createSnapshot(accountId: string, state: AccountState): Promise<v
 	await eventStoreRepo.saveSnapshot(accountId, state, state.version);
 
 	// Cleanup old snapshots
-	const keepAfterVersion = state.version - SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL * SNAPSHOT_CONFIG.MAX_SNAPSHOTS_PER_STREAM;
+	// Clamp to 0 so we never produce a negative version; we only start deleting
+	// once we've advanced beyond the initial retention window.
+	const keepAfterVersion = Math.max(0, state.version - SNAPSHOT_RETENTION_WINDOW);
 	if (keepAfterVersion > 0) {
 		await eventStoreRepo.deleteOldSnapshots(accountId, keepAfterVersion);
 	}

@@ -113,6 +113,28 @@ export async function getNetWorthOverTime(
 	endDate: Date,
 	intervalDays: number = 1
 ): Promise<Array<{ date: Date; netWorth: number }>> {
+	// Validate date range
+	if (startDate > endDate) {
+		throw new Error('startDate must be before or equal to endDate');
+	}
+
+	// Validate interval
+	if (intervalDays <= 0 || !Number.isInteger(intervalDays)) {
+		throw new Error('intervalDays must be a positive integer');
+	}
+
+	// Limit the number of data points to prevent performance issues
+	const maxDays = 3650; // ~10 years
+	const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+	const dataPointsCount = Math.ceil(daysDiff / intervalDays);
+	
+	if (dataPointsCount > maxDays) {
+		throw new Error(
+			`Date range with interval would generate ${dataPointsCount} data points. ` +
+			`Maximum allowed is ${maxDays}. Please increase interval or reduce date range.`
+		);
+	}
+
 	const snapshots: Array<{ date: Date; netWorth: number }> = [];
 
 	const current = new Date(startDate);
