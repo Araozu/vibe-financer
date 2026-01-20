@@ -5,8 +5,10 @@
 	import * as Table from "$lib/components/ui/table/index.js";
 	import { Progress } from "$lib/components/ui/progress/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
+	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
 	import CreateAccountDialog from "$lib/components/account/create-account-dialog.svelte";
 	import CreateTransactionForm from "$lib/components/transaction/create-transaction-form.svelte";
+	import EditTransactionDialog from "$lib/components/transaction/edit-transaction-dialog.svelte";
 	import { 
 		Wallet, 
 		TrendingUp, 
@@ -16,7 +18,10 @@
 		Car,
 		Home,
 		ShoppingBag,
-		Tag
+		Tag,
+		MoreVertical,
+		Pencil,
+		Trash2
 	} from "@lucide/svelte";
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
@@ -46,6 +51,14 @@
 
 	let accounts = $derived(accountsQuery.data ?? []);
 	let transactions = $derived(transactionsQuery.data ?? []);
+	
+	let editingTransaction = $state<SerializedTransaction | null>(null);
+	let editDialogOpen = $state(false);
+
+	function openEditDialog(tx: SerializedTransaction) {
+		editingTransaction = tx;
+		editDialogOpen = true;
+	}
 
 	let totalBalance = $derived(accounts.reduce((acc: number, curr) => acc + curr.currentBalance, 0));
 	let formattedTotalBalance = $derived((totalBalance / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
@@ -202,6 +215,7 @@
 								<Table.Head class="hidden md:table-cell">Account</Table.Head>
 								<Table.Head class="hidden md:table-cell">Category</Table.Head>
 								<Table.Head class="text-right">Amount</Table.Head>
+								<Table.Head class="w-12"></Table.Head>
 							</Table.Row>
 						</Table.Header>
 						<Table.Body>
@@ -235,6 +249,28 @@
 									</Table.Cell>
 									<Table.Cell class="text-right font-medium {tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}">
 										{tx.type === 'income' ? '+' : '-'}{(tx.amount / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+									</Table.Cell>
+									<Table.Cell>
+										<DropdownMenu.Root>
+											<DropdownMenu.Trigger>
+												<Button variant="ghost" size="icon" class="h-8 w-8">
+													<MoreVertical class="h-4 w-4" />
+													<span class="sr-only">Open menu</span>
+												</Button>
+											</DropdownMenu.Trigger>
+											<DropdownMenu.Content align="end">
+												<DropdownMenu.Label>Actions</DropdownMenu.Label>
+												<DropdownMenu.Separator />
+												<DropdownMenu.Item onclick={() => openEditDialog(tx)}>
+													<Pencil class="mr-2 h-4 w-4" />
+													Edit
+												</DropdownMenu.Item>
+												<DropdownMenu.Item class="text-destructive">
+													<Trash2 class="mr-2 h-4 w-4" />
+													Delete
+												</DropdownMenu.Item>
+											</DropdownMenu.Content>
+										</DropdownMenu.Root>
 									</Table.Cell>
 								</Table.Row>
 							{/each}
@@ -294,3 +330,16 @@
 			</Card.Root>
 		</div>
 	</div>
+
+<!-- Edit Transaction Dialog -->
+{#if editingTransaction}
+	<EditTransactionDialog 
+		transaction={{
+			...editingTransaction,
+			createdAt: new Date(editingTransaction.createdAt),
+			updatedAt: new Date(editingTransaction.updatedAt)
+		}}
+		accounts={accounts}
+		bind:open={editDialogOpen}
+	/>
+{/if}

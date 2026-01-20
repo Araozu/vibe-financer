@@ -12,6 +12,7 @@ import type {
 	AccountUpdatedEvent,
 	DomainEvent,
 	TransactionCreatedEvent,
+	TransactionUpdatedEvent,
 	TransactionDeletedEvent,
 	TransferCreatedEvent
 } from './events';
@@ -131,6 +132,18 @@ export function projectBalanceHistory(events: DomainEvent[]): BalanceSnapshot[] 
 					timestamp: e.payload.transactionDate,
 					eventId: e.id,
 					eventType: 'TransferCreated',
+					transactionId: e.payload.transactionId
+				});
+				break;
+			}
+			case 'TransactionUpdated': {
+				const e = event as TransactionUpdatedEvent;
+				currentBalance = e.payload.balanceAfter;
+				history.push({
+					balance: currentBalance,
+					timestamp: e.occurredAt,
+					eventId: e.id,
+					eventType: 'TransactionUpdated',
 					transactionId: e.payload.transactionId
 				});
 				break;
@@ -255,6 +268,17 @@ function applyEvent(state: AccountState | null, event: DomainEvent): AccountStat
 			return {
 				...state,
 				currentBalance: e.payload.fromBalanceAfter,
+				updatedAt: e.occurredAt,
+				version: e.version
+			};
+		}
+
+		case 'TransactionUpdated': {
+			if (!state) return null;
+			const e = event as TransactionUpdatedEvent;
+			return {
+				...state,
+				currentBalance: e.payload.balanceAfter,
 				updatedAt: e.occurredAt,
 				version: e.version
 			};

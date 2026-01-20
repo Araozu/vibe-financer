@@ -10,6 +10,7 @@ export type EventType =
 	| 'AccountUpdated'
 	| 'AccountDeleted'
 	| 'TransactionCreated'
+	| 'TransactionUpdated'
 	| 'TransactionDeleted'
 	| 'TransferCreated';
 
@@ -98,6 +99,33 @@ export interface TransactionDeletedPayload {
 	balanceAdjustment: number; // How much to adjust the balance back
 }
 
+export interface TransactionUpdatedPayload {
+	transactionId: string;
+	changes: {
+		type?: 'expense' | 'income' | 'transfer';
+		amount?: number;
+		name?: string | null;
+		description?: string | null;
+		category?: string | null;
+		payee?: string | null;
+		toAccountId?: string | null;
+		transactionDate?: Date;
+	};
+	previousValues: {
+		type?: 'expense' | 'income' | 'transfer';
+		amount?: number;
+		name?: string | null;
+		description?: string | null;
+		category?: string | null;
+		payee?: string | null;
+		toAccountId?: string | null;
+		transactionDate?: Date;
+	};
+	balanceAdjustment: number; // Net change in balance due to edit
+	balanceBefore: number;
+	balanceAfter: number;
+}
+
 export interface TransferCreatedPayload {
 	transactionId: string;
 	fromAccountId: string;
@@ -114,6 +142,7 @@ export interface TransferCreatedPayload {
 }
 
 export type TransactionCreatedEvent = BaseEvent<'TransactionCreated', TransactionCreatedPayload>;
+export type TransactionUpdatedEvent = BaseEvent<'TransactionUpdated', TransactionUpdatedPayload>;
 export type TransactionDeletedEvent = BaseEvent<'TransactionDeleted', TransactionDeletedPayload>;
 export type TransferCreatedEvent = BaseEvent<'TransferCreated', TransferCreatedPayload>;
 
@@ -122,7 +151,7 @@ export type TransferCreatedEvent = BaseEvent<'TransferCreated', TransferCreatedP
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type AccountEvent = AccountCreatedEvent | AccountUpdatedEvent | AccountDeletedEvent;
-export type TransactionEvent = TransactionCreatedEvent | TransactionDeletedEvent | TransferCreatedEvent;
+export type TransactionEvent = TransactionCreatedEvent | TransactionUpdatedEvent | TransactionDeletedEvent | TransferCreatedEvent;
 export type DomainEvent = AccountEvent | TransactionEvent;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -216,6 +245,24 @@ export function createTransferCreatedEvent(
 		streamId: fromAccountId,
 		streamType: 'account',
 		eventType: 'TransferCreated',
+		payload,
+		version,
+		occurredAt: new Date(),
+		userId
+	};
+}
+
+export function createTransactionUpdatedEvent(
+	accountId: string,
+	userId: string,
+	payload: TransactionUpdatedPayload,
+	version: number
+): TransactionUpdatedEvent {
+	return {
+		id: createEventId(),
+		streamId: accountId,
+		streamType: 'account',
+		eventType: 'TransactionUpdated',
 		payload,
 		version,
 		occurredAt: new Date(),

@@ -24,5 +24,17 @@ export const transactionRepo = {
 
 	async findAll(): Promise<Transaction[]> {
 		return await db.select().from(transaction).orderBy(desc(transaction.createdAt));
+	},
+
+	async update(
+		id: string,
+		data: Partial<Omit<Transaction, 'id' | 'createdAt'>>
+	): Promise<Transaction | undefined> {
+		const [result] = await db
+			.update(transaction)
+			.set({ ...data, updatedAt: new Date() })
+			.where(eq(transaction.id, id))
+			.returning();
+		return result;
 	}
 };
