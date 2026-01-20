@@ -1,9 +1,10 @@
 <script lang="ts">
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
+	import { buttonVariants } from "$lib/components/ui/button/index.js";
 	import * as Tooltip from "$lib/components/ui/tooltip/index.js";
 	import { Plus } from "@lucide/svelte";
 	import CreateTransactionForm from "./create-transaction-form.svelte";
+	import { cn } from "$lib/utils.js";
 
 	// Minimal account type for what this component needs
 	interface AccountLike {
@@ -26,22 +27,16 @@
 
 <Dialog.Root bind:open>
 	{#if hasAccounts}
-		<Dialog.Trigger>
-			<Button size="sm">
-				<Plus class="mr-2 h-4 w-4" />
-				Add Transaction
-			</Button>
+		<Dialog.Trigger class={cn(buttonVariants({ size: 'sm' }))}>
+			<Plus class="mr-2 h-4 w-4" />
+			Add Transaction
 		</Dialog.Trigger>
 	{:else}
 		<Tooltip.Provider>
 			<Tooltip.Root>
-				<Tooltip.Trigger>
-					<div class="inline-block cursor-not-allowed">
-						<Button size="sm" disabled>
-							<Plus class="mr-2 h-4 w-4" />
-							Add Transaction
-						</Button>
-					</div>
+				<Tooltip.Trigger class={cn(buttonVariants({ size: 'sm' }))} disabled>
+					<Plus class="mr-2 h-4 w-4" />
+					Add Transaction
 				</Tooltip.Trigger>
 				<Tooltip.Content>
 					<p>You need to create an account first</p>

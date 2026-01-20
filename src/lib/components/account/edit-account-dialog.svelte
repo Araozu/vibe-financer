@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
+	import { Button, buttonVariants } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Label } from "$lib/components/ui/label/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
@@ -18,22 +18,23 @@
 	} from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 	import type { Account } from "$lib/domain/account";
+	import { cn } from "$lib/utils.js";
 
 	const queryClient = useQueryClient();
 
 	// We use any here because the account might come from a serialized API response (dates as strings)
 	let { open = $bindable(false), account } = $props<{ open?: boolean, account: any }>();
 	
-	let selectedType = $state(account.type);
-	let accountName = $state(account.name);
-	let description = $state(account.description ?? "");
-	let initialBalance = $state((account.initialBalance / 100).toString());
-	let currencyCode = $state(account.currencyCode);
-	let currencySymbol = $state(account.currencySymbol);
-	let color = $state(account.color);
+	let selectedType = $state<string>('');
+	let accountName = $state<string>('');
+	let description = $state<string>('');
+	let initialBalance = $state<string>('');
+	let currencyCode = $state<string>('');
+	let currencySymbol = $state<string>('');
+	let color = $state<string>('');
 	let isLoading = $state(false);
 
-	// Update local state if the account prop changes (though unlikely in this UI flow)
+	// Update local state when dialog opens or account prop changes
 	$effect(() => {
 		if (open) {
 			selectedType = account.type;
@@ -55,11 +56,9 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger>
-		<Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-primary">
-			<Pencil class="h-4 w-4" />
-			<span class="sr-only">Edit account</span>
-		</Button>
+	<Dialog.Trigger class={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8 text-muted-foreground hover:text-primary')}>
+		<Pencil class="h-4 w-4" />
+		<span class="sr-only">Edit account</span>
 	</Dialog.Trigger>
 	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl">
 		<form 

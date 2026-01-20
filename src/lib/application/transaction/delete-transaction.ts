@@ -60,7 +60,7 @@ export async function deleteTransaction(
 	// 4. Create the TransactionDeleted event
 	const payload: TransactionDeletedPayload = {
 		transactionId: tx.id,
-		reason: reason ?? null,
+		reason,
 		balanceAdjustment
 	};
 

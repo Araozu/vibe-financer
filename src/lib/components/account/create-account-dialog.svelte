@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
+	import { Button, buttonVariants } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Label } from "$lib/components/ui/label/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
@@ -17,6 +17,7 @@
         Loader2
 	} from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
+	import { cn } from "$lib/utils.js";
 
 	const queryClient = useQueryClient();
 
@@ -48,11 +49,9 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger>
-		<Button variant="outline" size="sm">
-			<CreditCard class="mr-2 h-4 w-4" />
-			Create Account
-		</Button>
+	<Dialog.Trigger class={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+		<CreditCard class="mr-2 h-4 w-4" />
+		Create Account
 	</Dialog.Trigger>
 	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl">
 		<form 

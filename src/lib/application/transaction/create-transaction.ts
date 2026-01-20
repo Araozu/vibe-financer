@@ -151,18 +151,19 @@ export async function createTransaction(
 			createdAt: transactionDate
 		});
 
-		return {
-			id: transactionId,
-			accountId: data.accountId,
-			type: 'transfer',
-			amount: data.amount,
-			name: data.name ?? null,
-			description: data.description ?? null,
-			category: data.category ?? null,
-			payee: data.payee ?? null,
-			toAccountId: data.toAccountId,
-			createdAt: transactionDate,
-			updatedAt: transactionDate
+	return {
+		id: transactionId,
+		accountId: data.accountId,
+		type: 'transfer',
+		amount: data.amount,
+		name: data.name ?? null,
+		description: data.description ?? null,
+		category: data.category ?? null,
+		payee: data.payee ?? null,
+		toAccountId: data.toAccountId,
+		createdAt: transactionDate,
+		updatedAt: transactionDate,
+		deletedAt: null
 		};
 	}
 
@@ -231,6 +232,7 @@ export async function createTransaction(
 		type: data.type,
 		amount: data.amount,
 		name: data.name ?? null,
+		deletedAt: null,
 		description: data.description ?? null,
 		category: data.category ?? null,
 		payee: data.payee ?? null,

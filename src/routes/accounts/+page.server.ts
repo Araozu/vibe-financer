@@ -105,7 +105,8 @@ export const actions: Actions = {
 				category: category ?? null,
 				payee: payee ?? null,
 				toAccountId: toAccountId ?? null,
-				createdAt
+				createdAt,
+				deletedAt: null
 			}, locals.user.id);
 			return { success: true };
 		} catch (error: unknown) {
