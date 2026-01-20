@@ -91,6 +91,7 @@ export const transaction = sqliteTable('transaction', {
 	category: text('category'),
 	payee: text('payee'),
 	toAccountId: text('to_account_id').references(() => account.id, { onDelete: 'cascade' }),
+	deletedAt: integer('deleted_at', { mode: 'timestamp' }), // Soft delete for audit trail
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date())
 });

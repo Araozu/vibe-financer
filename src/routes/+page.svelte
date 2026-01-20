@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createQuery } from '@tanstack/svelte-query';
+	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Table from "$lib/components/ui/table/index.js";
@@ -49,15 +49,46 @@
 		queryFn: async () => (await fetch('/api/transactions')).json(),
 	}));
 
+	const queryClient = useQueryClient();
+
 	let accounts = $derived(accountsQuery.data ?? []);
 	let transactions = $derived(transactionsQuery.data ?? []);
 	
 	let editingTransaction = $state<SerializedTransaction | null>(null);
 	let editDialogOpen = $state(false);
+	let deletingTransactionId = $state<string | null>(null);
 
 	function openEditDialog(tx: SerializedTransaction) {
 		editingTransaction = tx;
 		editDialogOpen = true;
+	}
+
+	async function handleDeleteTransaction(transactionId: string) {
+		if (!confirm('Are you sure you want to delete this transaction? This will adjust the account balance accordingly.')) {
+			return;
+		}
+
+		deletingTransactionId = transactionId;
+
+		try {
+			const response = await fetch(`/api/transactions/${transactionId}`, {
+				method: 'DELETE',
+			});
+
+			if (!response.ok) {
+				const error = await response.json();
+				throw new Error(error.error ?? 'Failed to delete transaction');
+			}
+
+			// Invalidate queries to refresh the UI
+			await queryClient.invalidateQueries({ queryKey: ['transactions'] });
+			await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+		} catch (error) {
+			console.error('Error deleting transaction:', error);
+			alert(error instanceof Error ? error.message : 'Failed to delete transaction');
+		} finally {
+			deletingTransactionId = null;
+		}
 	}
 
 	let totalBalance = $derived(accounts.reduce((acc: number, curr) => acc + curr.currentBalance, 0));
@@ -265,9 +296,13 @@
 													<Pencil class="mr-2 h-4 w-4" />
 													Edit
 												</DropdownMenu.Item>
-												<DropdownMenu.Item class="text-destructive">
+												<DropdownMenu.Item 
+													class="text-destructive" 
+													onclick={() => handleDeleteTransaction(tx.id)}
+													disabled={deletingTransactionId === tx.id}
+												>
 													<Trash2 class="mr-2 h-4 w-4" />
-													Delete
+													{deletingTransactionId === tx.id ? 'Deleting...' : 'Delete'}
 												</DropdownMenu.Item>
 											</DropdownMenu.Content>
 										</DropdownMenu.Root>

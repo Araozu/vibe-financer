@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { transaction } from '../db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, isNull, and } from 'drizzle-orm';
 import type { Transaction, CreateTransactionDTO } from '../../domain/transaction';
 
 export const transactionRepo = {
@@ -18,12 +18,19 @@ export const transactionRepo = {
 		return await db
 			.select()
 			.from(transaction)
-			.where(eq(transaction.accountId, accountId))
+			.where(and(
+				eq(transaction.accountId, accountId),
+				isNull(transaction.deletedAt)
+			))
 			.orderBy(desc(transaction.createdAt));
 	},
 
 	async findAll(): Promise<Transaction[]> {
-		return await db.select().from(transaction).orderBy(desc(transaction.createdAt));
+		return await db
+			.select()
+			.from(transaction)
+			.where(isNull(transaction.deletedAt))
+			.orderBy(desc(transaction.createdAt));
 	},
 
 	async update(

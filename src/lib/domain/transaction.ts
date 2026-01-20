@@ -10,6 +10,7 @@ export interface Transaction {
 	category: string | null;
 	payee: string | null;
 	toAccountId: string | null; // For transfers: the destination account
+	deletedAt: Date | null; // Soft delete timestamp for audit trail
 	createdAt: Date;
 	updatedAt: Date;
 }

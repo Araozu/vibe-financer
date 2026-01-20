@@ -411,6 +411,28 @@ export const eventStoreRepo = {
 		await db.insert(transaction).values(data);
 	},
 
+	/**
+	 * Update read model (projection) for a transaction
+	 * This is called after events are appended to keep the read model in sync
+	 */
+	async updateTransactionProjection(
+		transactionId: string,
+		data: {
+			name?: string | null;
+			description?: string | null;
+			category?: string | null;
+			payee?: string | null;
+			amount?: number;
+			type?: 'expense' | 'income' | 'transfer';
+			deletedAt?: Date;
+		}
+	): Promise<void> {
+		await db
+			.update(transaction)
+			.set({ ...data, updatedAt: new Date() })
+			.where(eq(transaction.id, transactionId));
+	},
+
 	// ─────────────────────────────────────────────────────────────────────────────
 	// Snapshot Operations
 	// ─────────────────────────────────────────────────────────────────────────────
