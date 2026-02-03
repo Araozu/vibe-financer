@@ -7,7 +7,12 @@ const config: Config = {
 	// for more information about preprocessors
 	preprocess: vitePreprocess(),
 
-	kit: { adapter: adapter() }
+	kit: { 
+		adapter: adapter(),
+		serviceWorker: {
+			register: false // We'll register it manually for more control
+		}
+	}
 };
 
 export default config;
