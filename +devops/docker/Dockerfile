@@ -44,6 +44,9 @@ ENV PORT=3000
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S bunuser -u 1001
 
+RUN chown -R bunuser:nodejs /app
+RUN mkdir -p /app/data && chown -R bunuser:nodejs /app/data
+
 # Copy built application from builder
 COPY --from=builder --chown=bunuser:nodejs /app/build ./build
 COPY --from=builder --chown=bunuser:nodejs /app/package.json ./
