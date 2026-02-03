@@ -13,7 +13,7 @@ services:
       - vibe_financer_data:/app/data
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.{{ project_name }}-{{ project_stage }{{ project_name }}-{{ project_stage }}}.rule=Host(`financer.araoz.dev`)"
+      - "traefik.http.routers.{{ project_name }}-{{ project_stage }}.rule=Host(`financer.araoz.dev`)"
       - "traefik.http.routers.{{ project_name }}-{{ project_stage }}.entrypoints=websecure"
       - "traefik.http.routers.{{ project_name }}-{{ project_stage }}.tls=true"
       - "traefik.http.routers.{{ project_name }}-{{ project_stage }}.tls.certresolver=araoz-wildcard"
