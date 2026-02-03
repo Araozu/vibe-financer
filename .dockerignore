@@ -1,7 +1,54 @@
-node_modules
-build
-.git
-.svelte-kit
+# Node modules (will be installed in container)
+node_modules/
+.bun/
+
+# Build outputs
+build/
+.svelte-kit/
+dist/
+
+# Development files
+.git/
+.github/
+.vscode/
+.cursor/
+
+# Environment files (use docker secrets instead)
 .env
 .env.*
-! .env.example
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database files (will be in volume)
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+coverage/
+
+# Documentation
+*.md
+!README.md
+
+# Docker files themselves
+Dockerfile*
+docker-compose*.yml
+.dockerignore

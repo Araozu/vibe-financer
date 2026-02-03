@@ -1,0 +1,29 @@
+services:
+  {{ project_name }}-full-{{ project_stage }}:
+    image: ${{ project_name | upper }}_FULL_REGISTRY_URL:${{ project_name | upper }}_FULL_VERSION
+    container_name: {{ project_name }}-full-{{ project_stage }}
+    restart: unless-stopped
+    environment:
+      - TZ=America/Lima
+      - DATABASE_URL=/app/data/database.sqlite
+      - ORIGIN=http://localhost:3000
+    networks:
+      - proxy
+    volumes:
+      - vibe_financer_data:/app/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.{{ project_name }}-{{ project_stage }{{ project_name }}-{{ project_stage }}}.rule=Host(`financer.araoz.dev`)"
+      - "traefik.http.routers.{{ project_name }}-{{ project_stage }}.entrypoints=websecure"
+      - "traefik.http.routers.{{ project_name }}-{{ project_stage }}.tls=true"
+      - "traefik.http.routers.{{ project_name }}-{{ project_stage }}.tls.certresolver=araoz-wildcard"
+      - "traefik.http.routers.{{ project_name }}-{{ project_stage }}.tls.domains[0].main=araoz.dev"
+      - "traefik.http.routers.{{ project_name }}-{{ project_stage }}.tls.domains[0].sans=*.araoz.dev"
+      - "traefik.http.services.{{ project_name }}-{{ project_stage }}.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true
+
+volumes:
+  vibe_financer_data:
