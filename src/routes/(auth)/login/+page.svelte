@@ -5,10 +5,13 @@
 	import { Label } from "$lib/components/ui/label/index.js";
 	import logo from "$lib/assets/plain_icon.svg";
 	import { enhance } from "$app/forms";
+	import type { PageData } from './$types';
 	
-	let { form } = $props();
+	let { data, form }: { data: any, form: any } = $props();
 	let isSignup = $state(false);
 	let loading = $state(false);
+
+	const signupDisabled = $derived(data.signupDisabled);
 </script>
 
 <div class="min-h-screen flex items-center justify-center bg-background p-4">
@@ -99,17 +102,19 @@
 				</form>
 			</Card.Content>
 			<Card.Footer class="flex flex-col space-y-2">
-				<div class="text-sm text-center text-muted-foreground">
-					{isSignup ? 'Already have an account?' : "Don't have an account?"}
-					<button 
-						type="button"
-						onclick={() => { isSignup = !isSignup; }}
-						class="text-primary hover:underline ml-1 font-medium"
-						disabled={loading}
-					>
-						{isSignup ? 'Sign in' : 'Sign up'}
-					</button>
-				</div>
+				{#if !signupDisabled || isSignup}
+					<div class="text-sm text-center text-muted-foreground">
+						{isSignup ? 'Already have an account?' : "Don't have an account?"}
+						<button 
+							type="button"
+							onclick={() => { isSignup = !isSignup; }}
+							class="text-primary hover:underline ml-1 font-medium"
+							disabled={loading || (signupDisabled && !isSignup)}
+						>
+							{isSignup ? 'Sign in' : 'Sign up'}
+						</button>
+					</div>
+				{/if}
 			</Card.Footer>
 		</Card.Root>
 	</div>

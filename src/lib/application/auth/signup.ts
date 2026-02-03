@@ -19,6 +19,12 @@ export async function signup(input: SignupInput): Promise<{ success: true; userI
 		return { success: false, error: passwordError };
 	}
 
+	// Only one user allowed
+	const userCount = await userRepo.count();
+	if (userCount > 0) {
+		return { success: false, error: 'Sign-ups are currently disabled' };
+	}
+
 	// Check if user already exists
 	const existingUser = await userRepo.findByEmail(input.email);
 	if (existingUser) {

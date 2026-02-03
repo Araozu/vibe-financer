@@ -1,7 +1,15 @@
 import { redirect, fail } from '@sveltejs/kit';
-import type { Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 import { login } from '$lib/application/auth/login';
 import { signup } from '$lib/application/auth/signup';
+import { userRepo } from '$lib/infra/repos/user.repo';
+
+export const load: PageServerLoad = async () => {
+	const userCount = await userRepo.count();
+	return {
+		signupDisabled: userCount > 0
+	};
+};
 
 export const actions: Actions = {
 	login: async ({ request, cookies }) => {

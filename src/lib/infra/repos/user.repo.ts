@@ -33,5 +33,10 @@ export const userRepo = {
 
 	async findAll(): Promise<User[]> {
 		return await db.select().from(user);
+	},
+
+	async count(): Promise<number> {
+		const result = await db.select().from(user);
+		return result.length;
 	}
 };
