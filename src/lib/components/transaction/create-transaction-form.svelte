@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import { Label } from "$lib/components/ui/label/index.js";
-	import * as Select from "$lib/components/ui/select/index.js";
-	import { Switch } from "$lib/components/ui/switch/index.js";
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { enhance } from '$app/forms';
 	import { useQueryClient } from '@tanstack/svelte-query';
-	import { 
-		ArrowDownRight, 
-		ArrowUpRight, 
+	import {
+		ArrowDownRight,
+		ArrowUpRight,
 		ArrowLeftRight,
-		Type, 
+		Type,
 		Tag,
 		User as UserIcon,
 		Wallet,
@@ -18,9 +18,9 @@
 		Plus,
 		Loader2,
 		Calendar
-	} from "@lucide/svelte";
-	import { toast } from "svelte-sonner";
-	import { onMount, tick } from "svelte";
+	} from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
+	import { onMount, tick } from 'svelte';
 
 	// Minimal account type for what this component needs
 	interface AccountLike {
@@ -32,23 +32,23 @@
 
 	const queryClient = useQueryClient();
 
-	let { 
-		accounts = [], 
-		onSuccess, 
+	let {
+		accounts = [],
+		onSuccess,
 		showCreateMore = true,
-		class: className = ""
-	}: { 
-		accounts: AccountLike[], 
-		onSuccess?: (createMore: boolean) => void,
-		showCreateMore?: boolean,
-		class?: string
-	}= $props();
-	
-	let selectedType = $state("expense");
-	let selectedAccountId = $state("");
-	let selectedToAccountId = $state("");
+		class: className = ''
+	}: {
+		accounts: AccountLike[];
+		onSuccess?: (createMore: boolean) => void;
+		showCreateMore?: boolean;
+		class?: string;
+	} = $props();
+
+	let selectedType = $state('expense');
+	let selectedAccountId = $state('');
+	let selectedToAccountId = $state('');
 	let isLoading = $state(false);
-	
+
 	$effect(() => {
 		if (accounts.length > 0 && !selectedAccountId) {
 			selectedAccountId = accounts[0].id;
@@ -56,42 +56,45 @@
 	});
 
 	// Filter accounts for transfer destination (same currency, different account)
-	let availableToAccounts = $derived(selectedType === 'transfer' && selectedAccountId 
-		? accounts.filter(acc => {
-			const fromAccount = accounts.find(a => a.id === selectedAccountId);
-			return acc.id !== selectedAccountId && acc.currencyCode === fromAccount?.currencyCode;
-		})
-		: []);
+	let availableToAccounts = $derived(
+		selectedType === 'transfer' && selectedAccountId
+			? accounts.filter((acc) => {
+					const fromAccount = accounts.find((a) => a.id === selectedAccountId);
+					return acc.id !== selectedAccountId && acc.currencyCode === fromAccount?.currencyCode;
+				})
+			: []
+	);
 
 	$effect(() => {
 		// Reset to account when changing from account or switching to transfer
 		if (selectedType === 'transfer' && availableToAccounts.length > 0) {
 			// Only update if current selection is invalid
-			const isCurrentValid = selectedToAccountId && availableToAccounts.find(a => a.id === selectedToAccountId);
+			const isCurrentValid =
+				selectedToAccountId && availableToAccounts.find((a) => a.id === selectedToAccountId);
 			if (!isCurrentValid) {
 				selectedToAccountId = availableToAccounts[0].id;
 			}
 		} else if (selectedType !== 'transfer') {
 			// Clear selection when not in transfer mode
-			selectedToAccountId = "";
+			selectedToAccountId = '';
 		}
 	});
 
 	let createMore = $state(false);
-	let transactionName = $state("");
-	let description = $state("");
-	let amount = $state("");
-	let category = $state("");
-	let payee = $state("");
-	let transactionDate = $state("");
+	let transactionName = $state('');
+	let description = $state('');
+	let amount = $state('');
+	let category = $state('');
+	let payee = $state('');
+	let transactionDate = $state('');
 
 	let titleInput: HTMLInputElement | null = $state(null);
 
 	onMount(() => {
 		if (showCreateMore) {
-			const stored = localStorage.getItem("createMoreTransactions");
+			const stored = localStorage.getItem('createMoreTransactions');
 			if (stored !== null) {
-				createMore = stored === "true";
+				createMore = stored === 'true';
 			}
 		} else {
 			createMore = false;
@@ -100,23 +103,23 @@
 
 	$effect(() => {
 		if (showCreateMore) {
-			localStorage.setItem("createMoreTransactions", String(createMore));
+			localStorage.setItem('createMoreTransactions', String(createMore));
 		}
 	});
 
 	const transactionTypes = [
-		{ value: "expense", label: "Expense", icon: ArrowDownRight, color: "text-rose-500" },
-		{ value: "income", label: "Income", icon: ArrowUpRight, color: "text-emerald-500" },
-		{ value: "transfer", label: "Transfer", icon: ArrowLeftRight, color: "text-blue-500" },
+		{ value: 'expense', label: 'Expense', icon: ArrowDownRight, color: 'text-rose-500' },
+		{ value: 'income', label: 'Income', icon: ArrowUpRight, color: 'text-emerald-500' },
+		{ value: 'transfer', label: 'Transfer', icon: ArrowLeftRight, color: 'text-blue-500' }
 	];
 
 	function resetForm() {
-		transactionName = "";
-		description = "";
-		amount = "";
-		category = "";
-		payee = "";
-		selectedToAccountId = "";
+		transactionName = '';
+		description = '';
+		amount = '';
+		category = '';
+		payee = '';
+		selectedToAccountId = '';
 	}
 
 	function addDayToDate() {
@@ -126,40 +129,45 @@
 	}
 </script>
 
-<form 
-	method="POST" 
-	action="?/createTransaction" 
+<form
+	method="POST"
+	action="?/createTransaction"
 	use:enhance={() => {
 		isLoading = true;
 		return async ({ result }) => {
 			isLoading = false;
 			if (result.type === 'success') {
-				toast.success("Transaction created successfully");
+				toast.success('Transaction created successfully');
 				// Invalidate queries to refetch updated data
 				queryClient.invalidateQueries({ queryKey: ['transactions'] });
 				queryClient.invalidateQueries({ queryKey: ['accounts'] });
 				resetForm();
-				
+
 				if (onSuccess) {
 					onSuccess(createMore);
 				}
-				
+
 				await tick();
 				titleInput?.focus();
 			} else if (result.type === 'failure') {
-				const errorMessage = typeof result.data?.error === 'string' ? result.data.error : "Failed to create transaction";
+				const errorMessage =
+					typeof result.data?.error === 'string'
+						? result.data.error
+						: 'Failed to create transaction';
 				toast.error(errorMessage);
 			}
 		};
-	}} 
-	class="flex flex-col h-full {className}"
+	}}
+	class="flex h-full flex-col {className}"
 >
 	<!-- Header / Selectors -->
-	<div class="px-4 py-3 flex items-center gap-2 border-b border-border/40 bg-muted/30">
+	<div class="flex items-center gap-2 border-b border-border/40 bg-muted/30 px-4 py-3">
 		<!-- Type Select -->
 		<Select.Root type="single" bind:value={selectedType}>
-			<Select.Trigger class="w-32 h-8 px-2.5 py-1.5 text-xs font-medium bg-background border-none hover:bg-muted transition-colors rounded-md gap-2">
-				{@const currentType = transactionTypes.find(t => t.value === selectedType)}
+			<Select.Trigger
+				class="h-8 w-32 gap-2 rounded-md border-none bg-background px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted"
+			>
+				{@const currentType = transactionTypes.find((t) => t.value === selectedType)}
 				{#if currentType}
 					<currentType.icon class="h-3.5 w-3.5 {currentType.color}" />
 					<span>{currentType.label}</span>
@@ -180,9 +188,11 @@
 
 		<!-- Account Select -->
 		<Select.Root type="single" bind:value={selectedAccountId}>
-			<Select.Trigger class="w-auto h-8 px-2.5 py-1.5 text-xs font-medium bg-background border-none hover:bg-muted transition-colors rounded-md gap-2">
+			<Select.Trigger
+				class="h-8 w-auto gap-2 rounded-md border-none bg-background px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted"
+			>
 				<Wallet class="h-3.5 w-3.5 text-muted-foreground/60" />
-				<span>{accounts.find((a) => a.id === selectedAccountId)?.name ?? "Select Account"}</span>
+				<span>{accounts.find((a) => a.id === selectedAccountId)?.name ?? 'Select Account'}</span>
 			</Select.Trigger>
 			<Select.Content>
 				{#each accounts as account}
@@ -202,9 +212,14 @@
 			<ChevronRight class="h-3 w-3 opacity-30" />
 			{#if availableToAccounts.length > 0}
 				<Select.Root type="single" bind:value={selectedToAccountId}>
-					<Select.Trigger class="w-auto h-8 px-2.5 py-1.5 text-xs font-medium bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-colors rounded-md gap-2">
+					<Select.Trigger
+						class="h-8 w-auto gap-2 rounded-md border border-blue-500/30 bg-blue-500/10 px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-blue-500/20"
+					>
 						<ArrowLeftRight class="h-3.5 w-3.5 text-blue-500" />
-						<span>{availableToAccounts.find((a) => a.id === selectedToAccountId)?.name ?? "To Account"}</span>
+						<span
+							>{availableToAccounts.find((a) => a.id === selectedToAccountId)?.name ??
+								'To Account'}</span
+						>
 					</Select.Trigger>
 					<Select.Content>
 						{#each availableToAccounts as account}
@@ -219,7 +234,9 @@
 				</Select.Root>
 				<input type="hidden" name="toAccountId" value={selectedToAccountId} />
 			{:else}
-				<div class="flex items-center bg-rose-500/10 border border-rose-500/30 rounded-md px-2.5 py-1.5 text-xs text-rose-500 font-medium h-8">
+				<div
+					class="flex h-8 items-center rounded-md border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-500"
+				>
 					No compatible accounts
 				</div>
 			{/if}
@@ -227,27 +244,27 @@
 	</div>
 
 	<!-- Main Content -->
-	<div class="px-6 py-8 space-y-6">
+	<div class="space-y-6 px-6 py-8">
 		<div class="space-y-2">
-			<Input 
+			<Input
 				variant="background"
-				id="name" 
-				name="name" 
-				placeholder="Transaction title (e.g., Grocery Shopping)" 
+				id="name"
+				name="name"
+				placeholder="Transaction title (e.g., Grocery Shopping)"
 				bind:value={transactionName}
 				bind:ref={titleInput}
-				class="text-2xl! font-semibold border-none bg-transparent p-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 h-auto" 
-				required 
+				class="h-auto border-none bg-transparent p-0 text-2xl! font-semibold placeholder:text-muted-foreground/40 focus-visible:ring-0"
+				required
 			/>
 			<div class="flex items-center gap-2">
 				<Type class="h-4 w-4 text-muted-foreground/60" />
-				<Input 
-				    variant="background"
-					id="description" 
-					name="description" 
-					placeholder="Add a description..." 
+				<Input
+					variant="background"
+					id="description"
+					name="description"
+					placeholder="Add a description..."
 					bind:value={description}
-					class="text-sm! border-none bg-transparent p-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 h-auto w-full" 
+					class="h-auto w-full border-none bg-transparent p-0 text-sm! placeholder:text-muted-foreground/40 focus-visible:ring-0"
 				/>
 			</div>
 		</div>
@@ -255,40 +272,50 @@
 		<!-- Metadata Badges Row -->
 		<div class="flex flex-wrap gap-2 pt-2">
 			<!-- Amount Badge -->
-			<div class="flex items-center bg-muted/50 rounded-md overflow-hidden border border-primary/30">
-				<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">AMT</div>
-				<div class="flex items-center px-2 gap-2">
+			<div
+				class="flex items-center overflow-hidden rounded-md border border-primary/30 bg-muted/50"
+			>
+				<div
+					class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
+				>
+					AMT
+				</div>
+				<div class="flex items-center gap-2 px-2">
 					<span class="text-xs text-muted-foreground/60">$</span>
-					<Input 
-						id="amount" 
-						name="amount" 
-						type="number" 
-						step="0.01" 
-						placeholder="0.00" 
+					<Input
+						id="amount"
+						name="amount"
+						type="number"
+						step="0.01"
+						placeholder="0.00"
 						bind:value={amount}
-						class="w-24 h-8 px-2 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
-						required 
+						class="h-8 w-24 border-none bg-transparent px-2 text-xs font-medium focus-visible:ring-0"
+						required
 					/>
 				</div>
 			</div>
 
 			<!-- Date Badge -->
-			<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
-				<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">DATE</div>
-				<div class="flex items-center px-2 gap-2">
+			<div class="flex items-center overflow-hidden rounded-md bg-muted/50">
+				<div
+					class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
+				>
+					DATE
+				</div>
+				<div class="flex items-center gap-2 px-2">
 					<Calendar class="h-3.5 w-3.5 text-muted-foreground/60" />
-					<Input 
-						id="date" 
-						name="date" 
-						type="date" 
+					<Input
+						id="date"
+						name="date"
+						type="date"
 						bind:value={transactionDate}
-						class="w-32 h-8 px-2 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
+						class="h-8 w-32 border-none bg-transparent px-2 text-xs font-medium focus-visible:ring-0"
 						style="color-scheme: dark"
 					/>
-					<Button 
-						type="button" 
-						variant="ghost" 
-						size="sm" 
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
 						class="h-6 w-8 px-0 text-[10px] font-bold text-muted-foreground hover:text-primary"
 						onclick={addDayToDate}
 					>
@@ -299,15 +326,19 @@
 
 			<!-- Category Badge (hidden for transfers) -->
 			{#if selectedType !== 'transfer'}
-				<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
-					<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">CAT</div>
-					<div class="flex items-center px-2 gap-2">
+				<div class="flex items-center overflow-hidden rounded-md bg-muted/50">
+					<div
+						class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
+					>
+						CAT
+					</div>
+					<div class="flex items-center gap-2 px-2">
 						<Tag class="h-3.5 w-3.5 text-muted-foreground/60" />
-						<Input 
-							name="category" 
+						<Input
+							name="category"
 							bind:value={category}
 							placeholder="Category..."
-							class="w-28 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
+							class="h-8 w-28 border-none bg-transparent px-2 py-1 text-xs font-medium focus-visible:ring-0"
 						/>
 					</div>
 				</div>
@@ -315,15 +346,19 @@
 
 			<!-- Payee Badge (hidden for transfers) -->
 			{#if selectedType !== 'transfer'}
-				<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
-					<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">PAY</div>
-					<div class="flex items-center px-2 gap-2">
+				<div class="flex items-center overflow-hidden rounded-md bg-muted/50">
+					<div
+						class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
+					>
+						PAY
+					</div>
+					<div class="flex items-center gap-2 px-2">
 						<UserIcon class="h-3.5 w-3.5 text-muted-foreground/60" />
-						<Input 
-							name="payee" 
+						<Input
+							name="payee"
 							bind:value={payee}
 							placeholder="Payee..."
-							class="w-28 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
+							class="h-8 w-28 border-none bg-transparent px-2 py-1 text-xs font-medium focus-visible:ring-0"
 						/>
 					</div>
 				</div>
@@ -332,15 +367,25 @@
 	</div>
 
 	<!-- Footer -->
-	<div class="mt-auto px-4 py-3 flex items-center justify-between border-t border-border/40 bg-muted/10">
+	<div
+		class="mt-auto flex items-center justify-between border-t border-border/40 bg-muted/10 px-4 py-3"
+	>
 		<div class="flex items-center gap-2">
 			{#if showCreateMore}
 				<Switch id="create-more-tx" bind:checked={createMore} />
-				<Label for="create-more-tx" class="text-xs text-muted-foreground font-medium cursor-pointer">Create more</Label>
+				<Label for="create-more-tx" class="cursor-pointer text-xs font-medium text-muted-foreground"
+					>Create more</Label
+				>
 			{/if}
 		</div>
 		<div class="flex items-center gap-2">
-			<Button type="submit" size="sm" disabled={isLoading || accounts.length === 0 || (selectedType === 'transfer' && availableToAccounts.length === 0)}>
+			<Button
+				type="submit"
+				size="sm"
+				disabled={isLoading ||
+					accounts.length === 0 ||
+					(selectedType === 'transfer' && availableToAccounts.length === 0)}
+			>
 				{#if isLoading}
 					<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 				{:else}

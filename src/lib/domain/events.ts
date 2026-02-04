@@ -151,7 +151,11 @@ export type TransferCreatedEvent = BaseEvent<'TransferCreated', TransferCreatedP
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type AccountEvent = AccountCreatedEvent | AccountUpdatedEvent | AccountDeletedEvent;
-export type TransactionEvent = TransactionCreatedEvent | TransactionUpdatedEvent | TransactionDeletedEvent | TransferCreatedEvent;
+export type TransactionEvent =
+	| TransactionCreatedEvent
+	| TransactionUpdatedEvent
+	| TransactionDeletedEvent
+	| TransferCreatedEvent;
 export type DomainEvent = AccountEvent | TransactionEvent;
 
 // ─────────────────────────────────────────────────────────────────────────────

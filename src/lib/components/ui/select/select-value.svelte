@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from '$lib/utils.js';
+	import type { HTMLAttributes } from 'svelte/elements';
 
 	let {
 		ref = $bindable(null),
@@ -10,11 +10,6 @@
 	}: WithElementRef<HTMLAttributes<HTMLSpanElement>> = $props();
 </script>
 
-<span
-	bind:this={ref}
-	data-slot="select-value"
-	class={cn("text-sm", className)}
-	{...restProps}
->
+<span bind:this={ref} data-slot="select-value" class={cn('text-sm', className)} {...restProps}>
 	{@render children?.()}
 </span>

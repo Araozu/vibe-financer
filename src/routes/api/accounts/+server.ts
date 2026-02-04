@@ -9,13 +9,13 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	const allAccounts = await listAccounts();
 	// Filter accounts by user
-	const accounts = allAccounts.filter(acc => acc.userId === locals.user!.id);
+	const accounts = allAccounts.filter((acc) => acc.userId === locals.user!.id);
 
 	// Serialize dates for JSON
-	const serializedAccounts = accounts.map(acc => ({
+	const serializedAccounts = accounts.map((acc) => ({
 		...acc,
 		createdAt: acc.createdAt.toISOString(),
-		updatedAt: acc.updatedAt.toISOString(),
+		updatedAt: acc.updatedAt.toISOString()
 	}));
 
 	return json(serializedAccounts);

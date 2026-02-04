@@ -1,5 +1,10 @@
 import { userRepo } from '$lib/infra/repos/user.repo';
-import { validateUserAge, validatePhoneNumber, validateDateOfBirth, type UpdateUserDTO } from '$lib/domain/user';
+import {
+	validateUserAge,
+	validatePhoneNumber,
+	validateDateOfBirth,
+	type UpdateUserDTO
+} from '$lib/domain/user';
 
 export async function updateUser(id: string, data: UpdateUserDTO) {
 	if (data.age !== undefined && !validateUserAge(data.age)) {

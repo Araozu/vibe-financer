@@ -3,10 +3,7 @@ import { transactionRepo } from '$lib/infra/repos/transaction.repo';
 import { getAccountState, getAccountVersion } from '../account/account-projection';
 import { canAcceptTransaction } from '$lib/domain/account-aggregate';
 import { calculateNewBalance, type Transaction } from '$lib/domain/transaction';
-import {
-	createTransactionUpdatedEvent,
-	type TransactionUpdatedPayload
-} from '$lib/domain/events';
+import { createTransactionUpdatedEvent, type TransactionUpdatedPayload } from '$lib/domain/events';
 import { error } from '@sveltejs/kit';
 
 export interface UpdateTransactionDTO {
@@ -22,12 +19,12 @@ export interface UpdateTransactionDTO {
 
 /**
  * Edit an existing transaction and persist as a TransactionUpdated event.
- * 
+ *
  * @param transactionId - The ID of the transaction to edit
  * @param updates - The fields to update
  * @param userId - The ID of the user making the edit (for audit trail)
  * @returns The updated transaction
- * 
+ *
  * Note: This implementation handles simple transactions (income/expense).
  * Transfer transaction edits are not yet supported due to multi-account complexity.
  */

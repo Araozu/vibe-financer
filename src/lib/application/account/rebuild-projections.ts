@@ -9,10 +9,7 @@
  */
 
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
-import {
-	projectAccountState,
-	type AccountState
-} from '$lib/domain/account-aggregate';
+import { projectAccountState, type AccountState } from '$lib/domain/account-aggregate';
 import type {
 	DomainEvent,
 	TransactionCreatedEvent,
@@ -117,7 +114,7 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 				 * Transfers create events for both accounts:
 				 * - A TransferCreated event on the source account stream
 				 * - A TransactionCreated event on the destination account stream
-				 * 
+				 *
 				 * During rebuild, we only create the transaction projection for the source account
 				 * here because the destination account will have its own TransactionCreated event
 				 * in its stream, which will be processed separately when that account is rebuilt.
@@ -265,9 +262,7 @@ export async function verifyProjectionIntegrity(
 	}
 
 	if (projection.name !== eventState.name) {
-		discrepancies.push(
-			`Name mismatch: projection=${projection.name}, events=${eventState.name}`
-		);
+		discrepancies.push(`Name mismatch: projection=${projection.name}, events=${eventState.name}`);
 	}
 
 	if (projection.initialBalance !== eventState.initialBalance) {

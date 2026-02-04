@@ -1,31 +1,31 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { ChevronLeft } from "@lucide/svelte";
-	import logo from "$lib/assets/plain_icon.svg";
-	import * as NavigationMenu from "$lib/components/ui/navigation-menu/index.js";
-	import { navigationMenuTriggerStyle } from "$lib/components/ui/navigation-menu/navigation-menu-trigger.svelte";
+	import { ChevronLeft } from '@lucide/svelte';
+	import logo from '$lib/assets/plain_icon.svg';
+	import * as NavigationMenu from '$lib/components/ui/navigation-menu/index.js';
+	import { navigationMenuTriggerStyle } from '$lib/components/ui/navigation-menu/navigation-menu-trigger.svelte';
 	import { createQuery } from '@tanstack/svelte-query';
-	import CreateTransactionDialog from "$lib/components/transaction/create-transaction-dialog.svelte";
+	import CreateTransactionDialog from '$lib/components/transaction/create-transaction-dialog.svelte';
 
 	const accountsQuery = createQuery(() => ({
 		queryKey: ['accounts'],
-		queryFn: async () => (await fetch('/api/accounts')).json(),
+		queryFn: async () => (await fetch('/api/accounts')).json()
 	}));
 
 	let accounts = $derived(accountsQuery.data ?? []);
 	const isRoot = $derived(page.url.pathname === '/');
 </script>
 
-<div class="border-b pb-6 gap-4 w-full">
-	<div class="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 w-full justify-between">
+<div class="w-full gap-4 border-b pb-6">
+	<div class="flex w-full flex-col justify-between gap-4 md:flex-row md:items-center md:gap-8">
 		<div class="flex items-center gap-4">
-			<div class="w-12 h-12 flex items-center justify-center">
+			<div class="flex h-12 w-12 items-center justify-center">
 				{#if isRoot}
 					<img src={logo} alt="Vibe Financer" class="h-12 w-12" />
 				{:else}
-					<button 
-						onclick={() => history.back()} 
-						class="p-2 hover:bg-muted rounded-full transition-colors flex items-center justify-center w-full h-full"
+					<button
+						onclick={() => history.back()}
+						class="flex h-full w-full items-center justify-center rounded-full p-2 transition-colors hover:bg-muted"
 						aria-label="Go back"
 					>
 						<ChevronLeft class="h-8 w-8" />
@@ -33,10 +33,10 @@
 				{/if}
 			</div>
 			<div>
-				<a href="/" class="hover:opacity-80 transition-opacity">
+				<a href="/" class="transition-opacity hover:opacity-80">
 					<h1 class="text-3xl font-bold tracking-tight">Financer</h1>
 				</a>
-				<p class="text-muted-foreground text-sm">
+				<p class="text-sm text-muted-foreground">
 					{#if isRoot}
 						Diamond hands
 					{:else if page.url.pathname.startsWith('/accounts')}

@@ -8,9 +8,9 @@ export const load: LayoutLoad = async () => {
 			queries: {
 				enabled: browser,
 				staleTime: 60 * 1000, // 1 minute
-				refetchOnWindowFocus: false,
-			},
-		},
+				refetchOnWindowFocus: false
+			}
+		}
 	});
 
 	return { queryClient };

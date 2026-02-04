@@ -1,26 +1,26 @@
 <script lang="ts">
-	import * as Card from "$lib/components/ui/card/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import { Label } from "$lib/components/ui/label/index.js";
-	import logo from "$lib/assets/plain_icon.svg";
-	import { enhance } from "$app/forms";
+	import * as Card from '$lib/components/ui/card/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import logo from '$lib/assets/plain_icon.svg';
+	import { enhance } from '$app/forms';
 	import type { PageData } from './$types';
-	
-	let { data, form }: { data: any, form: any } = $props();
+
+	let { data, form }: { data: any; form: any } = $props();
 	let isSignup = $state(false);
 	let loading = $state(false);
 
 	const signupDisabled = $derived(data.signupDisabled);
 </script>
 
-<div class="min-h-screen flex items-center justify-center bg-background p-4">
+<div class="flex min-h-screen items-center justify-center bg-background p-4">
 	<div class="w-full max-w-md">
 		<!-- Logo and Header -->
-		<div class="flex flex-col items-center mb-8">
-			<img src={logo} alt="Vibe Financer" class="h-16 w-16 mb-4" />
+		<div class="mb-8 flex flex-col items-center">
+			<img src={logo} alt="Vibe Financer" class="mb-4 h-16 w-16" />
 			<h1 class="text-3xl font-bold tracking-tight">Vibe Financer</h1>
-			<p class="text-muted-foreground mt-2">
+			<p class="mt-2 text-muted-foreground">
 				{isSignup ? 'Create your account' : 'Welcome back'}
 			</p>
 		</div>
@@ -30,20 +30,20 @@
 			<Card.Header>
 				<Card.Title>{isSignup ? 'Sign Up' : 'Sign In'}</Card.Title>
 				<Card.Description>
-					{isSignup 
-						? 'Enter your details to create a new account' 
+					{isSignup
+						? 'Enter your details to create a new account'
 						: 'Enter your credentials to access your dashboard'}
 				</Card.Description>
 			</Card.Header>
 			<Card.Content>
 				{#if form?.error}
-					<div class="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+					<div class="mb-4 rounded-md border border-destructive/20 bg-destructive/10 p-3">
 						<p class="text-sm text-destructive">{form.error}</p>
 					</div>
 				{/if}
 
-				<form 
-					method="POST" 
+				<form
+					method="POST"
 					action="?/{isSignup ? 'signup' : 'login'}"
 					use:enhance={() => {
 						loading = true;
@@ -56,24 +56,24 @@
 				>
 					<div class="space-y-2">
 						<Label for="email">Email</Label>
-						<Input 
-							id="email" 
-							name="email" 
-							type="email" 
+						<Input
+							id="email"
+							name="email"
+							type="email"
 							placeholder="name@example.com"
-							required 
+							required
 							disabled={loading}
 						/>
 					</div>
 
 					<div class="space-y-2">
 						<Label for="password">Password</Label>
-						<Input 
-							id="password" 
-							name="password" 
-							type="password" 
+						<Input
+							id="password"
+							name="password"
+							type="password"
 							placeholder="••••••••"
-							required 
+							required
 							disabled={loading}
 						/>
 					</div>
@@ -81,12 +81,12 @@
 					{#if isSignup}
 						<div class="space-y-2">
 							<Label for="confirmPassword">Confirm Password</Label>
-							<Input 
-								id="confirmPassword" 
-								name="confirmPassword" 
-								type="password" 
+							<Input
+								id="confirmPassword"
+								name="confirmPassword"
+								type="password"
 								placeholder="••••••••"
-								required 
+								required
 								disabled={loading}
 							/>
 						</div>
@@ -103,12 +103,14 @@
 			</Card.Content>
 			<Card.Footer class="flex flex-col space-y-2">
 				{#if !signupDisabled || isSignup}
-					<div class="text-sm text-center text-muted-foreground">
+					<div class="text-center text-sm text-muted-foreground">
 						{isSignup ? 'Already have an account?' : "Don't have an account?"}
-						<button 
+						<button
 							type="button"
-							onclick={() => { isSignup = !isSignup; }}
-							class="text-primary hover:underline ml-1 font-medium"
+							onclick={() => {
+								isSignup = !isSignup;
+							}}
+							class="ml-1 font-medium text-primary hover:underline"
 							disabled={loading || (signupDisabled && !isSignup)}
 						>
 							{isSignup ? 'Sign in' : 'Sign up'}

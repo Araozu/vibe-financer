@@ -6,7 +6,9 @@ export interface ChangeEmailInput {
 	newEmail: string;
 }
 
-export async function changeEmail(input: ChangeEmailInput): Promise<{ success: boolean; error?: string }> {
+export async function changeEmail(
+	input: ChangeEmailInput
+): Promise<{ success: boolean; error?: string }> {
 	// Validate email format
 	if (!isValidEmail(input.newEmail)) {
 		return { success: false, error: 'Invalid email format' };

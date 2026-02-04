@@ -44,10 +44,7 @@ export interface AuditEntry {
 /**
  * Get the balance of an account at a specific point in time
  */
-export async function getBalanceAt(
-	accountId: string,
-	asOf: Date
-): Promise<number | null> {
+export async function getBalanceAt(accountId: string, asOf: Date): Promise<number | null> {
 	return getAccountBalanceAsOf(accountId, asOf);
 }
 
@@ -65,9 +62,7 @@ export async function getBalanceHistory(
 /**
  * Get the complete balance history for an account
  */
-export async function getFullBalanceHistory(
-	accountId: string
-): Promise<BalanceSnapshot[]> {
+export async function getFullBalanceHistory(accountId: string): Promise<BalanceSnapshot[]> {
 	const accountWithHistory = await getAccountWithHistory(accountId);
 	return accountWithHistory?.balanceHistory ?? [];
 }
@@ -75,20 +70,14 @@ export async function getFullBalanceHistory(
 /**
  * Get net worth at a specific point in time
  */
-export async function getNetWorthAt(
-	userId: string,
-	asOf: Date
-): Promise<number> {
+export async function getNetWorthAt(userId: string, asOf: Date): Promise<number> {
 	return getNetWorthAsOf(userId, asOf);
 }
 
 /**
  * Get a complete snapshot of all account balances at a point in time
  */
-export async function getBalanceSnapshotAt(
-	userId: string,
-	asOf: Date
-): Promise<NetWorthSnapshot> {
+export async function getBalanceSnapshotAt(userId: string, asOf: Date): Promise<NetWorthSnapshot> {
 	const accounts = await getAllAccountBalancesAsOf(userId, asOf);
 	const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
 
@@ -127,11 +116,11 @@ export async function getNetWorthOverTime(
 	const maxDays = 3650; // ~10 years
 	const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 	const dataPointsCount = Math.ceil(daysDiff / intervalDays);
-	
+
 	if (dataPointsCount > maxDays) {
 		throw new Error(
 			`Date range with interval would generate ${dataPointsCount} data points. ` +
-			`Maximum allowed is ${maxDays}. Please increase interval or reduce date range.`
+				`Maximum allowed is ${maxDays}. Please increase interval or reduce date range.`
 		);
 	}
 

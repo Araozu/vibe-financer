@@ -7,7 +7,9 @@ export interface LoginInput {
 	password: string;
 }
 
-export async function login(input: LoginInput): Promise<{ success: true; sessionToken: string } | { success: false; error: string }> {
+export async function login(
+	input: LoginInput
+): Promise<{ success: true; sessionToken: string } | { success: false; error: string }> {
 	// Find user by email
 	const user = await userRepo.findByEmail(input.email);
 	if (!user) {
@@ -22,7 +24,7 @@ export async function login(input: LoginInput): Promise<{ success: true; session
 	// Create session
 	const sessionToken = generateSessionToken();
 	const sessionId = generateSessionId(sessionToken);
-	
+
 	// Session expires in 30 days
 	const expiresAt = new Date();
 	expiresAt.setDate(expiresAt.getDate() + 30);

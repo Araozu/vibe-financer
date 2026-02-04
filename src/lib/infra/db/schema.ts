@@ -8,7 +8,9 @@ import type { EventType, StreamType } from '$lib/domain/events';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const user = sqliteTable('user', {
-	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+	id: text('id')
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
 	email: text('email').notNull().unique(),
 	passwordHash: text('password_hash').notNull(),
 	firstName: text('first_name'),
@@ -18,7 +20,9 @@ export const user = sqliteTable('user', {
 	preferredCurrency: text('preferred_currency').default('USD'),
 	timezone: text('timezone').default('UTC'),
 	age: integer('age'),
-	createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date())
+	createdAt: integer('created_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date())
 });
 
 export const session = sqliteTable('session', {
@@ -36,7 +40,9 @@ export const session = sqliteTable('session', {
 export const eventStore = sqliteTable(
 	'event_store',
 	{
-		id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
 		streamId: text('stream_id').notNull(), // The aggregate ID (e.g., account ID)
 		streamType: text('stream_type').$type<StreamType>().notNull(), // 'account', 'transaction'
 		eventType: text('event_type').$type<EventType>().notNull(),
@@ -46,7 +52,9 @@ export const eventStore = sqliteTable(
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
 		metadata: text('metadata', { mode: 'json' }), // Optional JSON metadata
-		occurredAt: integer('occurred_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date())
+		occurredAt: integer('occurred_at', { mode: 'timestamp' })
+			.notNull()
+			.$defaultFn(() => new Date())
 	},
 	(table) => [
 		index('idx_event_store_stream').on(table.streamId, table.version),
@@ -63,7 +71,9 @@ export const eventStore = sqliteTable(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const account = sqliteTable('account', {
-	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+	id: text('id')
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
 	userId: text('user_id')
 		.notNull()
 		.references(() => user.id, { onDelete: 'cascade' }),
@@ -75,12 +85,18 @@ export const account = sqliteTable('account', {
 	currencyCode: text('currency_code').notNull(),
 	currencySymbol: text('currency_symbol').notNull(),
 	color: text('color').notNull(),
-	createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date())
+	createdAt: integer('created_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date())
 });
 
 export const transaction = sqliteTable('transaction', {
-	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+	id: text('id')
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
 	accountId: text('account_id')
 		.notNull()
 		.references(() => account.id, { onDelete: 'cascade' }),
@@ -92,8 +108,12 @@ export const transaction = sqliteTable('transaction', {
 	payee: text('payee'),
 	toAccountId: text('to_account_id').references(() => account.id, { onDelete: 'cascade' }),
 	deletedAt: integer('deleted_at', { mode: 'timestamp' }), // Soft delete for audit trail
-	createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date())
+	createdAt: integer('created_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date())
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,11 +124,15 @@ export const transaction = sqliteTable('transaction', {
 export const accountSnapshot = sqliteTable(
 	'account_snapshot',
 	{
-		id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
 		streamId: text('stream_id').notNull(), // The account ID
 		state: text('state', { mode: 'json' }).notNull(), // Serialized AccountState
 		version: integer('version').notNull(), // Version at which snapshot was taken
-		createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date())
+		createdAt: integer('created_at', { mode: 'timestamp' })
+			.notNull()
+			.$defaultFn(() => new Date())
 	},
 	(table) => [
 		index('idx_account_snapshot_stream').on(table.streamId),

@@ -8,10 +8,10 @@ import { error } from '@sveltejs/kit';
 /**
  * Delete a transaction by creating a TransactionDeleted event.
  * This is a soft delete that maintains the audit trail while removing the transaction from the UI.
- * 
+ *
  * The deletion creates an inverse operation that adjusts the account balance back as if the
  * transaction never happened, but keeps all events for compliance and debugging.
- * 
+ *
  * @param transactionId - The ID of the transaction to delete
  * @param userId - The ID of the user deleting the transaction (required for audit trail)
  * @param reason - Optional reason for deletion
@@ -24,18 +24,18 @@ export async function deleteTransaction(
 ): Promise<void> {
 	// 1. Get the transaction from the projection
 	const tx = await transactionRepo.findById(transactionId);
-	
+
 	if (!tx) {
 		throw error(404, 'Transaction not found');
 	}
-	
+
 	if (tx.deletedAt) {
 		throw error(400, 'Transaction already deleted');
 	}
 
 	// 2. Get the account state to validate and calculate balance adjustment
 	const account = await getAccountState(tx.accountId);
-	
+
 	if (!account || !canAcceptTransaction(account)) {
 		throw error(404, 'Account not found or deleted');
 	}
@@ -46,7 +46,7 @@ export async function deleteTransaction(
 	// For income: we added money, so adjustment is negative (remove it)
 	// For expense/transfer: we subtracted money, so adjustment is positive (add it back)
 	let balanceAdjustment: number;
-	
+
 	switch (tx.type) {
 		case 'income':
 			balanceAdjustment = -tx.amount;
@@ -64,12 +64,7 @@ export async function deleteTransaction(
 		balanceAdjustment
 	};
 
-	const event = createTransactionDeletedEvent(
-		tx.accountId,
-		userId,
-		payload,
-		accountVersion + 1
-	);
+	const event = createTransactionDeletedEvent(tx.accountId, userId, payload, accountVersion + 1);
 
 	// 5. Append event with optimistic concurrency
 	try {
@@ -101,8 +96,8 @@ export async function deleteTransaction(
 		// For now, log a warning about incomplete transfer deletion
 		console.warn(
 			`Transfer deletion for transaction ${transactionId} is incomplete. ` +
-			`Destination account ${tx.toAccountId} was not adjusted. ` +
-			`This requires implementing multi-stream atomic operations.`
+				`Destination account ${tx.toAccountId} was not adjusted. ` +
+				`This requires implementing multi-stream atomic operations.`
 		);
 	}
 }

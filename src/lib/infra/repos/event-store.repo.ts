@@ -62,20 +62,13 @@ export const eventStoreRepo = {
 	/**
 	 * Append a single event to a stream
 	 */
-	async append(
-		event: DomainEvent,
-		options?: AppendEventOptions
-	): Promise<DomainEvent> {
+	async append(event: DomainEvent, options?: AppendEventOptions): Promise<DomainEvent> {
 		return db.transaction(async (tx) => {
 			// Check for optimistic concurrency if expected version provided
 			if (options?.expectedVersion !== undefined) {
 				const currentVersion = await eventStoreRepo.getStreamVersion(event.streamId, tx);
 				if (currentVersion !== options.expectedVersion) {
-					throw new ConcurrencyError(
-						event.streamId,
-						options.expectedVersion,
-						currentVersion
-					);
+					throw new ConcurrencyError(event.streamId, options.expectedVersion, currentVersion);
 				}
 			}
 
@@ -101,10 +94,7 @@ export const eventStoreRepo = {
 	/**
 	 * Append multiple events atomically
 	 */
-	async appendMany(
-		events: DomainEvent[],
-		options?: AppendEventOptions
-	): Promise<DomainEvent[]> {
+	async appendMany(events: DomainEvent[], options?: AppendEventOptions): Promise<DomainEvent[]> {
 		if (events.length === 0) return [];
 
 		return db.transaction(async (tx) => {
@@ -112,11 +102,7 @@ export const eventStoreRepo = {
 			if (options?.expectedVersion !== undefined && events.length > 0) {
 				const currentVersion = await eventStoreRepo.getStreamVersion(events[0].streamId, tx);
 				if (currentVersion !== options.expectedVersion) {
-					throw new ConcurrencyError(
-						events[0].streamId,
-						options.expectedVersion,
-						currentVersion
-					);
+					throw new ConcurrencyError(events[0].streamId, options.expectedVersion, currentVersion);
 				}
 			}
 
@@ -157,19 +143,11 @@ export const eventStoreRepo = {
 	/**
 	 * Get events for a stream up to a specific version
 	 */
-	async getStreamUpToVersion(
-		streamId: string,
-		maxVersion: number
-	): Promise<DomainEvent[]> {
+	async getStreamUpToVersion(streamId: string, maxVersion: number): Promise<DomainEvent[]> {
 		const results = await db
 			.select()
 			.from(eventStore)
-			.where(
-				and(
-					eq(eventStore.streamId, streamId),
-					lte(eventStore.version, maxVersion)
-				)
-			)
+			.where(and(eq(eventStore.streamId, streamId), lte(eventStore.version, maxVersion)))
 			.orderBy(asc(eventStore.version));
 
 		return results.map((r) => toDomainEvent(r as StoredEvent));
@@ -182,12 +160,7 @@ export const eventStoreRepo = {
 		const results = await db
 			.select()
 			.from(eventStore)
-			.where(
-				and(
-					eq(eventStore.streamId, streamId),
-					lte(eventStore.occurredAt, asOf)
-				)
-			)
+			.where(and(eq(eventStore.streamId, streamId), lte(eventStore.occurredAt, asOf)))
 			.orderBy(asc(eventStore.version));
 
 		return results.map((r) => toDomainEvent(r as StoredEvent));
@@ -214,12 +187,7 @@ export const eventStoreRepo = {
 		const results = await db
 			.select()
 			.from(eventStore)
-			.where(
-				and(
-					eq(eventStore.userId, userId),
-					lte(eventStore.occurredAt, asOf)
-				)
-			)
+			.where(and(eq(eventStore.userId, userId), lte(eventStore.occurredAt, asOf)))
 			.orderBy(asc(eventStore.streamId), asc(eventStore.version));
 
 		return results.map((r) => toDomainEvent(r as StoredEvent));
@@ -265,19 +233,11 @@ export const eventStoreRepo = {
 	/**
 	 * Get all streams for a user by stream type
 	 */
-	async getStreamIdsByUserAndType(
-		userId: string,
-		streamType: StreamType
-	): Promise<string[]> {
+	async getStreamIdsByUserAndType(userId: string, streamType: StreamType): Promise<string[]> {
 		const results = await db
 			.selectDistinct({ streamId: eventStore.streamId })
 			.from(eventStore)
-			.where(
-				and(
-					eq(eventStore.userId, userId),
-					eq(eventStore.streamType, streamType)
-				)
-			);
+			.where(and(eq(eventStore.userId, userId), eq(eventStore.streamType, streamType)));
 
 		return results.map((r) => r.streamId);
 	},
@@ -302,10 +262,7 @@ export const eventStoreRepo = {
 	 * Get all events in order (for global replay)
 	 */
 	async getAllEvents(limit?: number): Promise<DomainEvent[]> {
-		let query = db
-			.select()
-			.from(eventStore)
-			.orderBy(asc(eventStore.occurredAt));
+		let query = db.select().from(eventStore).orderBy(asc(eventStore.occurredAt));
 
 		if (limit) {
 			query = query.limit(limit) as typeof query;
@@ -451,7 +408,9 @@ export const eventStoreRepo = {
 	/**
 	 * Get the latest snapshot for a stream
 	 */
-	async getLatestSnapshot(streamId: string): Promise<{ state: AccountState; version: number } | null> {
+	async getLatestSnapshot(
+		streamId: string
+	): Promise<{ state: AccountState; version: number } | null> {
 		const [result] = await db
 			.select()
 			.from(accountSnapshot)
@@ -474,12 +433,7 @@ export const eventStoreRepo = {
 		const results = await db
 			.select()
 			.from(eventStore)
-			.where(
-				and(
-					eq(eventStore.streamId, streamId),
-					gt(eventStore.version, afterVersion)
-				)
-			)
+			.where(and(eq(eventStore.streamId, streamId), gt(eventStore.version, afterVersion)))
 			.orderBy(asc(eventStore.version));
 
 		return results.map((r) => toDomainEvent(r as StoredEvent));
@@ -499,10 +453,7 @@ export const eventStoreRepo = {
 		await db
 			.delete(accountSnapshot)
 			.where(
-				and(
-					eq(accountSnapshot.streamId, streamId),
-					lte(accountSnapshot.version, keepAfterVersion)
-				)
+				and(eq(accountSnapshot.streamId, streamId), lte(accountSnapshot.version, keepAfterVersion))
 			);
 	},
 

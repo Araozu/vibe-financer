@@ -3,13 +3,13 @@
   become: false
   hosts: all
   vars:
-      remote_folder: '{{ _remote_folder_path }}'
-      project_name: '{{ _project_name }}'
-      project_stage: '{{ _project_stage }}'
-      project_service: '{{ _project_service }}'
-      # Convert comma-separated string to list
-      # Should receive something like "backend,frontend" from Jenkinsfile
-      project_services: "{{ _project_services.split(',') }}"
+    remote_folder: '{{ _remote_folder_path }}'
+    project_name: '{{ _project_name }}'
+    project_stage: '{{ _project_stage }}'
+    project_service: '{{ _project_service }}'
+    # Convert comma-separated string to list
+    # Should receive something like "backend,frontend" from Jenkinsfile
+    project_services: "{{ _project_services.split(',') }}"
 
   tasks:
     - name: Copy docker compose file to service directory
@@ -34,5 +34,3 @@
           }}
         wait: true
         wait_timeout: 60
-
-

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { QueryClientProvider } from '@tanstack/svelte-query';
 	import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools';
-	import { Toaster } from "$lib/components/ui/sonner/index.js";
+	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import { ModeWatcher } from 'mode-watcher';
@@ -30,7 +30,7 @@
 <Toaster />
 
 <QueryClientProvider client={data.queryClient}>
-	<div class="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
+	<div class="mx-auto max-w-7xl space-y-8 p-4 md:p-8">
 		{#if !isAuthRoute}
 			<Header />
 		{/if}

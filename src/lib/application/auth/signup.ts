@@ -7,7 +7,9 @@ export interface SignupInput {
 	password: string;
 }
 
-export async function signup(input: SignupInput): Promise<{ success: true; userId: string } | { success: false; error: string }> {
+export async function signup(
+	input: SignupInput
+): Promise<{ success: true; userId: string } | { success: false; error: string }> {
 	// Validate email
 	if (!isValidEmail(input.email)) {
 		return { success: false, error: 'Invalid email address' };

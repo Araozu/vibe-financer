@@ -7,45 +7,48 @@ This project follows a simplified layered architecture to maintain separation of
 - Use bun
 - To run stuff, must use `bun --bun` to ensure using the bun runtime.
 
-
 ## Language
 
 - Always use the Null coalescing operator `??`
 
-
 ## Layers
 
 ### 1. Domain Layer (`src/lib/domain/`)
+
 - **Responsibility**: Core business logic, pure functions, and domain-specific types.
-- **Rules**: 
-    - Must be "pure" (side-effect free).
-    - **No imports** from Infrastructure or Application layers.
-    - Contains logic like budget calculations, transaction validation rules, and financial formatting.
+- **Rules**:
+  - Must be "pure" (side-effect free).
+  - **No imports** from Infrastructure or Application layers.
+  - Contains logic like budget calculations, transaction validation rules, and financial formatting.
 
 ### 2. Infrastructure Layer (`src/lib/infra/`)
+
 - **Responsibility**: Technical implementation details and external systems.
 - **Contents**:
-    - `db/`: Drizzle schema and client initialization.
-    - `repos/`: Database-specific queries (Repositories).
-- **Rules**: 
-    - This is the only place where Drizzle `db` or specific SQL queries should live.
+  - `db/`: Drizzle schema and client initialization.
+  - `repos/`: Database-specific queries (Repositories).
+- **Rules**:
+  - This is the only place where Drizzle `db` or specific SQL queries should live.
 
 ### 3. Application Layer (`src/lib/application/`)
+
 - **Responsibility**: Orchestration of use cases.
-- **Rules**: 
-    - The "glue" between Domain and Infrastructure.
-    - Coordinates workflows (e.g., "Create Transaction" -> validate via Domain -> save via Infra Repo).
-    - Does not contain complex business logic itself; it delegates to the Domain.
+- **Rules**:
+  - The "glue" between Domain and Infrastructure.
+  - Coordinates workflows (e.g., "Create Transaction" -> validate via Domain -> save via Infra Repo).
+  - Does not contain complex business logic itself; it delegates to the Domain.
 
 ### 4. Presentation Layer (`src/routes/` & `src/lib/components/`)
+
 - **Responsibility**: UI (Svelte components) and SvelteKit entry points (+page.server.ts).
-- **Rules**: 
-    - `+page.server.ts` loaders and actions should call Application services/functions.
-    - UI components should be kept lean, focusing on display and user interaction.
+- **Rules**:
+  - `+page.server.ts` loaders and actions should call Application services/functions.
+  - UI components should be kept lean, focusing on display and user interaction.
 
 ---
 
 ## Directory Mapping
+
 ```text
 src/lib/
   ├── domain/        # Business logic & Domain types
@@ -77,6 +80,7 @@ This project uses **Event Sourcing** as the core persistence pattern. All state 
 ### Architecture Components
 
 #### 1. Domain Events (`src/lib/domain/events.ts`)
+
 - **Responsibility**: Define all domain events as immutable types.
 - **Structure**: All events extend `BaseEvent<T, P>` with:
   - `streamId`: The aggregate ID (e.g., account ID)
@@ -93,6 +97,7 @@ This project uses **Event Sourcing** as the core persistence pattern. All state 
   - All event types must be in the `EventType` union
 
 #### 2. Aggregates (`src/lib/domain/account-aggregate.ts`)
+
 - **Responsibility**: Pure functions that project state from events.
 - **Key Functions**:
   - `projectAccountState(events)`: Rebuild current state from full event stream
@@ -106,6 +111,7 @@ This project uses **Event Sourcing** as the core persistence pattern. All state 
   - All business logic for state transitions lives here
 
 #### 3. Event Store Repository (`src/lib/infra/repos/event-store.repo.ts`)
+
 - **Responsibility**: Persist and query events from the database.
 - **Key Operations**:
   - `append(event, options)`: Add single event to a stream
@@ -123,6 +129,7 @@ This project uses **Event Sourcing** as the core persistence pattern. All state 
   - Version numbers must be sequential within a stream
 
 #### 4. Projections / Read Models
+
 - **Responsibility**: Denormalized views for fast queries (account table, transaction table).
 - **Pattern**: CQRS (Command Query Responsibility Segregation)
   - **Write Side**: Events in event store (source of truth)
@@ -135,6 +142,7 @@ This project uses **Event Sourcing** as the core persistence pattern. All state 
   - Useful for fixing inconsistencies or adding new projections
 
 #### 5. Snapshots (Performance Optimization)
+
 - **Purpose**: Avoid replaying thousands of events by caching state at intervals
 - **Operations**:
   - `saveSnapshot(streamId, state, version)`: Store state checkpoint
@@ -156,25 +164,25 @@ const currentVersion = await getAccountVersion(accountId);
 
 // 3. Validate business rules (use domain functions)
 if (!canAcceptTransaction(account)) {
-  throw error(404, 'Account not found or deleted');
+	throw error(404, 'Account not found or deleted');
 }
 
 // 4. Create domain event(s) with factory functions
 const event = createTransactionCreatedEvent(
-  accountId,
-  userId,
-  payload,
-  currentVersion + 1  // Increment version
+	accountId,
+	userId,
+	payload,
+	currentVersion + 1 // Increment version
 );
 
 // 5. Append to event store with optimistic concurrency
-await eventStoreRepo.append(event, { 
-  expectedVersion: currentVersion 
+await eventStoreRepo.append(event, {
+	expectedVersion: currentVersion
 });
 
 // 6. Update read model (projection) for fast queries
 await eventStoreRepo.updateAccountProjection(accountId, {
-  currentBalance: newBalance
+	currentBalance: newBalance
 });
 
 // 7. Return domain object (not event)
@@ -204,5 +212,4 @@ await eventStoreRepo.updateAccountProjection(accountId, {
 ❌ **Don't skip version checks** when appending events  
 ❌ **Don't use projections** as source of truth (events are truth)  
 ❌ **Don't forget to update projections** after appending events  
-❌ **Don't create events** without using factory functions  
-
+❌ **Don't create events** without using factory functions

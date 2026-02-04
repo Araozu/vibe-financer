@@ -60,7 +60,8 @@ const SNAPSHOT_CONFIG = {
 };
 
 /** Pre-calculated snapshot retention window to avoid recalculating on every cleanup */
-const SNAPSHOT_RETENTION_WINDOW = SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL * SNAPSHOT_CONFIG.MAX_SNAPSHOTS_PER_STREAM;
+const SNAPSHOT_RETENTION_WINDOW =
+	SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL * SNAPSHOT_CONFIG.MAX_SNAPSHOTS_PER_STREAM;
 
 /**
  * Get the current state of an account using snapshot optimization
@@ -118,9 +119,7 @@ export async function getAccountStateAsOf(
 /**
  * Get account with full balance history
  */
-export async function getAccountWithHistory(
-	accountId: string
-): Promise<AccountWithHistory | null> {
+export async function getAccountWithHistory(accountId: string): Promise<AccountWithHistory | null> {
 	const events = await eventStoreRepo.getStream(accountId);
 	const state = projectAccountState(events);
 
@@ -137,10 +136,7 @@ export async function getAccountWithHistory(
 /**
  * Get balance at a specific point in time
  */
-export async function getAccountBalanceAsOf(
-	accountId: string,
-	asOf: Date
-): Promise<number | null> {
+export async function getAccountBalanceAsOf(accountId: string, asOf: Date): Promise<number | null> {
 	const events = await eventStoreRepo.getStreamAsOf(accountId, asOf);
 	return getBalanceAtTime(events, asOf);
 }
@@ -165,9 +161,7 @@ export async function getUserAccounts(userId: string): Promise<AccountState[]> {
 /**
  * Get all accounts for a user with their balance history
  */
-export async function getUserAccountsWithHistory(
-	userId: string
-): Promise<AccountWithHistory[]> {
+export async function getUserAccountsWithHistory(userId: string): Promise<AccountWithHistory[]> {
 	const streamIds = await eventStoreRepo.getStreamIdsByUserAndType(userId, 'account');
 
 	const accounts: AccountWithHistory[] = [];
@@ -218,7 +212,7 @@ export async function getBalanceHistoryBetween(
 export async function getNetWorthAsOf(userId: string, asOf: Date): Promise<number> {
 	// Fetch all events for user's accounts in a single query
 	const events = await eventStoreRepo.getEventsByUserAndTypeAsOf(userId, 'account', asOf);
-	
+
 	// Group events by stream ID
 	const eventsByStream = new Map<string, DomainEvent[]>();
 	for (const event of events) {
@@ -226,7 +220,7 @@ export async function getNetWorthAsOf(userId: string, asOf: Date): Promise<numbe
 		streamEvents.push(event);
 		eventsByStream.set(event.streamId, streamEvents);
 	}
-	
+
 	// Calculate balance for each account stream
 	let netWorth = 0;
 	for (const [streamId, streamEvents] of eventsByStream) {
@@ -252,7 +246,7 @@ export async function getAllAccountBalancesAsOf(
 ): Promise<Array<{ accountId: string; balance: number; name: string }>> {
 	// Fetch all events for user's accounts in a single query
 	const events = await eventStoreRepo.getEventsByUserAndTypeAsOf(userId, 'account', asOf);
-	
+
 	// Group events by stream ID
 	const eventsByStream = new Map<string, DomainEvent[]>();
 	for (const event of events) {
@@ -260,7 +254,7 @@ export async function getAllAccountBalancesAsOf(
 		streamEvents.push(event);
 		eventsByStream.set(event.streamId, streamEvents);
 	}
-	
+
 	// Calculate balance and get name for each account stream
 	const balances: Array<{ accountId: string; balance: number; name: string }> = [];
 	for (const [streamId, streamEvents] of eventsByStream) {

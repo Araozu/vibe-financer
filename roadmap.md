@@ -7,6 +7,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ## ✅ What's Done
 
 ### Core Infrastructure
+
 - [x] Layered architecture (Domain / Application / Infrastructure / Presentation)
 - [x] SQLite database with Drizzle ORM
 - [x] Session-based authentication (login, signup, logout)
@@ -15,6 +16,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [x] **Event Sourcing Architecture** — All state changes stored as immutable events
 
 ### Event Sourcing (NEW)
+
 - [x] Event store with versioning and optimistic concurrency
 - [x] Domain events: AccountCreated, AccountUpdated, AccountDeleted, TransactionCreated, TransferCreated, TransactionDeleted
 - [x] Aggregate projections to rebuild state from events
@@ -24,6 +26,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [x] Read models (projections) for fast queries
 
 ### User Management
+
 - [x] User registration and login
 - [x] Session management with secure cookies
 - [x] User profile settings (name, phone, date of birth, timezone)
@@ -32,6 +35,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [x] Preferred currency setting
 
 ### Accounts
+
 - [x] Create accounts with name, description, and color
 - [x] Account types: Asset, Expense, Revenue, Liability
 - [x] Multi-currency support (per-account currency)
@@ -41,6 +45,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [x] **Historical balance queries** — Get balance at any point in time
 
 ### Transactions
+
 - [x] Create transactions (expense, income, transfer)
 - [x] Transaction name, description, category, and payee
 - [x] Transfers between accounts (same currency only)
@@ -50,6 +55,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [x] **Balance snapshots** — Track balance before/after each transaction
 
 ### Dashboard
+
 - [x] Summary cards (total balance, monthly income, monthly expenses, savings rate)
 - [x] Recent transactions table
 - [x] Spending overview chart (mock data)
@@ -57,6 +63,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [x] Account creation when none exist
 
 ### APIs (Event Sourced)
+
 - [x] `GET /api/accounts/[id]/history` — Account balance history and audit trail
 - [x] `GET /api/accounts/net-worth` — Net worth with time-travel and comparisons
 - [x] `GET /api/accounts/audit` — Global audit trail for all events
@@ -68,6 +75,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ### Priority 1: Core Financial Features
 
 #### Budgets
+
 - [ ] Create and manage budgets
 - [ ] Budget periods (monthly, weekly, yearly, custom)
 - [ ] Budget limit tracking with progress indicators
@@ -75,6 +83,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [ ] Rollover unused budget to next period
 
 #### Categories
+
 - [ ] Category management (CRUD)
 - [ ] Category groups/hierarchy
 - [ ] Default categories for quick setup
@@ -82,6 +91,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [ ] Spending by category reports
 
 #### Piggy Banks / Savings Goals
+
 - [ ] Create savings goals with target amounts
 - [ ] Link savings goals to accounts
 - [ ] Track progress toward goals
@@ -91,6 +101,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ### Priority 2: Automation & Organization
 
 #### Recurring Transactions
+
 - [ ] Schedule recurring transactions (daily, weekly, monthly, yearly)
 - [ ] Auto-create transactions on schedule
 - [ ] Manage and edit recurring transaction templates
@@ -98,6 +109,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [ ] Notifications for upcoming recurring transactions
 
 #### Rules Engine
+
 - [ ] Create rules for automatic transaction categorization
 - [ ] Rule triggers (payee, amount, description patterns)
 - [ ] Rule actions (set category, add tags, modify description)
@@ -105,6 +117,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [ ] Test rules against existing transactions
 
 #### Tags
+
 - [ ] Create and manage tags
 - [ ] Apply multiple tags to transactions
 - [ ] Filter and search by tags
@@ -113,6 +126,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ### Priority 3: Enhanced Transaction Management
 
 #### Transaction Editing & Details
+
 - [ ] Edit existing transactions
 - [ ] Delete transactions with balance rollback
 - [ ] Transaction detail view
@@ -120,11 +134,13 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [ ] Transaction notes and internal notes
 
 #### Split Transactions
+
 - [ ] Split a single transaction into multiple categories
 - [ ] Split by amount or percentage
 - [ ] View splits in transaction detail
 
 #### Attachments
+
 - [ ] Upload receipts and documents to transactions
 - [ ] Image preview and download
 - [ ] File type restrictions and size limits
@@ -132,6 +148,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ### Priority 4: Bills & Liabilities
 
 #### Bills
+
 - [ ] Track expected recurring expenses (rent, subscriptions, utilities)
 - [ ] Bill due dates and payment tracking
 - [ ] Mark bills as paid
@@ -139,6 +156,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [ ] Expected vs. actual bill amounts
 
 #### Liabilities & Debt Tracking
+
 - [ ] Track loans, credit cards, mortgages
 - [ ] Interest rate and payment schedules
 - [ ] Debt payoff projections
@@ -147,6 +165,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ### Priority 5: Reporting & Analytics
 
 #### Reports
+
 - [ ] Income vs. expense report
 - [ ] Category breakdown report
 - [ ] Account balance over time
@@ -155,11 +174,13 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 - [ ] Custom date range selection
 
 #### Net Worth Tracking
+
 - [ ] Historical net worth chart
 - [ ] Asset vs. liability breakdown
 - [ ] Net worth milestones
 
 #### Data Visualization
+
 - [ ] Interactive charts and graphs
 - [ ] Drill-down capabilities
 - [ ] Export charts as images
@@ -167,6 +188,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ### Priority 6: Multi-Currency & Exchange
 
 #### Currency Management
+
 - [ ] Currency exchange rate tracking
 - [ ] Automatic exchange rate fetching (API integration)
 - [ ] Manual exchange rate entry
@@ -176,12 +198,14 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ### Priority 7: Data Management
 
 #### Import
+
 - [ ] CSV import with field mapping
 - [ ] Bank statement import (OFX, QIF formats)
 - [ ] Duplicate detection on import
 - [ ] Import history and undo
 
 #### Export
+
 - [ ] Export transactions to CSV
 - [ ] Export full data backup
 - [ ] Scheduled automatic backups
@@ -189,11 +213,13 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ### Priority 8: Security & Multi-User
 
 #### Two-Factor Authentication (2FA)
+
 - [ ] TOTP-based 2FA (Google Authenticator, Authy)
 - [ ] Backup codes
 - [ ] Remember trusted devices
 
 #### Multi-User Support
+
 - [ ] Multiple user accounts
 - [ ] Shared accounts/budgets between users
 - [ ] User roles and permissions
@@ -201,11 +227,13 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ### Priority 9: Integrations
 
 #### REST API
+
 - [ ] Full API coverage for all features
 - [ ] API authentication (tokens)
 - [ ] API documentation
 
 #### External Integrations
+
 - [ ] Bank connection (Plaid, Salt Edge, or similar)
 - [ ] Webhook support for external automation
 - [ ] Calendar integration for bills/recurring transactions
@@ -213,21 +241,25 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ### Priority 10: Quality of Life
 
 #### Search & Filtering
+
 - [ ] Global transaction search
 - [ ] Advanced filters (date range, amount range, multiple accounts)
 - [ ] Saved filter presets
 
 #### Notifications
+
 - [ ] In-app notifications
 - [ ] Email notifications for important events
 - [ ] Configurable notification preferences
 
 #### Mobile Experience
+
 - [ ] Responsive mobile-first design improvements
 - [ ] PWA support for mobile installation
 - [ ] Quick-add transaction widget
 
 #### Onboarding
+
 - [ ] First-time user setup wizard
 - [ ] Sample data option for exploration
 - [ ] Guided tours for features

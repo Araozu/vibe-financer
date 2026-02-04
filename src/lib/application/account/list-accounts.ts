@@ -30,4 +30,3 @@ export {
 	getNetWorthAsOf,
 	getAllAccountBalancesAsOf
 } from './account-projection';
-

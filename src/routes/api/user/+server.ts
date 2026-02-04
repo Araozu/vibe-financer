@@ -15,6 +15,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 		dateOfBirth: locals.user.dateOfBirth,
 		preferredCurrency: locals.user.preferredCurrency,
 		timezone: locals.user.timezone,
-		age: locals.user.age,
+		age: locals.user.age
 	});
 };

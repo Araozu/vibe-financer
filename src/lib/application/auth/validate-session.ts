@@ -32,11 +32,11 @@ export async function validateSession(sessionToken: string): Promise<ValidateSes
 	// Extend session if it's close to expiring (less than 15 days left)
 	const fifteenDaysFromNow = new Date();
 	fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
-	
+
 	if (session.expiresAt < fifteenDaysFromNow) {
 		const newExpiresAt = new Date();
 		newExpiresAt.setDate(newExpiresAt.getDate() + 30);
-		
+
 		// Update session expiration (we'll need to add this to the repo)
 		await sessionRepo.deleteById(sessionId);
 		await sessionRepo.create({
@@ -44,10 +44,10 @@ export async function validateSession(sessionToken: string): Promise<ValidateSes
 			userId: user.id,
 			expiresAt: newExpiresAt
 		});
-		
-		return { 
-			session: { id: sessionId, userId: user.id, expiresAt: newExpiresAt }, 
-			user 
+
+		return {
+			session: { id: sessionId, userId: user.id, expiresAt: newExpiresAt },
+			user
 		};
 	}
 

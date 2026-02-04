@@ -33,21 +33,36 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	// Validate interval parameter
 	const interval = intervalParam === null ? 1 : parseInt(intervalParam, 10);
 	if (!Number.isFinite(interval) || Number.isNaN(interval) || interval <= 0) {
-		return json({ error: 'Invalid interval parameter; must be a positive integer' }, { status: 400 });
+		return json(
+			{ error: 'Invalid interval parameter; must be a positive integer' },
+			{ status: 400 }
+		);
 	}
 
 	// Validate date parameters
 	if (asOf && isNaN(new Date(asOf).getTime())) {
-		return json({ error: 'Invalid asOf parameter; must be a valid ISO date string' }, { status: 400 });
+		return json(
+			{ error: 'Invalid asOf parameter; must be a valid ISO date string' },
+			{ status: 400 }
+		);
 	}
 	if (startDate && isNaN(new Date(startDate).getTime())) {
-		return json({ error: 'Invalid startDate parameter; must be a valid ISO date string' }, { status: 400 });
+		return json(
+			{ error: 'Invalid startDate parameter; must be a valid ISO date string' },
+			{ status: 400 }
+		);
 	}
 	if (endDate && isNaN(new Date(endDate).getTime())) {
-		return json({ error: 'Invalid endDate parameter; must be a valid ISO date string' }, { status: 400 });
+		return json(
+			{ error: 'Invalid endDate parameter; must be a valid ISO date string' },
+			{ status: 400 }
+		);
 	}
 	if (compareDate && isNaN(new Date(compareDate).getTime())) {
-		return json({ error: 'Invalid compareDate parameter; must be a valid ISO date string' }, { status: 400 });
+		return json(
+			{ error: 'Invalid compareDate parameter; must be a valid ISO date string' },
+			{ status: 400 }
+		);
 	}
 
 	try {
@@ -105,28 +120,22 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		return json(response);
 	} catch (error) {
 		console.error('Error fetching net worth:', error);
-		
+
 		// Handle different error types
 		if (error && typeof error === 'object') {
 			const e = error as { status?: number; message?: string; name?: string };
-			
+
 			// Handle concurrency errors
 			if (e.name === 'ConcurrencyError') {
-				return json(
-					{ error: 'Concurrent update detected. Please retry.' },
-					{ status: 409 }
-				);
+				return json({ error: 'Concurrent update detected. Please retry.' }, { status: 409 });
 			}
-			
+
 			// Propagate HTTP errors
 			if (typeof e.status === 'number' && e.status >= 400 && e.status < 600) {
-				return json(
-					{ error: e.message || 'Request failed' },
-					{ status: e.status }
-				);
+				return json({ error: e.message || 'Request failed' }, { status: e.status });
 			}
 		}
-		
+
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
 };

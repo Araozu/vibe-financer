@@ -14,15 +14,15 @@ export const load: PageLoad = async ({ parent, fetch }) => {
 	await Promise.all([
 		queryClient.prefetchQuery({
 			queryKey: ['user'],
-			queryFn: async () => (await fetch('/api/user')).json(),
+			queryFn: async () => (await fetch('/api/user')).json()
 		}),
 		queryClient.prefetchQuery({
 			queryKey: ['accounts'],
-			queryFn: async () => (await fetch('/api/accounts')).json(),
+			queryFn: async () => (await fetch('/api/accounts')).json()
 		}),
 		queryClient.prefetchQuery({
 			queryKey: ['transactions'],
-			queryFn: async () => (await fetch('/api/transactions')).json(),
-		}),
+			queryFn: async () => (await fetch('/api/transactions')).json()
+		})
 	]);
 };

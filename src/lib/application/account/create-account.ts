@@ -5,10 +5,7 @@ import {
 	type CreateAccountDTO,
 	type Account
 } from '$lib/domain/account';
-import {
-	createAccountCreatedEvent,
-	type AccountCreatedPayload
-} from '$lib/domain/events';
+import { createAccountCreatedEvent, type AccountCreatedPayload } from '$lib/domain/events';
 
 export async function createAccount(data: CreateAccountDTO): Promise<Account> {
 	if (!validateAccountName(data.name)) {
@@ -68,4 +65,3 @@ export async function createAccount(data: CreateAccountDTO): Promise<Account> {
 		updatedAt: event.occurredAt
 	};
 }
-

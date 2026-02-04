@@ -1,10 +1,7 @@
 import { db } from '$lib/infra/db';
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { getAccountState, getAccountVersion } from '../account/account-projection';
-import {
-	calculateBalanceChange,
-	canAcceptTransaction
-} from '$lib/domain/account-aggregate';
+import { calculateBalanceChange, canAcceptTransaction } from '$lib/domain/account-aggregate';
 import {
 	validateTransferAccounts,
 	type CreateTransactionDTO,
@@ -20,11 +17,11 @@ import { error } from '@sveltejs/kit';
 
 /**
  * Create a new transaction (expense, income, or transfer) and persist as a TransactionCreated event.
- * 
+ *
  * @param data - The transaction details
  * @param userId - The ID of the user creating the transaction (required for event sourcing audit trails)
  * @returns The created transaction
- * 
+ *
  * The userId parameter is required for event sourcing to maintain a complete audit trail
  * of who made each change. All events in the event store must be attributed to a user
  * for compliance and debugging purposes.
@@ -151,19 +148,19 @@ export async function createTransaction(
 			createdAt: transactionDate
 		});
 
-	return {
-		id: transactionId,
-		accountId: data.accountId,
-		type: 'transfer',
-		amount: data.amount,
-		name: data.name ?? null,
-		description: data.description ?? null,
-		category: data.category ?? null,
-		payee: data.payee ?? null,
-		toAccountId: data.toAccountId,
-		createdAt: transactionDate,
-		updatedAt: transactionDate,
-		deletedAt: null
+		return {
+			id: transactionId,
+			accountId: data.accountId,
+			type: 'transfer',
+			amount: data.amount,
+			name: data.name ?? null,
+			description: data.description ?? null,
+			category: data.category ?? null,
+			payee: data.payee ?? null,
+			toAccountId: data.toAccountId,
+			createdAt: transactionDate,
+			updatedAt: transactionDate,
+			deletedAt: null
 		};
 	}
 
@@ -186,12 +183,7 @@ export async function createTransaction(
 		transactionDate
 	};
 
-	const event = createTransactionCreatedEvent(
-		data.accountId,
-		userId,
-		payload,
-		sourceVersion + 1
-	);
+	const event = createTransactionCreatedEvent(data.accountId, userId, payload, sourceVersion + 1);
 
 	// Append event with optimistic concurrency
 	try {
@@ -241,4 +233,3 @@ export async function createTransaction(
 		updatedAt: transactionDate
 	};
 }
-

@@ -7,7 +7,9 @@ export interface ChangePasswordInput {
 	newPassword: string;
 }
 
-export async function changePassword(input: ChangePasswordInput): Promise<{ success: boolean; error?: string }> {
+export async function changePassword(
+	input: ChangePasswordInput
+): Promise<{ success: boolean; error?: string }> {
 	// Validate new password
 	const passwordError = validatePassword(input.newPassword);
 	if (passwordError) {

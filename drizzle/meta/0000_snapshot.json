@@ -1,42 +1,42 @@
 {
-  "version": "6",
-  "dialect": "sqlite",
-  "id": "fcd6fe01-c9e8-4de1-b1cc-c882ac01baad",
-  "prevId": "00000000-0000-0000-0000-000000000000",
-  "tables": {
-    "user": {
-      "name": "user",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "age": {
-          "name": "age",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    }
-  },
-  "views": {},
-  "enums": {},
-  "_meta": {
-    "schemas": {},
-    "tables": {},
-    "columns": {}
-  },
-  "internal": {
-    "indexes": {}
-  }
+	"version": "6",
+	"dialect": "sqlite",
+	"id": "fcd6fe01-c9e8-4de1-b1cc-c882ac01baad",
+	"prevId": "00000000-0000-0000-0000-000000000000",
+	"tables": {
+		"user": {
+			"name": "user",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"age": {
+					"name": "age",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		}
+	},
+	"views": {},
+	"enums": {},
+	"_meta": {
+		"schemas": {},
+		"tables": {},
+		"columns": {}
+	},
+	"internal": {
+		"indexes": {}
+	}
 }

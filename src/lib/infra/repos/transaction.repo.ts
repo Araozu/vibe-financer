@@ -18,10 +18,7 @@ export const transactionRepo = {
 		return await db
 			.select()
 			.from(transaction)
-			.where(and(
-				eq(transaction.accountId, accountId),
-				isNull(transaction.deletedAt)
-			))
+			.where(and(eq(transaction.accountId, accountId), isNull(transaction.deletedAt)))
 			.orderBy(desc(transaction.createdAt));
 	},
 

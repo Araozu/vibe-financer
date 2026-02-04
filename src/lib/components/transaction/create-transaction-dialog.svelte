@@ -1,10 +1,10 @@
 <script lang="ts">
-	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import { buttonVariants } from "$lib/components/ui/button/index.js";
-	import * as Tooltip from "$lib/components/ui/tooltip/index.js";
-	import { Plus } from "@lucide/svelte";
-	import CreateTransactionForm from "./create-transaction-form.svelte";
-	import { cn } from "$lib/utils.js";
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import { Plus } from '@lucide/svelte';
+	import CreateTransactionForm from './create-transaction-form.svelte';
+	import { cn } from '$lib/utils.js';
 
 	// Minimal account type for what this component needs
 	interface AccountLike {
@@ -14,7 +14,10 @@
 		currencyCode: string;
 	}
 
-	let { open = $bindable(false), accounts = [] } = $props<{ open?: boolean, accounts: AccountLike[] }>();
+	let { open = $bindable(false), accounts = [] } = $props<{
+		open?: boolean;
+		accounts: AccountLike[];
+	}>();
 
 	const hasAccounts = $derived(accounts.length > 0);
 
@@ -44,7 +47,7 @@
 			</Tooltip.Root>
 		</Tooltip.Provider>
 	{/if}
-	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl">
+	<Dialog.Content class="overflow-hidden p-0 shadow-2xl sm:max-w-2xl">
 		<CreateTransactionForm {accounts} onSuccess={handleSuccess} />
 	</Dialog.Content>
 </Dialog.Root>

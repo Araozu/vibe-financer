@@ -12,17 +12,17 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const allTransactions = await listTransactions();
 
 	// Filter accounts by user
-	const accounts = allAccounts.filter(acc => acc.userId === locals.user!.id);
+	const accounts = allAccounts.filter((acc) => acc.userId === locals.user!.id);
 
 	// Filter transactions by user's accounts
-	const accountIds = new Set(accounts.map(acc => acc.id));
-	const transactions = allTransactions.filter(tx => accountIds.has(tx.accountId));
+	const accountIds = new Set(accounts.map((acc) => acc.id));
+	const transactions = allTransactions.filter((tx) => accountIds.has(tx.accountId));
 
 	// Serialize dates for JSON
-	const serializedTransactions = transactions.map(tx => ({
+	const serializedTransactions = transactions.map((tx) => ({
 		...tx,
 		createdAt: tx.createdAt.toISOString(),
-		updatedAt: tx.updatedAt.toISOString(),
+		updatedAt: tx.updatedAt.toISOString()
 	}));
 
 	return json(serializedTransactions);

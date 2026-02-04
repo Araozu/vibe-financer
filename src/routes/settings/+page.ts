@@ -13,6 +13,6 @@ export const load: PageLoad = async ({ parent, fetch }) => {
 	// Prefetch user data
 	await queryClient.prefetchQuery({
 		queryKey: ['user'],
-		queryFn: async () => (await fetch('/api/user')).json(),
+		queryFn: async () => (await fetch('/api/user')).json()
 	});
 };

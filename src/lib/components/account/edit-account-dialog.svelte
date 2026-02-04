@@ -1,30 +1,30 @@
 <script lang="ts">
-	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import { Button, buttonVariants } from "$lib/components/ui/button/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import { Label } from "$lib/components/ui/label/index.js";
-	import * as Select from "$lib/components/ui/select/index.js";
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import { enhance } from '$app/forms';
 	import { useQueryClient } from '@tanstack/svelte-query';
-	import { 
-		CreditCard, 
-		Type, 
-		Coins, 
+	import {
+		CreditCard,
+		Type,
+		Coins,
 		CircleDollarSign,
 		ChevronRight,
 		Save,
 		Loader2,
 		Pencil
-	} from "@lucide/svelte";
-	import { toast } from "svelte-sonner";
-	import type { Account } from "$lib/domain/account";
-	import { cn } from "$lib/utils.js";
+	} from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
+	import type { Account } from '$lib/domain/account';
+	import { cn } from '$lib/utils.js';
 
 	const queryClient = useQueryClient();
 
 	// We use any here because the account might come from a serialized API response (dates as strings)
-	let { open = $bindable(false), account } = $props<{ open?: boolean, account: any }>();
-	
+	let { open = $bindable(false), account } = $props<{ open?: boolean; account: any }>();
+
 	let selectedType = $state<string>('');
 	let accountName = $state<string>('');
 	let description = $state<string>('');
@@ -39,7 +39,7 @@
 		if (open) {
 			selectedType = account.type;
 			accountName = account.name;
-			description = account.description ?? "";
+			description = account.description ?? '';
 			initialBalance = (account.initialBalance / 100).toString();
 			currencyCode = account.currencyCode;
 			currencySymbol = account.currencySymbol;
@@ -48,46 +48,56 @@
 	});
 
 	const accountTypes = [
-		{ value: "asset", label: "Asset", icon: CreditCard },
-		{ value: "expense", label: "Expense", icon: Type },
-		{ value: "revenue", label: "Revenue", icon: CircleDollarSign },
-		{ value: "liability", label: "Liability", icon: Coins },
+		{ value: 'asset', label: 'Asset', icon: CreditCard },
+		{ value: 'expense', label: 'Expense', icon: Type },
+		{ value: 'revenue', label: 'Revenue', icon: CircleDollarSign },
+		{ value: 'liability', label: 'Liability', icon: Coins }
 	];
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger class={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8 text-muted-foreground hover:text-primary')}>
+	<Dialog.Trigger
+		class={cn(
+			buttonVariants({ variant: 'ghost', size: 'icon' }),
+			'h-8 w-8 text-muted-foreground hover:text-primary'
+		)}
+	>
 		<Pencil class="h-4 w-4" />
 		<span class="sr-only">Edit account</span>
 	</Dialog.Trigger>
-	<Dialog.Content class="sm:max-w-2xl p-0 overflow-hidden shadow-2xl">
-		<form 
-			method="POST" 
-			action="?/updateAccount" 
+	<Dialog.Content class="overflow-hidden p-0 shadow-2xl sm:max-w-2xl">
+		<form
+			method="POST"
+			action="?/updateAccount"
 			use:enhance={() => {
 				isLoading = true;
 				return async ({ result }) => {
 					isLoading = false;
 					if (result.type === 'success') {
-						toast.success("Account updated successfully");
+						toast.success('Account updated successfully');
 						queryClient.invalidateQueries({ queryKey: ['accounts'] });
 						open = false;
 					} else if (result.type === 'failure') {
-						const errorMessage = typeof result.data?.error === 'string' ? result.data.error : "Failed to update account";
+						const errorMessage =
+							typeof result.data?.error === 'string'
+								? result.data.error
+								: 'Failed to update account';
 						toast.error(errorMessage);
 					}
 				};
-			}} 
-			class="flex flex-col h-full"
+			}}
+			class="flex h-full flex-col"
 		>
 			<input type="hidden" name="id" value={account.id} />
-			
+
 			<!-- Header / Breadcrumbs -->
-			<div class="px-4 py-3 flex items-center justify-between border-b border-border/40 bg-muted/30">
+			<div
+				class="flex items-center justify-between border-b border-border/40 bg-muted/30 px-4 py-3"
+			>
 				<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-					<div class="flex items-center gap-1 bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+					<div class="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-primary">
 						<CreditCard class="h-3 w-3" />
-						<span class="uppercase tracking-wider font-bold">Accounts</span>
+						<span class="font-bold tracking-wider uppercase">Accounts</span>
 					</div>
 					<ChevronRight class="h-3 w-3 opacity-50" />
 					<span>Edit {account.name}</span>
@@ -95,26 +105,26 @@
 			</div>
 
 			<!-- Main Content -->
-			<div class="px-6 py-8 space-y-6">
+			<div class="space-y-6 px-6 py-8">
 				<div class="space-y-2">
-					<Input 
+					<Input
 						variant="background"
-						id="name" 
-						name="name" 
-						placeholder="Account title" 
+						id="name"
+						name="name"
+						placeholder="Account title"
 						bind:value={accountName}
-						class="text-2xl! font-semibold border-none bg-transparent p-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 h-auto" 
-						required 
+						class="h-auto border-none bg-transparent p-0 text-2xl! font-semibold placeholder:text-muted-foreground/40 focus-visible:ring-0"
+						required
 					/>
 					<div class="flex items-center gap-2">
 						<Type class="h-4 w-4 text-muted-foreground/60" />
-						<Input 
+						<Input
 							variant="background"
-							id="description" 
-							name="description" 
-							placeholder="Add a description..." 
+							id="description"
+							name="description"
+							placeholder="Add a description..."
 							bind:value={description}
-							class="text-sm! border-none bg-transparent p-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 h-auto w-full" 
+							class="h-auto w-full border-none bg-transparent p-0 text-sm! placeholder:text-muted-foreground/40 focus-visible:ring-0"
 						/>
 					</div>
 				</div>
@@ -122,25 +132,31 @@
 				<!-- Metadata Badges Row -->
 				<div class="flex flex-wrap gap-2 pt-2">
 					<!-- Initial Balance Badge -->
-					<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
-						<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">BAL</div>
-						<div class="flex items-center px-2 gap-2">
+					<div class="flex items-center overflow-hidden rounded-md bg-muted/50">
+						<div
+							class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
+						>
+							BAL
+						</div>
+						<div class="flex items-center gap-2 px-2">
 							<span class="text-xs text-muted-foreground/60">{currencySymbol}</span>
-							<Input 
-								id="initialBalance" 
-								name="initialBalance" 
-								type="number" 
-								step="0.01" 
-								placeholder="0.00" 
+							<Input
+								id="initialBalance"
+								name="initialBalance"
+								type="number"
+								step="0.01"
+								placeholder="0.00"
 								bind:value={initialBalance}
-								class="w-20 h-8 px-2 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
+								class="h-8 w-20 border-none bg-transparent px-2 text-xs font-medium focus-visible:ring-0"
 							/>
 						</div>
 					</div>
 					<!-- Type Select Badge -->
 					<Select.Root type="single" bind:value={selectedType}>
-						<Select.Trigger class="w-auto h-8 px-2.5 py-1.5 text-xs font-medium bg-muted/50 border-none hover:bg-muted transition-colors rounded-md gap-2">
-							{@const currentType = accountTypes.find(t => t.value === selectedType)}
+						<Select.Trigger
+							class="h-8 w-auto gap-2 rounded-md border-none bg-muted/50 px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted"
+						>
+							{@const currentType = accountTypes.find((t) => t.value === selectedType)}
 							{#if currentType}
 								<currentType.icon class="h-3.5 w-3.5" />
 								<span>{currentType.label}</span>
@@ -158,47 +174,64 @@
 					<input type="hidden" name="type" value={selectedType} />
 
 					<!-- Currency Code Badge -->
-					<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
-						<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">CUR</div>
-						<Input 
-							name="currencyCode" 
+					<div class="flex items-center overflow-hidden rounded-md bg-muted/50">
+						<div
+							class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
+						>
+							CUR
+						</div>
+						<Input
+							name="currencyCode"
 							bind:value={currencyCode}
-							class="w-14 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 uppercase font-medium" 
-							required 
+							class="h-8 w-14 border-none bg-transparent px-2 py-1 text-xs font-medium uppercase focus-visible:ring-0"
+							required
 						/>
 					</div>
 
 					<!-- Currency Symbol Badge -->
-					<div class="flex items-center bg-muted/50 rounded-md overflow-hidden">
-						<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">SYM</div>
-						<Input 
-							name="currencySymbol" 
+					<div class="flex items-center overflow-hidden rounded-md bg-muted/50">
+						<div
+							class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
+						>
+							SYM
+						</div>
+						<Input
+							name="currencySymbol"
 							bind:value={currencySymbol}
-							class="w-10 h-8 px-2 py-1 text-xs border-none bg-transparent focus-visible:ring-0 font-medium" 
-							required 
+							class="h-8 w-10 border-none bg-transparent px-2 py-1 text-xs font-medium focus-visible:ring-0"
+							required
 						/>
 					</div>
 
 					<!-- Color Picker Badge -->
-					<div class="flex items-center bg-muted/50 rounded-md overflow-hidden pr-2">
-						<div class="px-2 py-1 border-r border-border/40 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">CLR</div>
+					<div class="flex items-center overflow-hidden rounded-md bg-muted/50 pr-2">
+						<div
+							class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
+						>
+							CLR
+						</div>
 						<div class="relative flex items-center gap-2 pl-2">
-							<div class="h-3 w-3 rounded-full border border-white/20" style="background-color: {color}"></div>
-							<Input 
-								type="color" 
-								name="color" 
+							<div
+								class="h-3 w-3 rounded-full border border-white/20"
+								style="background-color: {color}"
+							></div>
+							<Input
+								type="color"
+								name="color"
 								bind:value={color}
-								class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
-								required 
+								class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+								required
 							/>
-							<span class="text-[10px] font-mono text-muted-foreground uppercase">{color}</span>
+							<span class="font-mono text-[10px] text-muted-foreground uppercase">{color}</span>
 						</div>
 					</div>
 				</div>
 			</div>
 
 			<!-- Footer -->
-			<div class="mt-auto px-4 py-3 flex items-center justify-end border-t border-border/40 bg-muted/10">
+			<div
+				class="mt-auto flex items-center justify-end border-t border-border/40 bg-muted/10 px-4 py-3"
+			>
 				<div class="flex items-center gap-2">
 					<Button type="submit" size="sm" disabled={isLoading}>
 						{#if isLoading}

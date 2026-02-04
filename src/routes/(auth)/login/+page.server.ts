@@ -61,7 +61,7 @@ export const actions: Actions = {
 
 		// Auto-login after signup
 		const loginResult = await login({ email, password });
-		
+
 		if (!loginResult.success) {
 			return fail(500, { error: 'Account created but login failed. Please try logging in.' });
 		}

@@ -59,20 +59,17 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		});
 	} catch (error) {
 		console.error('Error fetching audit trail:', error);
-		
+
 		// Handle different error types
 		if (error && typeof error === 'object') {
 			const e = error as { status?: number; message?: string };
-			
+
 			// Propagate HTTP errors
 			if (typeof e.status === 'number' && e.status >= 400 && e.status < 600) {
-				return json(
-					{ error: e.message || 'Request failed' },
-					{ status: e.status }
-				);
+				return json({ error: e.message || 'Request failed' }, { status: e.status });
 			}
 		}
-		
+
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
 };

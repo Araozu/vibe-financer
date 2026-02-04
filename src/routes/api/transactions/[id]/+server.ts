@@ -20,7 +20,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	try {
 		// First verify the transaction exists and user owns it
 		const tx = await transactionRepo.findById(transactionId);
-		
+
 		if (!tx) {
 			return json({ error: 'Transaction not found' }, { status: 404 });
 		}
@@ -34,11 +34,11 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		return json({ success: true, message: 'Transaction deleted successfully' });
 	} catch (error) {
 		console.error('Error deleting transaction:', error);
-		
+
 		// Handle different error types
 		if (error && typeof error === 'object') {
 			const e = error as { status?: number; message?: string; body?: { message?: string } };
-			
+
 			// Propagate SvelteKit errors (from throw error())
 			if (typeof e.status === 'number' && e.status >= 400 && e.status < 600) {
 				return json(
@@ -47,7 +47,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 				);
 			}
 		}
-		
+
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
 };

@@ -1,4 +1,4 @@
-import adapter from "svelte-adapter-bun"; 
+import adapter from 'svelte-adapter-bun';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 const config = {
@@ -6,7 +6,7 @@ const config = {
 	// for more information about preprocessors
 	preprocess: vitePreprocess(),
 
-	kit: { 
+	kit: {
 		adapter: adapter(),
 		serviceWorker: {
 			register: false // We'll register it manually for more control

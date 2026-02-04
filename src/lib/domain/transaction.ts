@@ -27,7 +27,11 @@ export function validateTransferAccounts(fromCurrency: string, toCurrency: strin
 	return fromCurrency === toCurrency;
 }
 
-export function calculateNewBalance(currentBalance: number, amount: number, type: TransactionType): number {
+export function calculateNewBalance(
+	currentBalance: number,
+	amount: number,
+	type: TransactionType
+): number {
 	if (type === 'income') {
 		return currentBalance + amount;
 	}

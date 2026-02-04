@@ -22,7 +22,7 @@ export const actions: Actions = {
 
 		try {
 			const updateData: Partial<UpdateUserDTO> = {};
-			
+
 			if (firstName !== null) updateData.firstName = firstName ?? null;
 			if (lastName !== null) updateData.lastName = lastName ?? null;
 			if (phoneNumber !== null) updateData.phoneNumber = phoneNumber ?? null;
@@ -38,7 +38,9 @@ export const actions: Actions = {
 
 			return { success: true, message: 'Profile updated successfully' };
 		} catch (error) {
-			return fail(400, { error: error instanceof Error ? error.message : 'Failed to update profile' });
+			return fail(400, {
+				error: error instanceof Error ? error.message : 'Failed to update profile'
+			});
 		}
 	},
 

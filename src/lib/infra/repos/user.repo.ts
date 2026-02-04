@@ -13,11 +13,7 @@ export const userRepo = {
 	},
 
 	async update(id: string, data: UpdateUserDTO | InternalUpdateUserDTO): Promise<User | undefined> {
-		const [result] = await db
-			.update(user)
-			.set(data)
-			.where(eq(user.id, id))
-			.returning();
+		const [result] = await db.update(user).set(data).where(eq(user.id, id)).returning();
 		return result;
 	},
 
