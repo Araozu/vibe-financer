@@ -25,6 +25,7 @@
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
+	import { calculateDailySpending } from '$lib/domain/spending-analytics';
 
 	// Serialized types from API (dates as strings)
 	interface SerializedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
@@ -53,6 +54,19 @@
 
 	let accounts = $derived(accountsQuery.data ?? []);
 	let transactions = $derived(transactionsQuery.data ?? []);
+
+	// Calculate daily spending for the last 7 days
+	let dailySpending = $derived.by(() => {
+		const txs = transactions.map((tx) => ({
+			...tx,
+			createdAt: new Date(tx.createdAt),
+			updatedAt: new Date(tx.updatedAt),
+			deletedAt: tx.deletedAt ? new Date(tx.deletedAt) : null
+		}));
+		return calculateDailySpending(txs, 7);
+	});
+
+	let maxSpending = $derived(Math.max(...dailySpending.map((s) => s.amount), 100));
 
 	let editingTransaction = $state<SerializedTransaction | null>(null);
 	let editDialogOpen = $state(false);
@@ -179,7 +193,7 @@
 </script>
 
 <!-- Summary Grid -->
-<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+<div class="hidden md:grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 	{#each summaryStats as stat}
 		<Card.Root>
 			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -220,7 +234,7 @@
 			</Card.Root>
 		{/if}
 
-		<!-- Spending Overview (Mock Chart) -->
+		<!-- Spending Overview -->
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Spending Overview</Card.Title>
@@ -228,16 +242,26 @@
 			</Card.Header>
 			<Card.Content>
 				<div class="flex h-[200px] w-full items-end justify-between gap-2 px-2">
-					{#each [45, 60, 35, 80, 55, 90, 40] as height, i}
-						<div class="group relative w-full">
+					{#each dailySpending as day}
+						{@const height = maxSpending > 0 ? (day.amount / maxSpending) * 100 : 0}
+						<div class="group relative flex h-full w-full flex-col justify-end">
 							<div
-								class="w-full rounded-t-sm bg-primary/20 transition-colors hover:bg-primary"
-								style="height: {height}%"
-							></div>
-							<span
-								class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground"
+								class="w-full rounded-t-sm bg-primary/20 transition-all hover:bg-primary"
+								style="height: {Math.max(height, 2)}%"
 							>
-								{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}
+								<div
+									class="absolute -top-8 left-1/2 hidden -translate-x-1/2 rounded bg-popover px-2 py-1 text-[10px] font-medium text-popover-foreground shadow-md group-hover:block"
+								>
+									{(day.amount / 100).toLocaleString('en-US', {
+										style: 'currency',
+										currency: 'USD'
+									})}
+								</div>
+							</div>
+							<span
+								class="mt-2 block w-full text-center text-[10px] text-muted-foreground"
+							>
+								{day.label}
 							</span>
 						</div>
 					{/each}
