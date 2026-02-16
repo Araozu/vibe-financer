@@ -5,6 +5,7 @@ import { canAcceptTransaction } from '$lib/domain/account-aggregate';
 import { calculateNewBalance, type Transaction } from '$lib/domain/transaction';
 import { createTransactionUpdatedEvent, type TransactionUpdatedPayload } from '$lib/domain/events';
 import { error } from '@sveltejs/kit';
+import { toUTC } from '$lib/domain/date-formatter';
 
 export interface UpdateTransactionDTO {
 	type?: 'expense' | 'income' | 'transfer';
@@ -87,8 +88,8 @@ export async function editTransaction(
 		previousValues.toAccountId = currentTransaction.toAccountId;
 	}
 	if (updates.transactionDate !== undefined) {
-		const currentDate = new Date(currentTransaction.createdAt);
-		const newDate = new Date(updates.transactionDate);
+		const currentDate = toUTC(currentTransaction.createdAt);
+		const newDate = toUTC(updates.transactionDate);
 		if (currentDate.getTime() !== newDate.getTime()) {
 			changes.transactionDate = newDate;
 			previousValues.transactionDate = currentDate;

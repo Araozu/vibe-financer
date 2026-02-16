@@ -26,6 +26,7 @@
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
 	import { calculateDailySpending } from '$lib/domain/spending-analytics';
+	import { formatLocalDate } from '$lib/domain/date-formatter';
 
 	// Serialized types from API (dates as strings)
 	interface SerializedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
@@ -302,7 +303,7 @@
 										<div>
 											<div class="font-medium">{tx.name ?? 'Untitled'}</div>
 											<div class="text-xs text-muted-foreground">
-												{new Date(tx.createdAt).toLocaleDateString()}
+												{formatLocalDate(tx.createdAt)}
 											</div>
 										</div>
 									</div>

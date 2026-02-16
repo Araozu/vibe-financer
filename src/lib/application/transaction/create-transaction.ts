@@ -14,6 +14,7 @@ import {
 	type TransferCreatedPayload
 } from '$lib/domain/events';
 import { error } from '@sveltejs/kit';
+import { toUTC } from '$lib/domain/date-formatter';
 
 /**
  * Create a new transaction (expense, income, or transfer) and persist as a TransactionCreated event.
@@ -38,7 +39,7 @@ export async function createTransaction(
 	}
 
 	const transactionId = crypto.randomUUID();
-	const transactionDate = data.createdAt ?? new Date();
+	const transactionDate = toUTC(data.createdAt ?? new Date());
 	const sourceVersion = await getAccountVersion(data.accountId);
 
 	// 2. Handle transfers specially (two accounts involved)

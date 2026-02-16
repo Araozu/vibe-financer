@@ -2,7 +2,7 @@
 	import { createQuery } from '@tanstack/svelte-query';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
-	import * as Chart from '$lib/components/ui/chart/index.js';
+	import * as ChartUI from '$lib/components/ui/chart/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
@@ -18,7 +18,7 @@
 		ArrowRight
 	} from '@lucide/svelte';
 	import { scaleTime, scaleLinear } from 'd3-scale';
-	import { BarChart } from 'layerchart';
+	import { Chart, Area, Axis, Tooltip as LCTooltip, Svg } from 'layerchart';
 	import ChartContainer from '$lib/components/ui/chart/chart-container.svelte';
 	import type { Account, AccountType } from '$lib/domain/account';
 	import type { TransactionType } from '$lib/domain/transaction';
@@ -87,13 +87,14 @@
 	};
 
 	function formatAmount(amount: number, currencyCode: string, currencySymbol: string) {
-		return (amount / 100).toLocaleString('en-US', {
-			style: 'currency',
-			currency: currencyCode
+		const formatted = (Math.abs(amount) / 100).toLocaleString('en-US', {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2
 		});
+		return `${currencySymbol}${formatted}`;
 	}
 
-	function formatDate(date: string) {
+	function formatDate(date: string | Date) {
 		return new Date(date).toLocaleDateString('en-US', {
 			month: 'short',
 			day: 'numeric'
@@ -124,7 +125,7 @@
 			{@const Icon = typeIcons[account.type] ?? Wallet}
 			{@const chartConfig = {
 				balance: { label: 'Balance', color: account.color }
-			} satisfies Chart.ChartConfig}
+			} satisfies ChartUI.ChartConfig}
 			{@const chartDataParsed = account.chartData.map((d: ChartDataPoint) => ({
 				...d,
 				date: new Date(d.date)
@@ -161,19 +162,19 @@
 				</Card.Header>
 				<Card.Content class="pt-8">
 					<div class="mb-8 flex flex-col gap-1">
-						<div class="text-sm font-medium tracking-wider text-muted-foreground uppercase">
+						<div class="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
 							Current Balance
 						</div>
 						<div class="flex items-baseline gap-3">
-							<div class="text-5xl font-black tracking-tight">
+							<div class="text-6xl font-black tracking-tighter">
 								{formatAmount(account.currentBalance, account.currencyCode, account.currencySymbol)}
 							</div>
 							<p
-								class="mt-1 flex items-center gap-1.5 rounded-full bg-muted/50 px-2 py-0.5 text-sm"
+								class="mt-1 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold"
 							>
 								{#if account.currentBalance >= account.initialBalance}
-									<ArrowUpRight class="h-4 w-4 text-emerald-500" />
-									<span class="font-semibold text-emerald-500">
+									<TrendingUp class="h-3.5 w-3.5 text-emerald-500" />
+									<span class="text-emerald-500">
 										+{formatAmount(
 											account.currentBalance - account.initialBalance,
 											account.currencyCode,
@@ -181,8 +182,8 @@
 										)}
 									</span>
 								{:else}
-									<ArrowDownLeft class="h-4 w-4 text-rose-500" />
-									<span class="font-semibold text-rose-500">
+									<TrendingDown class="h-3.5 w-3.5 text-rose-500" />
+									<span class="text-rose-500">
 										-{formatAmount(
 											account.initialBalance - account.currentBalance,
 											account.currencyCode,
@@ -190,96 +191,100 @@
 										)}
 									</span>
 								{/if}
-								<span class="text-xs text-muted-foreground">vs initial</span>
+								<span class="ml-1 font-medium text-muted-foreground/60 lowercase">vs initial</span>
 							</p>
 						</div>
-						<div class="mt-1 text-xs font-medium tracking-widest text-muted-foreground uppercase">
+						<div class="mt-1 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/60 uppercase">
 							{account.currencyCode} • {account.currencySymbol}
 						</div>
 					</div>
 
-					<div class="grid grid-cols-[auto_25rem] gap-12 xl:grid-cols-12">
-						<!-- Left Column: Chart -->
-						<div class="xl:col-span-7">
+					<div class="grid grid-cols-1 gap-12">
+						<!-- Top: Chart -->
+						<div class="w-full">
 							<h3
-								class="mb-6 flex items-center gap-2 text-sm font-bold tracking-widest text-muted-foreground uppercase"
+								class="mb-6 flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase"
 							>
 								<div
-									class="h-1.5 w-1.5 rounded-full"
+									class="h-1 w-3 rounded-full"
 									style="background-color: {account.color}"
 								></div>
 								Balance History (MTD)
 							</h3>
 							<ChartContainer config={chartConfig} class="aspect-auto h-[280px] w-full">
-								<BarChart
+								<Chart
 									data={chartDataParsed}
 									x="date"
 									y="balance"
 									xScale={scaleTime()}
 									yScale={scaleLinear()}
-									props={{
-										bars: {
-											fill: account.color,
-											radius: 4,
-											class: 'opacity-80 hover:opacity-100 transition-opacity'
-										},
-										xAxis: {
-											format: (v: Date) => {
-												return v.toLocaleDateString('en-US', {
-													day: 'numeric'
-												});
-											},
-											ticks: 10
-										},
-										yAxis: {
-											format: (v: number) =>
+									padding={{ left: 40, bottom: 20, right: 10, top: 10 }}
+								>
+									<Svg>
+										<Axis
+											placement="left"
+											grid={{ class: 'stroke-border/20' }}
+											format={(v) =>
 												v.toLocaleString('en-US', {
 													style: 'currency',
 													currency: account.currencyCode,
 													maximumFractionDigits: 0
-												}),
-											ticks: 5
-										}
-									}}
-								>
-									{#snippet tooltip()}
-										<Chart.Tooltip
-											labelFormatter={(v: Date) => {
-												return v.toLocaleDateString('en-US', {
-													month: 'long',
-													day: 'numeric',
-													year: 'numeric'
-												});
-											}}
+												})}
+											ticks={5}
+											rule={false}
 										/>
-									{/snippet}
-								</BarChart>
+										<Axis
+											placement="bottom"
+											grid={{ class: 'stroke-border/20' }}
+											format={(v) => v.toLocaleDateString('en-US', { day: 'numeric' })}
+											ticks={10}
+											rule={false}
+										/>
+										<Area fill={account.color} fillOpacity={0.1} stroke={account.color} strokeWidth={2} />
+										<LCTooltip.Root>
+											{#snippet children({ data: tooltipData })}
+												<LCTooltip.Header>{formatDate(tooltipData.date)}</LCTooltip.Header>
+												<LCTooltip.List>
+													<LCTooltip.Item
+														label="Balance"
+														value={formatAmount(
+															tooltipData.balance * 100,
+															account.currencyCode,
+															account.currencySymbol
+														)}
+														color={account.color}
+													/>
+												</LCTooltip.List>
+											{/snippet}
+										</LCTooltip.Root>
+									</Svg>
+								</Chart>
 							</ChartContainer>
 						</div>
 
-						<!-- Right Column: Transactions -->
-						<div class="flex h-full flex-col xl:col-span-5">
+						<!-- Bottom: Transactions -->
+						<div class="flex flex-col">
 							<div class="mb-6 flex items-center justify-between">
 								<h3
-									class="flex items-center gap-2 text-sm font-bold tracking-widest text-muted-foreground uppercase"
+									class="flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase"
 								>
-									<TrendingUp class="h-4 w-4" />
+									<TrendingUp class="h-3.5 w-3.5" />
 									Recent Transactions
 								</h3>
 							</div>
 
-							<div class="overflow-hidden rounded-xl border bg-card">
+							<div class="overflow-hidden rounded-xl border-none bg-card/50">
 								<Table.Root>
-									<Table.Header class="bg-muted/30">
-										<Table.Row>
-											<Table.Head class="text-[10px] font-bold tracking-wider uppercase"
+									<Table.Header class="bg-transparent">
+										<Table.Row class="hover:bg-transparent">
+											<Table.Head class="h-8 text-[9px] font-bold tracking-widest uppercase"
 												>Date</Table.Head
 											>
-											<Table.Head class="text-[10px] font-bold tracking-wider uppercase"
+											<Table.Head class="h-8 text-[9px] font-bold tracking-widest uppercase"
 												>Name</Table.Head
 											>
-											<Table.Head class="text-right text-[10px] font-bold tracking-wider uppercase"
-												>Amount</Table.Head
+											<Table.Head class="h-8 text-right text-[9px] font-bold tracking-widest uppercase"
+												></Table.Head
 											>
 										</Table.Row>
 									</Table.Header>
@@ -292,26 +297,28 @@
 											</Table.Row>
 										{:else}
 											{#each account.last10Transactions as tx}
-												<Table.Row class="group transition-colors">
-													<Table.Cell class="py-3 text-xs font-medium text-muted-foreground">
+												<Table.Row
+													class="group border-b border-border/40 transition-colors hover:bg-muted/20"
+												>
+													<Table.Cell class="py-4 text-[11px] font-medium text-muted-foreground/70">
 														{formatDate(tx.createdAt)}
 													</Table.Cell>
-													<Table.Cell class="py-3">
+													<Table.Cell class="py-4">
 														<div class="flex flex-col">
-															<span class="line-clamp-1 text-sm font-semibold"
-																>{tx.name ?? tx.payee ?? 'Untitled'}</span
+															<span class="line-clamp-1 text-sm font-bold tracking-tight"
+																>{tx.name || tx.payee || 'Untitled'}</span
 															>
 															<span
-																class="text-[10px] tracking-tighter text-muted-foreground uppercase"
-																>{tx.category ?? 'Uncategorized'}</span
+																class="text-[9px] font-bold tracking-widest text-muted-foreground/50 uppercase"
+																>{tx.category || 'Uncategorized'}</span
 															>
 														</div>
 													</Table.Cell>
-													<Table.Cell class="py-3 text-right font-bold">
+													<Table.Cell class="py-4 text-right font-black">
 														<span
 															class={tx.type === 'income' ? 'text-emerald-500' : 'text-foreground'}
 														>
-															{tx.type === 'income' ? '+' : '-'}{formatAmount(
+															{tx.type === 'income' ? '+' : ''}{formatAmount(
 																tx.amount,
 																account.currencyCode,
 																account.currencySymbol
@@ -328,7 +335,8 @@
 								<Button
 									variant="ghost"
 									size="sm"
-									class="gap-1 text-xs font-semibold text-muted-foreground hover:text-primary"
+									href="/accounts/{account.id}"
+									class="gap-1 text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase hover:bg-transparent hover:text-primary"
 								>
 									View all transactions
 									<ArrowRight class="h-3 w-3" />

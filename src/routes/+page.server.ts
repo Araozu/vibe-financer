@@ -5,6 +5,7 @@ import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import type { AccountType } from '$lib/domain/account';
 import type { TransactionType } from '$lib/domain/transaction';
+import { parseDateAsUTC, toUTC } from '$lib/domain/date-formatter';
 
 export const actions: Actions = {
 	createAccount: async ({ request, locals }) => {
@@ -59,7 +60,7 @@ export const actions: Actions = {
 		const dateStr = formData.get('date') as string;
 
 		const amount = Math.round(parseFloat(amountStr) * 100);
-		const createdAt = dateStr ? new Date(dateStr) : new Date();
+		const createdAt = dateStr ? parseDateAsUTC(dateStr) : toUTC(new Date());
 
 		try {
 			await createTransaction(
@@ -114,7 +115,7 @@ export const actions: Actions = {
 		if (description !== null) updates.description = description || null;
 		if (category !== null) updates.category = category || null;
 		if (payee !== null) updates.payee = payee || null;
-		if (dateStr) updates.transactionDate = new Date(dateStr);
+		if (dateStr) updates.transactionDate = parseDateAsUTC(dateStr);
 
 		try {
 			await editTransaction(transactionId, updates, locals.user.id);

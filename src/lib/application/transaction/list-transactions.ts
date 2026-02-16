@@ -8,3 +8,11 @@ export async function listTransactions(): Promise<Transaction[]> {
 export async function listTransactionsByAccount(accountId: string): Promise<Transaction[]> {
 	return await transactionRepo.findByAccountId(accountId);
 }
+
+export async function listTransactionsByAccountPaginated(
+	accountId: string,
+	limit: number,
+	offset: number
+): Promise<Transaction[]> {
+	return await transactionRepo.findByAccountIdPaginated(accountId, limit, offset);
+}

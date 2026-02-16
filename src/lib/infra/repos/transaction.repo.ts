@@ -22,6 +22,20 @@ export const transactionRepo = {
 			.orderBy(desc(transaction.createdAt));
 	},
 
+	async findByAccountIdPaginated(
+		accountId: string,
+		limit: number,
+		offset: number
+	): Promise<Transaction[]> {
+		return await db
+			.select()
+			.from(transaction)
+			.where(and(eq(transaction.accountId, accountId), isNull(transaction.deletedAt)))
+			.orderBy(desc(transaction.createdAt))
+			.limit(limit)
+			.offset(offset);
+	},
+
 	async findAll(): Promise<Transaction[]> {
 		return await db
 			.select()

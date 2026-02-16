@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { listAccounts } from '$lib/application/account/list-accounts';
 import { listTransactionsByAccount } from '$lib/application/transaction/list-transactions';
+import { toUTC } from '$lib/domain/date-formatter';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) {
@@ -18,8 +19,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 			const last10Transactions = transactions.slice(0, 10);
 
 			// Month to date chart data
-			const now = new Date();
-			const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+			const now = toUTC(new Date());
+			const firstDayOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
 			// Filter transactions for this month
 			const thisMonthTransactions = transactions.filter((t) => t.createdAt >= firstDayOfMonth);
@@ -34,13 +35,15 @@ export const GET: RequestHandler = async ({ locals }) => {
 				(a, b) => b.createdAt.getTime() - a.createdAt.getTime()
 			);
 
-			const today = new Date();
-			today.setHours(23, 59, 59, 999);
+			const today = toUTC(new Date());
+			today.setUTCHours(23, 59, 59, 999);
 
 			let txIndex = 0;
-			for (let d = new Date(today); d >= firstDayOfMonth; d.setDate(d.getDate() - 1)) {
+			for (let d = new Date(today); d >= firstDayOfMonth; d.setUTCDate(d.getUTCDate() - 1)) {
 				const dayStart = new Date(d);
-				dayStart.setHours(0, 0, 0, 0);
+				dayStart.setUTCHours(0, 0, 0, 0);
+				const dayEnd = new Date(d);
+				dayEnd.setUTCHours(23, 59, 59, 999);
 
 				// Balance at the END of this day is the runningBalance
 				chartData.unshift({
@@ -52,7 +55,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 				// to get the balance at the start of this day (which is the end of previous day)
 				while (
 					txIndex < sortedTransactions.length &&
-					sortedTransactions[txIndex].createdAt >= dayStart
+					sortedTransactions[txIndex].createdAt >= dayStart &&
+					sortedTransactions[txIndex].createdAt <= dayEnd
 				) {
 					const tx = sortedTransactions[txIndex];
 					if (tx.type === 'income') {

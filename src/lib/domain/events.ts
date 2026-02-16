@@ -1,3 +1,5 @@
+import { toUTC } from './date-formatter';
+
 /**
  * Event Sourcing Domain Types
  *
@@ -179,7 +181,7 @@ export function createAccountCreatedEvent(
 		eventType: 'AccountCreated',
 		payload,
 		version,
-		occurredAt: new Date(),
+		occurredAt: toUTC(new Date()),
 		userId
 	};
 }
@@ -197,7 +199,7 @@ export function createAccountUpdatedEvent(
 		eventType: 'AccountUpdated',
 		payload,
 		version,
-		occurredAt: new Date(),
+		occurredAt: toUTC(new Date()),
 		userId
 	};
 }
@@ -215,7 +217,7 @@ export function createAccountDeletedEvent(
 		eventType: 'AccountDeleted',
 		payload,
 		version,
-		occurredAt: new Date(),
+		occurredAt: toUTC(new Date()),
 		userId
 	};
 }
@@ -233,7 +235,7 @@ export function createTransactionCreatedEvent(
 		eventType: 'TransactionCreated',
 		payload,
 		version,
-		occurredAt: new Date(),
+		occurredAt: toUTC(new Date()),
 		userId
 	};
 }
@@ -251,7 +253,7 @@ export function createTransferCreatedEvent(
 		eventType: 'TransferCreated',
 		payload,
 		version,
-		occurredAt: new Date(),
+		occurredAt: toUTC(new Date()),
 		userId
 	};
 }
@@ -269,7 +271,7 @@ export function createTransactionUpdatedEvent(
 		eventType: 'TransactionUpdated',
 		payload,
 		version,
-		occurredAt: new Date(),
+		occurredAt: toUTC(new Date()),
 		userId
 	};
 }
@@ -287,7 +289,7 @@ export function createTransactionDeletedEvent(
 		eventType: 'TransactionDeleted',
 		payload,
 		version,
-		occurredAt: new Date(),
+		occurredAt: toUTC(new Date()),
 		userId
 	};
 }
