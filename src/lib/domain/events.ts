@@ -14,9 +14,12 @@ export type EventType =
 	| 'TransactionCreated'
 	| 'TransactionUpdated'
 	| 'TransactionDeleted'
-	| 'TransferCreated';
+	| 'TransferCreated'
+	| 'BudgetCreated'
+	| 'BudgetUpdated'
+	| 'BudgetDeleted';
 
-export type StreamType = 'account' | 'transaction';
+export type StreamType = 'account' | 'transaction' | 'budget';
 
 /**
  * Base event structure - all events extend this
@@ -158,7 +161,45 @@ export type TransactionEvent =
 	| TransactionUpdatedEvent
 	| TransactionDeletedEvent
 	| TransferCreatedEvent;
-export type DomainEvent = AccountEvent | TransactionEvent;
+export type DomainEvent = AccountEvent | TransactionEvent | BudgetEvent;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Budget Events
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface BudgetCreatedPayload {
+	budgetId: string;
+	category: string;
+	limit: number;
+	currencyCode: string;
+	period: 'monthly' | 'weekly' | 'yearly';
+	startDate: Date;
+}
+
+export interface BudgetUpdatedPayload {
+	changes: {
+		category?: string;
+		limit?: number;
+		period?: 'monthly' | 'weekly' | 'yearly';
+		startDate?: Date;
+	};
+	previousValues: {
+		category?: string;
+		limit?: number;
+		period?: 'monthly' | 'weekly' | 'yearly';
+		startDate?: Date;
+	};
+}
+
+export interface BudgetDeletedPayload {
+	reason?: string;
+}
+
+export type BudgetCreatedEvent = BaseEvent<'BudgetCreated', BudgetCreatedPayload>;
+export type BudgetUpdatedEvent = BaseEvent<'BudgetUpdated', BudgetUpdatedPayload>;
+export type BudgetDeletedEvent = BaseEvent<'BudgetDeleted', BudgetDeletedPayload>;
+
+export type BudgetEvent = BudgetCreatedEvent | BudgetUpdatedEvent | BudgetDeletedEvent;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Event Factory Functions (Pure)
@@ -166,6 +207,60 @@ export type DomainEvent = AccountEvent | TransactionEvent;
 
 export function createEventId(): string {
 	return crypto.randomUUID();
+}
+
+export function createBudgetCreatedEvent(
+	budgetId: string,
+	userId: string,
+	payload: BudgetCreatedPayload,
+	version: number = 1
+): BudgetCreatedEvent {
+	return {
+		id: createEventId(),
+		streamId: budgetId,
+		streamType: 'budget',
+		eventType: 'BudgetCreated',
+		payload,
+		version,
+		occurredAt: toUTC(new Date()),
+		userId
+	};
+}
+
+export function createBudgetUpdatedEvent(
+	budgetId: string,
+	userId: string,
+	payload: BudgetUpdatedPayload,
+	version: number
+): BudgetUpdatedEvent {
+	return {
+		id: createEventId(),
+		streamId: budgetId,
+		streamType: 'budget',
+		eventType: 'BudgetUpdated',
+		payload,
+		version,
+		occurredAt: toUTC(new Date()),
+		userId
+	};
+}
+
+export function createBudgetDeletedEvent(
+	budgetId: string,
+	userId: string,
+	payload: BudgetDeletedPayload,
+	version: number
+): BudgetDeletedEvent {
+	return {
+		id: createEventId(),
+		streamId: budgetId,
+		streamType: 'budget',
+		eventType: 'BudgetDeleted',
+		payload,
+		version,
+		occurredAt: toUTC(new Date()),
+		userId
+	};
 }
 
 export function createAccountCreatedEvent(

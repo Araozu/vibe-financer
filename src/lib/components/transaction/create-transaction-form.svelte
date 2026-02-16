@@ -5,7 +5,7 @@
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { enhance } from '$app/forms';
-	import { useQueryClient } from '@tanstack/svelte-query';
+	import { useQueryClient, createQuery } from '@tanstack/svelte-query';
 	import {
 		ArrowDownRight,
 		ArrowUpRight,
@@ -17,7 +17,8 @@
 		ChevronRight,
 		Plus,
 		Loader2,
-		Calendar
+		Calendar,
+		Search
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { onMount, tick } from 'svelte';
@@ -31,6 +32,15 @@
 	}
 
 	const queryClient = useQueryClient();
+
+	// Query for budgets to get categories
+	const budgetsQuery = createQuery(() => ({
+		queryKey: ['budgets'],
+		queryFn: async () => (await fetch('/api/budgets')).json()
+	}));
+
+	let budgets = $derived(budgetsQuery.data ?? []);
+	let categories = $derived([...new Set(budgets.map((b: any) => b.category))]);
 
 	let {
 		accounts = [],
@@ -141,6 +151,7 @@
 				// Invalidate queries to refetch updated data
 				queryClient.invalidateQueries({ queryKey: ['transactions'] });
 				queryClient.invalidateQueries({ queryKey: ['accounts'] });
+				queryClient.invalidateQueries({ queryKey: ['budgets'] });
 				resetForm();
 
 				if (onSuccess) {
@@ -334,12 +345,20 @@
 					</div>
 					<div class="flex items-center gap-2 px-2">
 						<Tag class="h-3.5 w-3.5 text-muted-foreground/60" />
-						<Input
-							name="category"
-							bind:value={category}
-							placeholder="Category..."
-							class="h-8 w-28 border-none bg-transparent px-2 py-1 text-xs font-medium focus-visible:ring-0"
-						/>
+						<div class="relative">
+							<Input
+								name="category"
+								bind:value={category}
+								placeholder="Category..."
+								class="h-8 w-28 border-none bg-transparent px-2 py-1 text-xs font-medium focus-visible:ring-0"
+								list="budget-categories"
+							/>
+							<datalist id="budget-categories">
+								{#each categories as cat}
+									<option value={cat}>{cat}</option>
+								{/each}
+							</datalist>
+						</div>
 					</div>
 				</div>
 			{/if}

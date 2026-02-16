@@ -149,6 +149,19 @@ export async function createTransaction(
 			createdAt: transactionDate
 		});
 
+		// Update active budgets for this category (transfers are often treated as expenses for the source account)
+		if (data.category) {
+			const activeBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
+				data.category,
+				transactionDate
+			);
+			for (const b of activeBudgets) {
+				await eventStoreRepo.updateBudgetProjection(b.id, {
+					currentSpent: b.currentSpent + data.amount
+				});
+			}
+		}
+
 		return {
 			id: transactionId,
 			accountId: data.accountId,
@@ -218,6 +231,19 @@ export async function createTransaction(
 		toAccountId: null,
 		createdAt: transactionDate
 	});
+
+	// Update active budgets for this category
+	if (data.category && data.type === 'expense') {
+		const activeBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
+			data.category,
+			transactionDate
+		);
+		for (const b of activeBudgets) {
+			await eventStoreRepo.updateBudgetProjection(b.id, {
+				currentSpent: b.currentSpent + data.amount
+			});
+		}
+	}
 
 	return {
 		id: transactionId,

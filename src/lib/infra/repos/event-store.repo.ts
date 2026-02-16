@@ -6,8 +6,8 @@
  */
 
 import { db } from '../db';
-import { eventStore, account, transaction, accountSnapshot } from '../db/schema';
-import { eq, and, asc, desc, lte, gt, sql } from 'drizzle-orm';
+import { eventStore, account, transaction, accountSnapshot, budget } from '../db/schema';
+import { eq, and, asc, desc, lte, gt, sql, between } from 'drizzle-orm';
 import type { DomainEvent, StreamType, EventType } from '$lib/domain/events';
 import type { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
 import type { AccountState } from '$lib/domain/account-aggregate';
@@ -490,5 +490,58 @@ export const eventStoreRepo = {
 	 */
 	async deleteTransactionProjectionsByAccount(accountId: string): Promise<void> {
 		await db.delete(transaction).where(eq(transaction.accountId, accountId));
+	},
+
+	/**
+	 * Create read model (projection) for a new budget
+	 */
+	async createBudgetProjection(data: {
+		id: string;
+		userId: string;
+		category: string;
+		limit: number;
+		currencyCode: string;
+		period: 'monthly' | 'weekly' | 'yearly';
+		startDate: Date;
+		currentSpent: number;
+	}): Promise<void> {
+		await db.insert(budget).values(data);
+	},
+
+	/**
+	 * Update read model (projection) for a budget
+	 */
+	async updateBudgetProjection(
+		budgetId: string,
+		data: {
+			category?: string;
+			limit?: number;
+			period?: 'monthly' | 'weekly' | 'yearly';
+			startDate?: Date;
+			currentSpent?: number;
+		}
+	): Promise<void> {
+		await db
+			.update(budget)
+			.set({ ...data, updatedAt: new Date() })
+			.where(eq(budget.id, budgetId));
+	},
+
+	/**
+	 * Delete budget projection
+	 */
+	async deleteBudgetProjection(budgetId: string): Promise<void> {
+		await db.delete(budget).where(eq(budget.id, budgetId));
+	},
+
+	/**
+	 * Get active budgets for a category and date
+	 */
+	async getActiveBudgetsByCategory(category: string, date: Date): Promise<any[]> {
+		// This is a simplified check - in a real app we'd handle periods more robustly
+		return db
+			.select()
+			.from(budget)
+			.where(and(eq(budget.category, category), lte(budget.startDate, date)));
 	}
 };

@@ -116,6 +116,27 @@ export const transaction = sqliteTable('transaction', {
 		.$defaultFn(() => new Date())
 });
 
+export const budget = sqliteTable('budget', {
+	id: text('id')
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	category: text('category').notNull(),
+	limit: integer('limit').notNull(),
+	currencyCode: text('currency_code').notNull(),
+	period: text('period').$type<'monthly' | 'weekly' | 'yearly'>().notNull(),
+	startDate: integer('start_date', { mode: 'timestamp' }).notNull(),
+	currentSpent: integer('current_spent').notNull().default(0),
+	createdAt: integer('created_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Snapshots - Periodic state captures for performance optimization
 // Instead of replaying all events, load snapshot + events after snapshot

@@ -21,7 +21,8 @@
 		Tag,
 		MoreVertical,
 		Pencil,
-		Trash2
+		Trash2,
+		Plus
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
@@ -39,6 +40,16 @@
 		updatedAt: string;
 	}
 
+	interface SerializedBudget {
+		id: string;
+		category: string;
+		limit: number;
+		currentSpent: number;
+		currencyCode: string;
+		period: string;
+		color?: string;
+	}
+
 	// Query for accounts
 	const accountsQuery = createQuery<SerializedAccount[]>(() => ({
 		queryKey: ['accounts'],
@@ -51,12 +62,17 @@
 		queryFn: async () => (await fetch('/api/transactions')).json()
 	}));
 
+	// Query for budgets
+	const budgetsQuery = createQuery<SerializedBudget[]>(() => ({
+		queryKey: ['budgets'],
+		queryFn: async () => (await fetch('/api/budgets')).json()
+	}));
+
 	const queryClient = useQueryClient();
 
 	let accounts = $derived(accountsQuery.data ?? []);
 	let transactions = $derived(transactionsQuery.data ?? []);
-
-	// Calculate daily spending for the last 7 days
+	let budgets = $derived(budgetsQuery.data ?? []);
 	let dailySpending = $derived.by(() => {
 		const txs = transactions.map((tx) => ({
 			...tx,
@@ -185,11 +201,14 @@
 		return Tag;
 	}
 
-	const budgets = [
-		{ name: 'Housing', spent: 1800, limit: 1800, color: 'bg-blue-500' },
-		{ name: 'Food & Dining', spent: 450, limit: 600, color: 'bg-emerald-500' },
-		{ name: 'Transport', spent: 120, limit: 200, color: 'bg-orange-500' },
-		{ name: 'Entertainment', spent: 380, limit: 300, color: 'bg-rose-500' }
+	// Budgets
+	const budgetColors = [
+		'bg-blue-500',
+		'bg-emerald-500',
+		'bg-orange-500',
+		'bg-rose-500',
+		'bg-purple-500',
+		'bg-amber-500'
 	];
 </script>
 
@@ -370,30 +389,49 @@
 	<div class="space-y-8 md:col-span-3">
 		<!-- Budgets -->
 		<Card.Root>
-			<Card.Header>
-				<Card.Title>Budgets</Card.Title>
-				<Card.Description>Monthly limit tracking</Card.Description>
+			<Card.Header class="flex flex-row items-center justify-between">
+				<div>
+					<Card.Title>Budgets</Card.Title>
+					<Card.Description>Monthly limit tracking</Card.Description>
+				</div>
+				<a href="/budgets">
+					<Button variant="ghost" size="icon" class="h-8 w-8">
+						<Plus class="h-4 w-4" />
+					</Button>
+				</a>
 			</Card.Header>
 			<Card.Content class="space-y-6">
-				{#each budgets as budget}
-					<div class="space-y-2">
-						<div class="flex items-center justify-between text-sm">
-							<span class="font-medium">{budget.name}</span>
-							<span class="text-muted-foreground">
-								${budget.spent} / <span class="font-semibold">${budget.limit}</span>
-							</span>
+				{#if budgets.length === 0}
+					<div class="py-4 text-center text-sm text-muted-foreground">No budgets set up yet.</div>
+				{:else}
+					{#each budgets as budget, i}
+						{@const color = budgetColors[i % budgetColors.length]}
+						<div class="space-y-2">
+							<div class="flex items-center justify-between text-sm">
+								<span class="font-medium">{budget.category}</span>
+								<span class="text-muted-foreground">
+									${(budget.currentSpent / 100).toFixed(0)} / <span class="font-semibold"
+										>${(budget.limit / 100).toFixed(0)}</span
+									>
+								</span>
+							</div>
+							<Progress
+								value={Math.min((budget.currentSpent / budget.limit) * 100, 100)}
+								class="h-2"
+							/>
+							{#if budget.currentSpent > budget.limit}
+								<p class="text-[10px] font-medium text-rose-500">
+									Over budget by ${((budget.currentSpent - budget.limit) / 100).toFixed(2)}
+								</p>
+							{/if}
 						</div>
-						<Progress value={(budget.spent / budget.limit) * 100} class="h-2" />
-						{#if budget.spent > budget.limit}
-							<p class="text-[10px] font-medium text-rose-500">
-								Over budget by ${(budget.spent - budget.limit).toFixed(2)}
-							</p>
-						{/if}
-					</div>
-				{/each}
+					{/each}
+				{/if}
 			</Card.Content>
 			<Card.Footer>
-				<Button variant="outline" class="w-full" size="sm">Manage Budgets</Button>
+				<a href="/budgets" class="w-full">
+					<Button variant="outline" class="w-full" size="sm">Manage Budgets</Button>
+				</a>
 			</Card.Footer>
 		</Card.Root>
 
