@@ -18,10 +18,12 @@
 		Plus,
 		Loader2,
 		Calendar,
-		Search
+		Search,
+		Clock
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { onMount, tick } from 'svelte';
+	import TimePicker from '$lib/components/ui/time-picker/time-picker.svelte';
 
 	// Minimal account type for what this component needs
 	interface AccountLike {
@@ -96,11 +98,16 @@
 	let amount = $state('');
 	let category = $state('');
 	let payee = $state('');
-	let transactionDate = $state('');
+	let transactionDate = $state(new Date().toISOString().split('T')[0]);
+	let transactionTime = $state(
+		new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+	);
+	let userTimezone = $state('');
 
 	let titleInput: HTMLInputElement | null = $state(null);
 
 	onMount(() => {
+		userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 		if (showCreateMore) {
 			const stored = localStorage.getItem('createMoreTransactions');
 			if (stored !== null) {
@@ -109,6 +116,12 @@
 		} else {
 			createMore = false;
 		}
+
+		// Update time on mount to be current
+		transactionTime = new Date().toLocaleTimeString('en-GB', {
+			hour: '2-digit',
+			minute: '2-digit'
+		});
 	});
 
 	$effect(() => {
@@ -131,12 +144,29 @@
 		payee = '';
 		selectedToAccountId = '';
 		transactionDate = new Date().toISOString().split('T')[0];
+		transactionTime = new Date().toLocaleTimeString('en-GB', {
+			hour: '2-digit',
+			minute: '2-digit'
+		});
 	}
 
 	function addDayToDate() {
 		const current = transactionDate ? new Date(transactionDate + 'T00:00:00') : new Date();
 		current.setDate(current.getDate() + 1);
 		transactionDate = current.toISOString().split('T')[0];
+	}
+
+	function subtractDayFromDate() {
+		const current = transactionDate ? new Date(transactionDate + 'T00:00:00') : new Date();
+		current.setDate(current.getDate() - 1);
+		transactionDate = current.toISOString().split('T')[0];
+	}
+
+	function resetTime() {
+		transactionTime = new Date().toLocaleTimeString('en-GB', {
+			hour: '2-digit',
+			minute: '2-digit'
+		});
 	}
 </script>
 
@@ -285,7 +315,7 @@
 		<div class="flex flex-wrap gap-2 pt-2">
 			<!-- Amount Badge -->
 			<div
-				class="flex items-center overflow-hidden rounded-md border border-primary/30 bg-muted/50"
+				class="flex items-center overflow-hidden rounded-md border border-rose-500/30 bg-muted/50"
 			>
 				<div
 					class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
@@ -307,38 +337,9 @@
 				</div>
 			</div>
 
-			<!-- Date Badge -->
-			<div class="flex items-center overflow-hidden rounded-md bg-muted/50">
-				<div
-					class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
-				>
-					DATE
-				</div>
-				<div class="flex items-center gap-2 px-2">
-					<Calendar class="h-3.5 w-3.5 text-muted-foreground/60" />
-					<Input
-						id="date"
-						name="date"
-						type="date"
-						bind:value={transactionDate}
-						class="h-8 w-32 border-none bg-transparent px-2 text-xs font-medium focus-visible:ring-0"
-						style="color-scheme: dark"
-					/>
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						class="h-6 w-8 px-0 text-[10px] font-bold text-muted-foreground hover:text-primary"
-						onclick={addDayToDate}
-					>
-						+1
-					</Button>
-				</div>
-			</div>
-
 			<!-- Category Badge (hidden for transfers) -->
 			{#if selectedType !== 'transfer'}
-				<div class="flex items-center overflow-hidden rounded-md bg-muted/50">
+				<div class="flex items-center overflow-hidden rounded-md border border-border/40 bg-muted/50">
 					<div
 						class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
 					>
@@ -363,26 +364,72 @@
 					</div>
 				</div>
 			{/if}
+		</div>
 
-			<!-- Payee Badge (hidden for transfers) -->
-			{#if selectedType !== 'transfer'}
-				<div class="flex items-center overflow-hidden rounded-md bg-muted/50">
-					<div
-						class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
-					>
-						PAY
-					</div>
-					<div class="flex items-center gap-2 px-2">
-						<UserIcon class="h-3.5 w-3.5 text-muted-foreground/60" />
-						<Input
-							name="payee"
-							bind:value={payee}
-							placeholder="Payee..."
-							class="h-8 w-28 border-none bg-transparent px-2 py-1 text-xs font-medium focus-visible:ring-0"
-						/>
+		<!-- Date & Time Row -->
+		<div class="flex flex-wrap gap-2 pt-0">
+			<!-- Date Badge -->
+			<div class="flex items-center overflow-hidden rounded-md border border-border/40 bg-muted/50">
+				<div
+					class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
+				>
+					DATE
+				</div>
+				<div class="flex items-center gap-2 px-2">
+					<Input
+						id="date"
+						name="date"
+						type="date"
+						bind:value={transactionDate}
+						class="h-8 w-32 border-none bg-transparent px-2 text-xs font-medium focus-visible:ring-0"
+						style="color-scheme: dark"
+					/>
+					<div class="flex items-center border-l border-border/40 pl-1">
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							class="h-6 w-8 px-0 text-[10px] font-bold text-muted-foreground hover:text-primary"
+							onclick={subtractDayFromDate}
+						>
+							-1
+						</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							class="h-6 w-8 px-0 text-[10px] font-bold text-muted-foreground hover:text-primary"
+							onclick={addDayToDate}
+						>
+							+1
+						</Button>
 					</div>
 				</div>
-			{/if}
+			</div>
+
+			<!-- Time Badge -->
+			<div class="flex items-center overflow-hidden rounded-md border border-border/40 bg-muted/50">
+				<div
+					class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
+				>
+					TIME
+				</div>
+				<div class="flex items-center gap-2 px-2">
+					<Clock class="h-3.5 w-3.5 text-muted-foreground/60" />
+					<TimePicker bind:value={transactionTime} />
+					<input type="hidden" name="time" value={transactionTime} />
+					<input type="hidden" name="timezone" value={userTimezone} />
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						class="h-6 px-2 text-[10px] font-bold text-muted-foreground hover:text-primary uppercase"
+						onclick={resetTime}
+					>
+						Reset
+					</Button>
+				</div>
+			</div>
 		</div>
 	</div>
 

@@ -5,7 +5,8 @@ import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import type { AccountType } from '$lib/domain/account';
 import type { TransactionType } from '$lib/domain/transaction';
-import { parseDateLocal } from '$lib/domain/date-formatter';
+import { parseDateLocal, toDateObject } from '$lib/domain/date-formatter';
+import { fromZonedTime } from 'date-fns-tz';
 
 export const actions: Actions = {
 	// ... (omitting createAccount for brevity)
@@ -24,9 +25,20 @@ export const actions: Actions = {
 		const payee = formData.get('payee') as string;
 		const toAccountId = formData.get('toAccountId') as string | null;
 		const dateStr = formData.get('date') as string;
+		const timeStr = formData.get('time') as string;
+		const timezone = formData.get('timezone') as string;
+
+		if (!timeStr) {
+			return fail(400, { error: 'Time is required' });
+		}
 
 		const amount = Math.round(parseFloat(amountStr) * 100);
-		const createdAt = dateStr ? parseDateLocal(dateStr) : new Date();
+
+		// Combine date and time in the user's timezone, then convert to UTC Date object
+		const localDateTimeStr = `${dateStr}T${timeStr}:00`;
+		const createdAt = timezone
+			? fromZonedTime(localDateTimeStr, timezone)
+			: parseDateLocal(localDateTimeStr);
 
 		try {
 			await createTransaction(
