@@ -32,7 +32,7 @@ export const userRepo = {
 	},
 
 	async count(): Promise<number> {
-		const result = await db.select().from(user);
-		return result.length;
+		const [result] = await db.select({ count: sql<number>`count(*)` }).from(user);
+		return Number(result?.count ?? 0);
 	}
 };

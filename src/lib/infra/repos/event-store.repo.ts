@@ -9,7 +9,8 @@ import { db } from '../db';
 import { eventStore, account, transaction, accountSnapshot, budget } from '../db/schema';
 import { eq, and, asc, desc, lte, gt, sql, between } from 'drizzle-orm';
 import type { DomainEvent, StreamType, EventType } from '$lib/domain/events';
-import type { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
+import type { PgTransaction } from 'drizzle-orm/pg-core';
+import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
 import type { AccountState } from '$lib/domain/account-aggregate';
 
 export interface StoredEvent {
@@ -247,7 +248,7 @@ export const eventStoreRepo = {
 	 */
 	async getStreamVersion(
 		streamId: string,
-		tx?: BunSQLiteDatabase<Record<string, never>>
+		tx?: PgTransaction<NodePgQueryResultHKT, any, any>
 	): Promise<number> {
 		const dbInstance = tx ?? db;
 		const [result] = await dbInstance
@@ -255,7 +256,7 @@ export const eventStoreRepo = {
 			.from(eventStore)
 			.where(eq(eventStore.streamId, streamId));
 
-		return result?.maxVersion ?? 0;
+		return Number(result?.maxVersion ?? 0);
 	},
 
 	/**

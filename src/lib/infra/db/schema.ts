@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, index } from 'drizzle-orm/sqlite-core';
+import { pgTable, text, integer, timestamp, index, pgEnum, boolean, jsonb } from 'drizzle-orm/pg-core';
 import type { AccountType } from '$lib/domain/account';
 import type { TransactionType } from '$lib/domain/transaction';
 import type { EventType, StreamType } from '$lib/domain/events';
@@ -7,7 +7,7 @@ import type { EventType, StreamType } from '$lib/domain/events';
 // Core Tables
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const user = sqliteTable('user', {
+export const user = pgTable('user', {
 	id: text('id')
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
@@ -16,28 +16,28 @@ export const user = sqliteTable('user', {
 	firstName: text('first_name'),
 	lastName: text('last_name'),
 	phoneNumber: text('phone_number'),
-	dateOfBirth: integer('date_of_birth', { mode: 'timestamp' }),
+	dateOfBirth: timestamp('date_of_birth', { withTimezone: true, mode: 'date' }),
 	preferredCurrency: text('preferred_currency').default('USD'),
 	timezone: text('timezone').default('UTC'),
 	age: integer('age'),
-	createdAt: integer('created_at', { mode: 'timestamp' })
+	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
 		.notNull()
 		.$defaultFn(() => new Date())
 });
 
-export const session = sqliteTable('session', {
+export const session = pgTable('session', {
 	id: text('id').primaryKey(),
 	userId: text('user_id')
 		.notNull()
 		.references(() => user.id, { onDelete: 'cascade' }),
-	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull()
+	expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull()
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Event Store - The source of truth for all state changes
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const eventStore = sqliteTable(
+export const eventStore = pgTable(
 	'event_store',
 	{
 		id: text('id')
@@ -46,13 +46,13 @@ export const eventStore = sqliteTable(
 		streamId: text('stream_id').notNull(), // The aggregate ID (e.g., account ID)
 		streamType: text('stream_type').$type<StreamType>().notNull(), // 'account', 'transaction'
 		eventType: text('event_type').$type<EventType>().notNull(),
-		payload: text('payload', { mode: 'json' }).notNull(), // JSON payload
+		payload: jsonb('payload').notNull(), // JSONB payload
 		version: integer('version').notNull(), // Version within stream for optimistic concurrency
 		userId: text('user_id')
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
-		metadata: text('metadata', { mode: 'json' }), // Optional JSON metadata
-		occurredAt: integer('occurred_at', { mode: 'timestamp' })
+		metadata: jsonb('metadata'), // Optional JSONB metadata
+		occurredAt: timestamp('occurred_at', { withTimezone: true, mode: 'date' })
 			.notNull()
 			.$defaultFn(() => new Date())
 	},
@@ -70,7 +70,7 @@ export const eventStore = sqliteTable(
 // These are rebuilt from events but cached for performance
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const account = sqliteTable('account', {
+export const account = pgTable('account', {
 	id: text('id')
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
@@ -85,15 +85,15 @@ export const account = sqliteTable('account', {
 	currencyCode: text('currency_code').notNull(),
 	currencySymbol: text('currency_symbol').notNull(),
 	color: text('color').notNull(),
-	createdAt: integer('created_at', { mode: 'timestamp' })
+	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
 		.notNull()
 		.$defaultFn(() => new Date()),
-	updatedAt: integer('updated_at', { mode: 'timestamp' })
+	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
 		.notNull()
 		.$defaultFn(() => new Date())
 });
 
-export const transaction = sqliteTable('transaction', {
+export const transaction = pgTable('transaction', {
 	id: text('id')
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
@@ -107,16 +107,16 @@ export const transaction = sqliteTable('transaction', {
 	category: text('category'),
 	payee: text('payee'),
 	toAccountId: text('to_account_id').references(() => account.id, { onDelete: 'cascade' }),
-	deletedAt: integer('deleted_at', { mode: 'timestamp' }), // Soft delete for audit trail
-	createdAt: integer('created_at', { mode: 'timestamp' })
+	deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'date' }), // Soft delete for audit trail
+	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
 		.notNull()
 		.$defaultFn(() => new Date()),
-	updatedAt: integer('updated_at', { mode: 'timestamp' })
+	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
 		.notNull()
 		.$defaultFn(() => new Date())
 });
 
-export const budget = sqliteTable('budget', {
+export const budget = pgTable('budget', {
 	id: text('id')
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
@@ -127,12 +127,12 @@ export const budget = sqliteTable('budget', {
 	limit: integer('limit').notNull(),
 	currencyCode: text('currency_code').notNull(),
 	period: text('period').$type<'monthly' | 'weekly' | 'yearly'>().notNull(),
-	startDate: integer('start_date', { mode: 'timestamp' }).notNull(),
+	startDate: timestamp('start_date', { withTimezone: true, mode: 'date' }).notNull(),
 	currentSpent: integer('current_spent').notNull().default(0),
-	createdAt: integer('created_at', { mode: 'timestamp' })
+	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
 		.notNull()
 		.$defaultFn(() => new Date()),
-	updatedAt: integer('updated_at', { mode: 'timestamp' })
+	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
 		.notNull()
 		.$defaultFn(() => new Date())
 });
@@ -142,16 +142,16 @@ export const budget = sqliteTable('budget', {
 // Instead of replaying all events, load snapshot + events after snapshot
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const accountSnapshot = sqliteTable(
+export const accountSnapshot = pgTable(
 	'account_snapshot',
 	{
 		id: text('id')
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
 		streamId: text('stream_id').notNull(), // The account ID
-		state: text('state', { mode: 'json' }).notNull(), // Serialized AccountState
+		state: jsonb('state').notNull(), // JSONB state
 		version: integer('version').notNull(), // Version at which snapshot was taken
-		createdAt: integer('created_at', { mode: 'timestamp' })
+		createdAt: timestamp('createdAt', { withTimezone: true, mode: 'date' })
 			.notNull()
 			.$defaultFn(() => new Date())
 	},

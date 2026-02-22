@@ -1,1 +1,0 @@
-ALTER TABLE `transaction` ADD `deleted_at` integer;

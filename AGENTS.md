@@ -6,6 +6,8 @@ This project follows a simplified layered architecture to maintain separation of
 
 - Use bun
 - To run stuff, must use `bun --bun` to ensure using the bun runtime.
+- Database: PostgreSQL (using `node-postgres` / `pg` driver and `drizzle-orm/node-postgres`)
+- Timestamps: Always use `timestampz` (timestamps with timezones) in the database.
 
 ## Language
 
