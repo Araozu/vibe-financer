@@ -9,6 +9,7 @@
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
 	import CreateTransactionForm from '$lib/components/transaction/create-transaction-form.svelte';
 	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
+	import SetGoalDialog from '$lib/components/account/set-goal-dialog.svelte';
 	import MtdBalanceChart from '$lib/components/dashboard/mtd-balance-chart.svelte';
 	import {
 		Wallet,
@@ -24,7 +25,8 @@
 		Pencil,
 		Trash2,
 		Plus,
-		Info
+		Info,
+		Target
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
@@ -98,6 +100,14 @@
 	let editingTransaction = $state<SerializedTransaction | null>(null);
 	let editDialogOpen = $state(false);
 	let deletingTransactionId = $state<string | null>(null);
+
+	let goalDialogOpen = $state(false);
+	let goalAccount = $state<SerializedAccount | null>(null);
+
+	function openGoalDialog(account: SerializedAccount) {
+		goalAccount = account;
+		goalDialogOpen = true;
+	}
 
 	function openEditDialog(tx: SerializedTransaction) {
 		editingTransaction = tx;
@@ -276,21 +286,34 @@
 	<div class="md:col-span-3">
 		<!-- Savings Goal -->
 		{#if goal && accountWithGoal}
-			<Card.Root class="bg-primary text-primary-foreground">
-				<Card.Header>
-					<Card.Title class="text-primary-foreground">Savings Goal</Card.Title>
-					<Card.Description class="text-primary-foreground/70">{goal.name}</Card.Description>
+			<Card.Root class="relative overflow-hidden border-none bg-muted/40 shadow-sm transition-all hover:bg-muted/50">
+				<div
+					class="absolute top-0 left-0 h-full w-1"
+					style="background-color: {accountWithGoal.color}"
+				></div>
+				<Card.Header class="pb-2">
+					<div class="flex items-center justify-between">
+						<Card.Title class="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+							Savings Goal
+						</Card.Title>
+						<PiggyBank class="h-4 w-4 text-muted-foreground/60" />
+					</div>
+					<Card.Description class="text-base font-semibold text-foreground">
+						{goal.name}
+					</Card.Description>
 				</Card.Header>
 				<Card.Content>
 					<div class="space-y-4">
-						<div class="text-3xl font-bold">
-							{(accountWithGoal.currentBalance / 100).toLocaleString('en-US', {
-								style: 'currency',
-								currency: accountWithGoal.currencyCode ?? 'USD'
-							})}
+						<div class="flex items-baseline gap-1">
+							<span class="text-3xl font-bold tracking-tight">
+								{(accountWithGoal.currentBalance / 100).toLocaleString('en-US', {
+									style: 'currency',
+									currency: accountWithGoal.currencyCode ?? 'USD'
+								})}
+							</span>
 						</div>
 						<div class="space-y-2">
-							<div class="flex justify-between text-xs">
+							<div class="flex justify-between text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
 								<span>{goalProgress.toFixed(0)}% achieved</span>
 								<span>
 									Goal: {(goal.targetAmount / 100).toLocaleString('en-US', {
@@ -300,10 +323,21 @@
 									})}
 								</span>
 							</div>
-							<Progress value={goalProgress} class="h-1.5 bg-primary-foreground/20" />
+							<Progress value={goalProgress} class="h-1.5" />
 						</div>
 					</div>
 				</Card.Content>
+				<Card.Footer class="pt-0">
+					<Button 
+						variant="ghost" 
+						size="sm" 
+						class="h-8 w-full text-xs text-muted-foreground hover:bg-background/50 hover:text-foreground"
+						onclick={() => openGoalDialog(accountWithGoal)}
+					>
+						<Pencil class="mr-2 h-3 w-3" />
+						Edit Goal
+					</Button>
+				</Card.Footer>
 			</Card.Root>
 		{:else}
 			<Card.Root class="border-dashed bg-muted/30">
@@ -317,7 +351,26 @@
 							Set a goal for one of your accounts to track your progress here.
 						</p>
 					</div>
-					<Button variant="outline" size="sm" href="/accounts">Set a Goal</Button>
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger>
+							<Button variant="outline" size="sm">
+								<Target class="mr-2 h-4 w-4" />
+								Set a Goal
+							</Button>
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="center">
+							<DropdownMenu.Label>Select Account</DropdownMenu.Label>
+							<DropdownMenu.Separator />
+							{#each accounts.filter((a) => a.type === 'savings') as account (account.id)}
+								<DropdownMenu.Item onclick={() => openGoalDialog(account)}>
+									<div class="flex items-center gap-2">
+										<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
+										<span>{account.name}</span>
+									</div>
+								</DropdownMenu.Item>
+							{/each}
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
 				</Card.Content>
 			</Card.Root>
 		{/if}
@@ -327,6 +380,15 @@
 <div class="mt-8">
 	<MtdBalanceChart {accounts} {transactions} />
 </div>
+
+{#if goalAccount}
+	<SetGoalDialog
+		bind:open={goalDialogOpen}
+		accountId={goalAccount.id}
+		accountName={goalAccount.name}
+		existingGoal={goalAccount.goal}
+	/>
+{/if}
 
 <div class="mt-8 grid gap-8 md:grid-cols-7">
 	<!-- Main Content -->

@@ -21,7 +21,12 @@ export async function setGoal(userId: string, data: SetGoalDTO) {
 		throw error(404, 'Account not found');
 	}
 
-	// 2. Check if goal already exists
+	// 2. Only allow savings accounts to have goals
+	if (account.type !== 'savings') {
+		throw error(400, 'Only savings accounts can have goals');
+	}
+
+	// 3. Check if goal already exists
 	const existingGoal = await eventStoreRepo.getGoalByAccount(data.accountId);
 	const currentVersion = await eventStoreRepo.getStreamVersion(existingGoal?.id ?? 'new-goal');
 
