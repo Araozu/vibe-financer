@@ -245,7 +245,7 @@
 			</Card.Header>
 			<Card.Content>
 				<div class="flex h-[200px] w-full items-end justify-between gap-2 px-2">
-					{#each dailySpending as day (day.label)}
+					{#each dailySpending as day, i (i)}
 						{@const height = maxSpending > 0 ? (day.amount / maxSpending) * 100 : 0}
 						<div class="group relative flex h-full w-full flex-col justify-end">
 							<div
