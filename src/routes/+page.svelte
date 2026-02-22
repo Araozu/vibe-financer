@@ -200,21 +200,21 @@
 			amount: formattedMonthlyIncome,
 			change: 'This calendar month',
 			icon: TrendingUp,
-			color: 'text-emerald-500'
+			color: 'text-income'
 		},
 		{
 			title: 'Monthly Expenses',
 			amount: formattedMonthlyExpenses,
 			change: 'This calendar month',
 			icon: TrendingDown,
-			color: 'text-rose-500'
+			color: 'text-expense'
 		},
 		{
 			title: 'Savings Rate',
 			amount: `${savingsRate.toFixed(1)}%`,
 			change: 'Monthly performance',
 			icon: PiggyBank,
-			color: 'text-purple-500'
+			color: 'text-savings'
 		}
 	]);
 
@@ -233,10 +233,10 @@
 	// Budgets
 	const budgetColors = [
 		'bg-blue-500',
-		'bg-emerald-500',
+		'bg-income',
 		'bg-orange-500',
-		'bg-rose-500',
-		'bg-purple-500',
+		'bg-expense',
+		'bg-savings',
 		'bg-amber-500'
 	];
 </script>
@@ -470,8 +470,8 @@
 								</Table.Cell>
 								<Table.Cell
 									class="text-right font-medium {tx.type === 'income'
-										? 'text-emerald-600'
-										: 'text-rose-600'}"
+										? 'text-income'
+										: 'text-expense'}"
 								>
 									{tx.type === 'income' ? '+' : '-'}{(tx.amount / 100).toLocaleString('en-US', {
 										style: 'currency',

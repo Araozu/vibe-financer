@@ -36,6 +36,11 @@
 	--sidebar-accent-foreground: oklch(0.21 0.006 285.885);
 	--sidebar-border: oklch(0.92 0.004 286.32);
 	--sidebar-ring: oklch(0.645 0.246 16.439);
+
+	--income: oklch(0.696 0.17 162.48);
+	--expense: oklch(0.645 0.246 16.439);
+	--savings: oklch(0.627 0.265 303.9);
+	--investment: oklch(0.488 0.243 264.376);
 }
 
 .dark {
@@ -70,6 +75,11 @@
 	--sidebar-accent-foreground: oklch(0.985 0 0);
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: oklch(0.645 0.246 16.439);
+
+	--income: oklch(0.696 0.17 162.48);
+	--expense: oklch(0.645 0.246 16.439);
+	--savings: oklch(0.627 0.265 303.9);
+	--investment: oklch(0.488 0.243 264.376);
 }
 
 @theme inline {
@@ -108,6 +118,11 @@
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-ring: var(--sidebar-ring);
+
+	--color-income: var(--income);
+	--color-expense: var(--expense);
+	--color-savings: var(--savings);
+	--color-investment: var(--investment);
 }
 
 @layer base {
