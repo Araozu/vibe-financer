@@ -1,7 +1,7 @@
 import { db } from '../db';
-import { account, currency } from '../db/schema';
+import { account, currency, goal } from '../db/schema';
 import { eq } from 'drizzle-orm';
-import type { Account, CreateAccountDTO, UpdateAccountDTO } from '../../domain/account';
+import type { Account, CreateAccountDTO, UpdateAccountDTO, Goal } from '../../domain/account';
 
 export const accountRepo = {
 	async create(data: CreateAccountDTO): Promise<Account> {
@@ -9,8 +9,8 @@ export const accountRepo = {
 		return result;
 	},
 
-	async findById(id: string): Promise<Account | undefined> {
-		const [result] = await db
+	async findById(id: string): Promise<(Account & { goal: Goal | null }) | undefined> {
+		const result = await db
 			.select({
 				id: account.id,
 				userId: account.userId,
@@ -24,16 +24,33 @@ export const accountRepo = {
 				createdAt: account.createdAt,
 				updatedAt: account.updatedAt,
 				currencyCode: currency.code,
-				currencySymbol: currency.symbol
+				currencySymbol: currency.symbol,
+				goal: {
+					id: goal.id,
+					accountId: goal.accountId,
+					name: goal.name,
+					targetAmount: goal.targetAmount,
+					targetDate: goal.targetDate,
+					createdAt: goal.createdAt,
+					updatedAt: goal.updatedAt
+				}
 			})
 			.from(account)
 			.leftJoin(currency, eq(account.currencyId, currency.id))
+			.leftJoin(goal, eq(account.id, goal.accountId))
 			.where(eq(account.id, id));
-		return result;
+
+		if (result.length === 0) return undefined;
+
+		const row = result[0];
+		return {
+			...row,
+			goal: row.goal?.id ? (row.goal as Goal) : null
+		};
 	},
 
-	async findAll(): Promise<Account[]> {
-		return await db
+	async findAll(): Promise<Array<Account & { goal: Goal | null }>> {
+		const results = await db
 			.select({
 				id: account.id,
 				userId: account.userId,
@@ -47,10 +64,25 @@ export const accountRepo = {
 				createdAt: account.createdAt,
 				updatedAt: account.updatedAt,
 				currencyCode: currency.code,
-				currencySymbol: currency.symbol
+				currencySymbol: currency.symbol,
+				goal: {
+					id: goal.id,
+					accountId: goal.accountId,
+					name: goal.name,
+					targetAmount: goal.targetAmount,
+					targetDate: goal.targetDate,
+					createdAt: goal.createdAt,
+					updatedAt: goal.updatedAt
+				}
 			})
 			.from(account)
-			.leftJoin(currency, eq(account.currencyId, currency.id));
+			.leftJoin(currency, eq(account.currencyId, currency.id))
+			.leftJoin(goal, eq(account.id, goal.accountId));
+
+		return results.map((row) => ({
+			...row,
+			goal: row.goal?.id ? (row.goal as Goal) : null
+		}));
 	},
 
 	async update(id: string, data: UpdateAccountDTO): Promise<Account | undefined> {

@@ -9,6 +9,7 @@
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
 	import CreateTransactionForm from '$lib/components/transaction/create-transaction-form.svelte';
 	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
+	import MtdBalanceChart from '$lib/components/dashboard/mtd-balance-chart.svelte';
 	import {
 		Wallet,
 		TrendingUp,
@@ -28,9 +29,20 @@
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
 
+	type SerializedGoal = {
+		id: string;
+		accountId: string;
+		targetAmount: number;
+		targetDate: string | null;
+		name: string;
+		createdAt: string;
+		updatedAt: string;
+	};
+
 	type SerializedAccount = Omit<Account, 'createdAt' | 'updatedAt'> & {
 		createdAt: string;
 		updatedAt: string;
+		goal: SerializedGoal | null;
 	};
 
 	type SerializedTransaction = Omit<Transaction, 'createdAt' | 'updatedAt' | 'deletedAt'> & {
@@ -54,7 +66,6 @@
 		currencySymbol: string | null;
 	};
 
-	import { calculateDailySpending } from '$lib/domain/spending-analytics';
 	import { formatLocalDate, formatLocalDateTime } from '$lib/domain/date-formatter';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
@@ -83,17 +94,6 @@
 	let accounts = $derived(accountsQuery.data ?? []);
 	let transactions = $derived(transactionsQuery.data ?? []);
 	let budgets = $derived(budgetsQuery.data ?? []);
-	let dailySpending = $derived.by(() => {
-		const txs = transactions.map((tx) => ({
-			...tx,
-			createdAt: new Date(tx.createdAt),
-			updatedAt: new Date(tx.updatedAt),
-			deletedAt: tx.deletedAt ? new Date(tx.deletedAt) : null
-		}));
-		return calculateDailySpending(txs, 7);
-	});
-
-	let maxSpending = $derived(Math.max(...dailySpending.map((s) => s.amount), 100));
 
 	let editingTransaction = $state<SerializedTransaction | null>(null);
 	let editDialogOpen = $state(false);
@@ -166,6 +166,15 @@
 
 	let savingsRate = $derived(
 		monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0
+	);
+
+	// Find the first account with a goal to show in the dashboard
+	let accountWithGoal = $derived(accounts.find((a) => a.goal !== null));
+	let goal = $derived(accountWithGoal?.goal);
+	let goalProgress = $derived(
+		goal && accountWithGoal
+			? Math.min((accountWithGoal.currentBalance / goal.targetAmount) * 100, 100)
+			: 0
 	);
 
 	const summaryStats = $derived([
@@ -241,7 +250,6 @@
 </div>
 
 <div class="grid gap-8 md:grid-cols-7">
-	<!-- Main Content: Transactions & Charts -->
 	<div class="space-y-8 md:col-span-4">
 		{#if accounts.length > 0}
 			<Card.Root class="overflow-hidden py-0">
@@ -263,41 +271,66 @@
 				</Card.Content>
 			</Card.Root>
 		{/if}
+	</div>
 
-		<!-- Spending Overview -->
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Spending Overview</Card.Title>
-				<Card.Description>Your daily spending for the last 7 days</Card.Description>
-			</Card.Header>
-			<Card.Content>
-				<div class="flex h-[200px] w-full items-end justify-between gap-2 px-2">
-					{#each dailySpending as day, i (i)}
-						{@const height = maxSpending > 0 ? (day.amount / maxSpending) * 100 : 0}
-						<div class="group relative flex h-full w-full flex-col justify-end">
-							<div
-								class="w-full rounded-t-sm bg-primary/20 transition-all hover:bg-primary"
-								style="height: {Math.max(height, 2)}%"
-							>
-								<div
-									class="absolute -top-8 left-1/2 hidden -translate-x-1/2 rounded bg-popover px-2 py-1 text-[10px] font-medium text-popover-foreground shadow-md group-hover:block"
-								>
-									{(day.amount / 100).toLocaleString('en-US', {
-										style: 'currency',
-										currency: 'USD'
-									})}
-								</div>
-							</div>
-							<span class="mt-2 block w-full text-center text-[10px] text-muted-foreground">
-								{day.label}
-							</span>
+	<div class="md:col-span-3">
+		<!-- Savings Goal -->
+		{#if goal && accountWithGoal}
+			<Card.Root class="bg-primary text-primary-foreground">
+				<Card.Header>
+					<Card.Title class="text-primary-foreground">Savings Goal</Card.Title>
+					<Card.Description class="text-primary-foreground/70">{goal.name}</Card.Description>
+				</Card.Header>
+				<Card.Content>
+					<div class="space-y-4">
+						<div class="text-3xl font-bold">
+							{(accountWithGoal.currentBalance / 100).toLocaleString('en-US', {
+								style: 'currency',
+								currency: accountWithGoal.currencyCode ?? 'USD'
+							})}
 						</div>
-					{/each}
-				</div>
-			</Card.Content>
-		</Card.Root>
+						<div class="space-y-2">
+							<div class="flex justify-between text-xs">
+								<span>{goalProgress.toFixed(0)}% achieved</span>
+								<span>
+									Goal: {(goal.targetAmount / 100).toLocaleString('en-US', {
+										style: 'currency',
+										currency: accountWithGoal.currencyCode ?? 'USD',
+										maximumFractionDigits: 0
+									})}
+								</span>
+							</div>
+							<Progress value={goalProgress} class="h-1.5 bg-primary-foreground/20" />
+						</div>
+					</div>
+				</Card.Content>
+			</Card.Root>
+		{:else}
+			<Card.Root class="border-dashed bg-muted/30">
+				<Card.Content class="flex flex-col items-center justify-center space-y-4 py-10 text-center">
+					<div class="rounded-full bg-background p-3 shadow-sm">
+						<PiggyBank class="h-6 w-6 text-muted-foreground" />
+					</div>
+					<div class="max-w-[200px] space-y-1">
+						<h3 class="font-semibold text-sm">No savings goal</h3>
+						<p class="text-xs text-muted-foreground">
+							Set a goal for one of your accounts to track your progress here.
+						</p>
+					</div>
+					<Button variant="outline" size="sm" href="/accounts">Set a Goal</Button>
+				</Card.Content>
+			</Card.Root>
+		{/if}
+	</div>
+</div>
 
-		<!-- Recent Transactions -->
+<div class="mt-8">
+	<MtdBalanceChart {accounts} {transactions} />
+</div>
+
+<div class="mt-8 grid gap-8 md:grid-cols-7">
+	<!-- Main Content -->
+	<div class="space-y-8 md:col-span-4">
 		<Card.Root>
 			<Card.Header class="flex flex-row items-center justify-between">
 				<div>
@@ -466,25 +499,6 @@
 			</Card.Footer>
 		</Card.Root>
 
-		<!-- Savings Goal -->
-		<Card.Root class="bg-primary text-primary-foreground">
-			<Card.Header>
-				<Card.Title class="text-primary-foreground">Savings Goal</Card.Title>
-				<Card.Description class="text-primary-foreground/70">New Car Fund</Card.Description>
-			</Card.Header>
-			<Card.Content>
-				<div class="space-y-4">
-					<div class="text-3xl font-bold">$12,400.00</div>
-					<div class="space-y-2">
-						<div class="flex justify-between text-xs">
-							<span>62% achieved</span>
-							<span>Goal: $20,000</span>
-						</div>
-						<Progress value={62} class="h-1.5 bg-primary-foreground/20" />
-					</div>
-				</div>
-			</Card.Content>
-		</Card.Root>
 	</div>
 </div>
 

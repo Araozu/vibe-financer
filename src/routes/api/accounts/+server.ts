@@ -15,7 +15,15 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const serializedAccounts = accounts.map((acc) => ({
 		...acc,
 		createdAt: acc.createdAt.toISOString(),
-		updatedAt: acc.updatedAt.toISOString()
+		updatedAt: acc.updatedAt.toISOString(),
+		goal: acc.goal
+			? {
+					...acc.goal,
+					targetDate: acc.goal.targetDate?.toISOString() ?? null,
+					createdAt: acc.goal.createdAt.toISOString(),
+					updatedAt: acc.goal.updatedAt.toISOString()
+				}
+			: null
 	}));
 
 	return json(serializedAccounts);

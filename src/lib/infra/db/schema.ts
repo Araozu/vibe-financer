@@ -109,6 +109,25 @@ export const account = pgTable('account', {
 		.$defaultFn(() => new Date())
 });
 
+export const goal = pgTable('goal', {
+	id: text('id')
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	accountId: text('account_id')
+		.notNull()
+		.unique()
+		.references(() => account.id, { onDelete: 'cascade' }),
+	name: text('name').notNull(),
+	targetAmount: integer('target_amount').notNull(),
+	targetDate: timestamp('target_date', { withTimezone: true, mode: 'date' }),
+	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
 export const transaction = pgTable('transaction', {
 	id: text('id')
 		.primaryKey()

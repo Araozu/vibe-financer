@@ -15,9 +15,14 @@ import {
 	type AccountState,
 	type BalanceSnapshot
 } from '$lib/domain/account-aggregate';
+import type { Goal } from '$lib/domain/account';
 import type { DomainEvent } from '$lib/domain/events';
 
-export interface AccountWithHistory extends AccountState {
+export interface AccountWithGoal extends AccountState {
+	goal?: Goal | null;
+}
+
+export interface AccountWithHistory extends AccountWithGoal {
 	balanceHistory: BalanceSnapshot[];
 }
 
@@ -83,25 +88,33 @@ export async function getAccountState(accountId: string): Promise<AccountState |
 			return snapshot.state;
 		}
 
-		// Project from snapshot + new events
-		const state = projectAccountStateFromSnapshot(snapshot.state, eventsAfterSnapshot);
+	// Project from snapshot + new events
+	const state = projectAccountStateFromSnapshot(snapshot.state, eventsAfterSnapshot);
 
-		// Maybe create a new snapshot if many events have accumulated
-		await maybeCreateSnapshot(accountId, state, eventsAfterSnapshot.length);
+	// Fetch goal for the account
+	const goal = await eventStoreRepo.getGoalByAccount(accountId);
 
-		return state;
-	}
+	// Maybe create a new snapshot if many events have accumulated
+	await maybeCreateSnapshot(accountId, state, eventsAfterSnapshot.length);
 
-	// No snapshot, replay all events
-	const events = await eventStoreRepo.getStream(accountId);
-	const state = projectAccountState(events);
+	return { ...state, goal };
+}
 
-	// Create initial snapshot if we have enough events
-	if (state && events.length >= SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL) {
-		await createSnapshot(accountId, state);
-	}
+// No snapshot, replay all events
+const events = await eventStoreRepo.getStream(accountId);
+const state = projectAccountState(events);
 
-	return state;
+if (!state) return null;
+
+// Fetch goal for the account
+const goal = await eventStoreRepo.getGoalByAccount(accountId);
+
+// Create initial snapshot if we have enough events
+if (events.length >= SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL) {
+	await createSnapshot(accountId, state);
+}
+
+return { ...state, goal };
 }
 
 /**
@@ -125,10 +138,12 @@ export async function getAccountWithHistory(accountId: string): Promise<AccountW
 
 	if (!state) return null;
 
+	const goal = await eventStoreRepo.getGoalByAccount(accountId);
 	const balanceHistory = projectBalanceHistory(events);
 
 	return {
 		...state,
+		goal,
 		balanceHistory
 	};
 }

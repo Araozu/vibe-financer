@@ -6,7 +6,7 @@
  */
 
 import { db } from '../db';
-import { eventStore, account, transaction, accountSnapshot, budget, currency } from '../db/schema';
+import { eventStore, account, goal, transaction, accountSnapshot, budget, currency } from '../db/schema';
 import { eq, and, asc, desc, lte, gt, sql } from 'drizzle-orm';
 import type { DomainEvent, StreamType, EventType } from '$lib/domain/events';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
@@ -489,6 +489,66 @@ export const eventStoreRepo = {
 	 */
 	async deleteTransactionProjectionsByAccount(accountId: string): Promise<void> {
 		await db.delete(transaction).where(eq(transaction.accountId, accountId));
+	},
+
+	/**
+	 * Create read model (projection) for a new goal
+	 */
+	async createGoalProjection(data: {
+		id: string;
+		accountId: string;
+		name: string;
+		targetAmount: number;
+		targetDate: Date | null;
+	}): Promise<void> {
+		await db.insert(goal).values(data);
+	},
+
+	/**
+	 * Update read model (projection) for a goal
+	 */
+	async updateGoalProjection(
+		goalId: string,
+		data: {
+			name?: string;
+			targetAmount?: number;
+			targetDate?: Date | null;
+		}
+	): Promise<void> {
+		await db
+			.update(goal)
+			.set({ ...data, updatedAt: new Date() })
+			.where(eq(goal.id, goalId));
+	},
+
+	/**
+	 * Delete goal projection
+	 */
+	async deleteGoalProjection(goalId: string): Promise<void> {
+		await db.delete(goal).where(eq(goal.id, goalId));
+	},
+
+	/**
+	 * Delete goal projection by account
+	 */
+	async deleteGoalProjectionByAccount(accountId: string): Promise<void> {
+		await db.delete(goal).where(eq(goal.accountId, accountId));
+	},
+
+	/**
+	 * Get goal by account ID
+	 */
+	async getGoalByAccount(accountId: string): Promise<{
+		id: string;
+		accountId: string;
+		name: string;
+		targetAmount: number;
+		targetDate: Date | null;
+		createdAt: Date;
+		updatedAt: Date;
+	} | null> {
+		const [result] = await db.select().from(goal).where(eq(goal.accountId, accountId));
+		return result ?? null;
 	},
 
 	/**

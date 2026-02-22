@@ -5,7 +5,7 @@
  * An aggregate is rebuilt from its event stream - it has no direct database state.
  */
 
-import type { Account } from './account';
+import type { Account, Goal } from './account';
 import type {
 	AccountCreatedEvent,
 	AccountDeletedEvent,
@@ -14,7 +14,10 @@ import type {
 	TransactionCreatedEvent,
 	TransactionUpdatedEvent,
 	TransactionDeletedEvent,
-	TransferCreatedEvent
+	TransferCreatedEvent,
+	GoalSetEvent,
+	GoalUpdatedEvent,
+	GoalRemovedEvent
 } from './events';
 
 /**
@@ -22,6 +25,12 @@ import type {
  */
 export interface AccountState extends Account {
 	isDeleted: boolean;
+	version: number;
+	goal?: Goal | null;
+}
+
+export interface GoalState extends Goal {
+	isRemoved: boolean;
 	version: number;
 }
 
@@ -184,6 +193,73 @@ export function getBalanceAtTime(events: DomainEvent[], asOf: Date): number | nu
 	}
 
 	return balance;
+}
+
+/**
+ * Project goal state from events
+ */
+export function projectGoalState(events: DomainEvent[]): GoalState | null {
+	if (events.length === 0) return null;
+
+	let state: GoalState | null = null;
+
+	for (const event of events) {
+		state = applyGoalEvent(state, event);
+		if (state?.isRemoved) break;
+	}
+
+	return state;
+}
+
+/**
+ * Apply a single goal event to the state
+ */
+function applyGoalEvent(state: GoalState | null, event: DomainEvent): GoalState | null {
+	switch (event.eventType) {
+		case 'GoalSet': {
+			const e = event as GoalSetEvent;
+			return {
+				id: e.streamId,
+				accountId: e.payload.accountId,
+				name: e.payload.name,
+				targetAmount: e.payload.targetAmount,
+				targetDate: e.payload.targetDate,
+				createdAt: e.occurredAt,
+				updatedAt: e.occurredAt,
+				isRemoved: false,
+				version: e.version
+			};
+		}
+
+		case 'GoalUpdated': {
+			if (!state) return null;
+			const e = event as GoalUpdatedEvent;
+			const changes = e.payload.changes;
+
+			return {
+				...state,
+				name: changes.name ?? state.name,
+				targetAmount: changes.targetAmount ?? state.targetAmount,
+				targetDate: changes.targetDate !== undefined ? changes.targetDate : state.targetDate,
+				updatedAt: e.occurredAt,
+				version: e.version
+			};
+		}
+
+		case 'GoalRemoved': {
+			if (!state) return null;
+			const e = event as GoalRemovedEvent;
+			return {
+				...state,
+				isRemoved: true,
+				updatedAt: e.occurredAt,
+				version: e.version
+			};
+		}
+
+		default:
+			return state;
+	}
 }
 
 /**

@@ -20,9 +20,12 @@ export type EventType =
 	| 'BudgetDeleted'
 	| 'CurrencyCreated'
 	| 'CurrencyUpdated'
-	| 'CurrencyDeleted';
+	| 'CurrencyDeleted'
+	| 'GoalSet'
+	| 'GoalUpdated'
+	| 'GoalRemoved';
 
-export type StreamType = 'account' | 'transaction' | 'budget' | 'currency';
+export type StreamType = 'account' | 'transaction' | 'budget' | 'currency' | 'goal';
 
 /**
  * Base event structure - all events extend this
@@ -162,7 +165,39 @@ export type TransactionEvent =
 	| TransactionUpdatedEvent
 	| TransactionDeletedEvent
 	| TransferCreatedEvent;
-export type DomainEvent = AccountEvent | TransactionEvent | BudgetEvent | CurrencyEvent;
+
+export interface GoalSetPayload {
+	goalId: string;
+	accountId: string;
+	targetAmount: number;
+	targetDate: Date | null;
+	name: string;
+}
+
+export interface GoalUpdatedPayload {
+	changes: {
+		targetAmount?: number;
+		targetDate?: Date | null;
+		name?: string;
+	};
+	previousValues: {
+		targetAmount?: number;
+		targetDate?: Date | null;
+		name?: string;
+	};
+}
+
+export interface GoalRemovedPayload {
+	reason?: string;
+}
+
+export type GoalSetEvent = BaseEvent<'GoalSet', GoalSetPayload>;
+export type GoalUpdatedEvent = BaseEvent<'GoalUpdated', GoalUpdatedPayload>;
+export type GoalRemovedEvent = BaseEvent<'GoalRemoved', GoalRemovedPayload>;
+
+export type GoalEvent = GoalSetEvent | GoalUpdatedEvent | GoalRemovedEvent;
+
+export type DomainEvent = AccountEvent | TransactionEvent | BudgetEvent | CurrencyEvent | GoalEvent;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Budget Events
@@ -471,6 +506,60 @@ export function createTransactionDeletedEvent(
 		streamId: accountId,
 		streamType: 'account',
 		eventType: 'TransactionDeleted',
+		payload,
+		version,
+		occurredAt: toUTC(new Date()),
+		userId
+	};
+}
+
+export function createGoalSetEvent(
+	goalId: string,
+	userId: string,
+	payload: GoalSetPayload,
+	version: number = 1
+): GoalSetEvent {
+	return {
+		id: createEventId(),
+		streamId: goalId,
+		streamType: 'goal',
+		eventType: 'GoalSet',
+		payload,
+		version,
+		occurredAt: toUTC(new Date()),
+		userId
+	};
+}
+
+export function createGoalUpdatedEvent(
+	goalId: string,
+	userId: string,
+	payload: GoalUpdatedPayload,
+	version: number
+): GoalUpdatedEvent {
+	return {
+		id: createEventId(),
+		streamId: goalId,
+		streamType: 'goal',
+		eventType: 'GoalUpdated',
+		payload,
+		version,
+		occurredAt: toUTC(new Date()),
+		userId
+	};
+}
+
+export function createGoalRemovedEvent(
+	goalId: string,
+	userId: string,
+	payload: GoalRemovedPayload,
+	version: number
+): GoalRemovedEvent {
+	return {
+		id: createEventId(),
+		streamId: goalId,
+		streamType: 'goal',
+		eventType: 'GoalRemoved',
 		payload,
 		version,
 		occurredAt: toUTC(new Date()),
