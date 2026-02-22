@@ -1,83 +1,80 @@
+import { format, formatDistanceToNow, parseISO } from 'date-fns';
+import { formatInTimeZone, toDate } from 'date-fns-tz';
+
 /**
  * Pure date formatting functions for displaying dates in local timezone
  * All functions are timezone-aware and locale-specific
  */
 
 /**
- * Normalizes a date to UTC-0.
- * If input is a string, it parses it.
- * If input is a Date, it returns a new Date with the same timestamp but conceptually UTC.
- * Actually, JS Dates are always UTC internally, but this ensures we treat them as such.
+ * Normalizes a date to a Date object.
+ * If input is a string, it parses it using parseISO to handle offsets correctly.
  */
-export function toUTC(date: Date | string | number): Date {
-	const d = new Date(date);
-	return new Date(d.getTime());
+export function toDateObject(date: Date | string | number): Date {
+	if (date instanceof Date) return date;
+	if (typeof date === 'string') return parseISO(date);
+	return new Date(date);
 }
 
 /**
- * Normalizes a date string (like "2026-02-16") to a UTC-0 Date object.
+ * Converts a Date to a full ISO 8601 string with timezone offset.
+ * This preserves the exact moment and the local context.
+ */
+export function toISOWithOffset(date: Date | string | number): string {
+	const d = toDateObject(date);
+	// date-fns format with 'xxx' gives the ISO offset (e.g. -05:00)
+	return format(d, "yyyy-MM-dd'T'HH:mm:ssxxx");
+}
+
+/**
+ * Normalizes a date string (like "2026-02-16") to a Date object at local midnight.
  * This avoids the local timezone shift when parsing date-only strings.
  */
-export function parseDateAsUTC(dateStr: string): Date {
-	// If it's already an ISO string with Z or offset, new Date() is fine
-	if (dateStr.includes('T') || dateStr.includes('Z')) {
-		return toUTC(dateStr);
+export function parseDateLocal(dateStr: string): Date {
+	// If it's already an ISO string with T, parse it normally
+	if (dateStr.includes('T')) {
+		return parseISO(dateStr);
 	}
-	// If it's just YYYY-MM-DD, append T00:00:00Z to force UTC
-	return new Date(`${dateStr}T00:00:00Z`);
+	// If it's just YYYY-MM-DD, parse as local midnight
+	return new Date(dateStr + 'T00:00:00');
 }
 
 /**
- * Format a UTC date string to local date (respecting user's timezone)
- * Uses the browser's local timezone automatically
+ * Format a date to local date string (respecting user's timezone)
  */
-export function formatLocalDate(dateString: string): string {
-	const date = new Date(dateString);
-	return date.toLocaleDateString(undefined, {
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric'
-	});
+export function formatLocalDate(date: Date | string | number): string {
+	const d = toDateObject(date);
+	return format(d, 'MMM d, yyyy');
 }
 
 /**
- * Format a UTC date string to local date and time (respecting user's timezone)
+ * Format a date to local date and time string
  */
-export function formatLocalDateTime(dateString: string): string {
-	const date = new Date(dateString);
-	return date.toLocaleString(undefined, {
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit'
-	});
+export function formatLocalDateTime(date: Date | string | number): string {
+	const d = toDateObject(date);
+	return format(d, 'MMM d, yyyy, h:mm a');
 }
 
 /**
- * Format a UTC date string to relative time (e.g., "2 hours ago", "yesterday")
+ * Format a date to relative time (e.g., "2 hours ago", "yesterday")
  */
-export function formatRelativeTime(dateString: string): string {
-	const date = new Date(dateString);
-	const now = new Date();
-	const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-	if (diffInSeconds < 60) return 'just now';
-	if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-	if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-	if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
-	
-	// If older than a week, show actual date
-	return formatLocalDate(dateString);
+export function formatRelativeTime(date: Date | string | number): string {
+	const d = toDateObject(date);
+	return formatDistanceToNow(d, { addSuffix: true });
 }
 
 /**
  * Format just the time portion in local timezone
  */
-export function formatLocalTime(dateString: string): string {
-	const date = new Date(dateString);
-	return date.toLocaleTimeString(undefined, {
-		hour: '2-digit',
-		minute: '2-digit'
-	});
+export function formatLocalTime(date: Date | string | number): string {
+	const d = toDateObject(date);
+	return format(d, 'h:mm a');
+}
+
+/**
+ * Time-travel helper: get a date at a specific timezone
+ */
+export function formatInTZ(date: Date | string | number, tz: string, fmt: string = "yyyy-MM-dd HH:mm:ssxxx"): string {
+	const d = toDateObject(date);
+	return formatInTimeZone(d, tz, fmt);
 }

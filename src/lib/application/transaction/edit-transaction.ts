@@ -88,8 +88,8 @@ export async function editTransaction(
 		previousValues.toAccountId = currentTransaction.toAccountId;
 	}
 	if (updates.transactionDate !== undefined) {
-		const currentDate = toUTC(currentTransaction.createdAt);
-		const newDate = toUTC(updates.transactionDate);
+		const currentDate = currentTransaction.createdAt;
+		const newDate = updates.transactionDate;
 		if (currentDate.getTime() !== newDate.getTime()) {
 			changes.transactionDate = newDate;
 			previousValues.transactionDate = currentDate;

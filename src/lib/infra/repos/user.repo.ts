@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { user } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { User, CreateUserDTO, UpdateUserDTO } from '../../domain/user';
 
 // Internal update type that allows updating sensitive fields

@@ -129,6 +129,7 @@ export interface TransactionUpdatedPayload {
 	balanceAdjustment: number; // Net change in balance due to edit
 	balanceBefore: number;
 	balanceAfter: number;
+	transactionDate?: Date; // Optional: if the date was changed
 }
 
 export interface TransferCreatedPayload {
@@ -330,7 +331,7 @@ export function createTransactionCreatedEvent(
 		eventType: 'TransactionCreated',
 		payload,
 		version,
-		occurredAt: toUTC(new Date()),
+		occurredAt: new Date(),
 		userId
 	};
 }
@@ -348,7 +349,7 @@ export function createTransferCreatedEvent(
 		eventType: 'TransferCreated',
 		payload,
 		version,
-		occurredAt: toUTC(new Date()),
+		occurredAt: new Date(),
 		userId
 	};
 }
@@ -366,7 +367,7 @@ export function createTransactionUpdatedEvent(
 		eventType: 'TransactionUpdated',
 		payload,
 		version,
-		occurredAt: toUTC(new Date()),
+		occurredAt: new Date(),
 		userId
 	};
 }
@@ -384,7 +385,7 @@ export function createTransactionDeletedEvent(
 		eventType: 'TransactionDeleted',
 		payload,
 		version,
-		occurredAt: toUTC(new Date()),
+		occurredAt: new Date(),
 		userId
 	};
 }

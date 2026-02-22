@@ -130,10 +130,11 @@
 		category = '';
 		payee = '';
 		selectedToAccountId = '';
+		transactionDate = new Date().toISOString().split('T')[0];
 	}
 
 	function addDayToDate() {
-		const current = transactionDate ? new Date(transactionDate) : new Date();
+		const current = transactionDate ? new Date(transactionDate + 'T00:00:00') : new Date();
 		current.setDate(current.getDate() + 1);
 		transactionDate = current.toISOString().split('T')[0];
 	}
