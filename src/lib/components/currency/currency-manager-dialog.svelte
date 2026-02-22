@@ -85,7 +85,7 @@
 									</Table.Row>
 								</Table.Header>
 								<Table.Body>
-									{#each currencies as currency}
+									{#each currencies as currency (currency.id)}
 										<Table.Row class="group">
 											<Table.Cell class="py-2 font-mono text-xs font-bold"
 												>{currency.code}</Table.Cell

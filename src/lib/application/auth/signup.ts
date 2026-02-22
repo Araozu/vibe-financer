@@ -1,5 +1,4 @@
 import { userRepo } from '$lib/infra/repos/user.repo';
-import { sessionRepo } from '$lib/infra/repos/session.repo';
 import { hashPassword, isValidEmail, validatePassword } from '$lib/domain/auth';
 
 export interface SignupInput {

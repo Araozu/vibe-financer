@@ -223,7 +223,7 @@ export async function getNetWorthAsOf(userId: string, asOf: Date): Promise<numbe
 
 	// Calculate balance for each account stream
 	let netWorth = 0;
-	for (const [streamId, streamEvents] of eventsByStream) {
+	for (const [_streamId, streamEvents] of eventsByStream) {
 		const state = projectAccountState(streamEvents);
 		if (state && !state.isDeleted) {
 			const balance = getBalanceAtTime(streamEvents, asOf);

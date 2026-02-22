@@ -25,32 +25,13 @@
 		Plus,
 		Info
 	} from '@lucide/svelte';
-	import type { Account } from '$lib/domain/account';
-	import type { Transaction } from '$lib/domain/transaction';
+	import type { SerializedAccount, SerializedTransaction, SerializedBudget } from './$types';
+
 	import { calculateDailySpending } from '$lib/domain/spending-analytics';
 	import { formatLocalDate, formatLocalDateTime } from '$lib/domain/date-formatter';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
-	// Serialized types from API (dates as strings)
-	interface SerializedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
-		createdAt: string;
-		updatedAt: string;
-	}
-
-	interface SerializedTransaction extends Omit<Transaction, 'createdAt' | 'updatedAt'> {
-		createdAt: string;
-		updatedAt: string;
-	}
-
-	interface SerializedBudget {
-		id: string;
-		category: string;
-		limit: number;
-		currentSpent: number;
-		currencyId: string;
-		period: string;
-		color?: string;
-	}
+	let { data: _data } = $props();
 
 	// Query for accounts
 	const accountsQuery = createQuery<SerializedAccount[]>(() => ({
@@ -216,7 +197,7 @@
 
 <!-- Summary Grid -->
 <div class="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-4">
-	{#each summaryStats as stat}
+	{#each summaryStats as stat (stat.title)}
 		<Card.Root>
 			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 				<Card.Title class="text-sm font-medium">{stat.title}</Card.Title>
@@ -264,7 +245,7 @@
 			</Card.Header>
 			<Card.Content>
 				<div class="flex h-[200px] w-full items-end justify-between gap-2 px-2">
-					{#each dailySpending as day}
+					{#each dailySpending as day (day.label)}
 						{@const height = maxSpending > 0 ? (day.amount / maxSpending) * 100 : 0}
 						<div class="group relative flex h-full w-full flex-col justify-end">
 							<div
@@ -310,7 +291,7 @@
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each transactions.slice(0, 10) as tx}
+						{#each transactions.slice(0, 10) as tx (tx.id)}
 							{@const account = accounts.find((a) => a.id === tx.accountId)}
 							{@const Icon = getCategoryIcon(tx.category)}
 							<Table.Row>
@@ -428,8 +409,8 @@
 				{#if budgets.length === 0}
 					<div class="py-4 text-center text-sm text-muted-foreground">No budgets set up yet.</div>
 				{:else}
-					{#each budgets as budget, i}
-						{@const color = budgetColors[i % budgetColors.length]}
+					{#each budgets as budget, i (budget.id)}
+						{@const _color = budgetColors[i % budgetColors.length]}
 						<div class="space-y-2">
 							<div class="flex items-center justify-between text-sm">
 								<span class="font-medium">{budget.category}</span>

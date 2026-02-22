@@ -12,17 +12,15 @@
 		ArrowLeftRight,
 		Type,
 		Tag,
-		User as UserIcon,
 		Wallet,
 		ChevronRight,
 		Plus,
 		Loader2,
-		Calendar,
-		Search,
 		Clock
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { onMount, tick } from 'svelte';
+	import { SvelteDate } from 'svelte/reactivity';
 	import TimePicker from '$lib/components/ui/time-picker/time-picker.svelte';
 
 	// Minimal account type for what this component needs
@@ -42,7 +40,7 @@
 	}));
 
 	let budgets = $derived(budgetsQuery.data ?? []);
-	let categories = $derived([...new Set(budgets.map((b: any) => b.category))]);
+	let categories = $derived([...new Set(budgets.map((b: { category: string }) => b.category))]);
 
 	let {
 		accounts = [],
@@ -97,7 +95,7 @@
 	let description = $state('');
 	let amount = $state('');
 	let category = $state('');
-	let payee = $state('');
+	let _payee = $state('');
 	let transactionDate = $state(new Date().toISOString().split('T')[0]);
 	let transactionTime = $state(
 		new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
@@ -141,7 +139,7 @@
 		description = '';
 		amount = '';
 		category = '';
-		payee = '';
+		_payee = '';
 		selectedToAccountId = '';
 		transactionDate = new Date().toISOString().split('T')[0];
 		transactionTime = new Date().toLocaleTimeString('en-GB', {
@@ -151,13 +149,17 @@
 	}
 
 	function addDayToDate() {
-		const current = transactionDate ? new Date(transactionDate + 'T00:00:00') : new Date();
+		const current = transactionDate
+			? new SvelteDate(transactionDate + 'T00:00:00')
+			: new SvelteDate();
 		current.setDate(current.getDate() + 1);
 		transactionDate = current.toISOString().split('T')[0];
 	}
 
 	function subtractDayFromDate() {
-		const current = transactionDate ? new Date(transactionDate + 'T00:00:00') : new Date();
+		const current = transactionDate
+			? new SvelteDate(transactionDate + 'T00:00:00')
+			: new SvelteDate();
 		current.setDate(current.getDate() - 1);
 		transactionDate = current.toISOString().split('T')[0];
 	}
@@ -216,7 +218,7 @@
 				{/if}
 			</Select.Trigger>
 			<Select.Content>
-				{#each transactionTypes as type}
+				{#each transactionTypes as type (type.value)}
 					<Select.Item value={type.value} label={type.label} class="text-xs">
 						<type.icon class="mr-2 h-3.5 w-3.5 {type.color}" />
 						{type.label}
@@ -237,7 +239,7 @@
 				<span>{accounts.find((a) => a.id === selectedAccountId)?.name ?? 'Select Account'}</span>
 			</Select.Trigger>
 			<Select.Content>
-				{#each accounts as account}
+				{#each accounts as account (account.id)}
 					<Select.Item value={account.id} label={account.name} class="text-xs">
 						<div class="flex items-center gap-2">
 							<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
@@ -264,7 +266,7 @@
 						>
 					</Select.Trigger>
 					<Select.Content>
-						{#each availableToAccounts as account}
+						{#each availableToAccounts as account (account.id)}
 							<Select.Item value={account.id} label={account.name} class="text-xs">
 								<div class="flex items-center gap-2">
 									<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
@@ -358,7 +360,7 @@
 								list="budget-categories"
 							/>
 							<datalist id="budget-categories">
-								{#each categories as cat}
+								{#each categories as cat (cat)}
 									<option value={cat}>{cat}</option>
 								{/each}
 							</datalist>

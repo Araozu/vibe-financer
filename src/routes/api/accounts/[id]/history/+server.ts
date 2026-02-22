@@ -3,7 +3,6 @@ import type { RequestHandler } from './$types';
 import {
 	getBalanceAt,
 	getBalanceHistory,
-	getFullBalanceHistory,
 	getAuditTrail
 } from '$lib/application/balance/balance-history';
 import { getAccountWithHistory } from '$lib/application/account/account-projection';

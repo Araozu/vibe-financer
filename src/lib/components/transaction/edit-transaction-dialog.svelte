@@ -30,11 +30,11 @@
 
 	let {
 		transaction,
-		accounts = [],
+		_accounts = [],
 		open = $bindable(false)
 	}: {
 		transaction: Transaction;
-		accounts: AccountLike[];
+		_accounts?: AccountLike[];
 		open?: boolean;
 	} = $props();
 
@@ -126,7 +126,7 @@
 						{/if}
 					</Select.Trigger>
 					<Select.Content>
-						{#each transactionTypes as type}
+						{#each transactionTypes as type (type.value)}
 							<Select.Item value={type.value} label={type.label}>
 								<type.icon class="mr-2 h-4 w-4 {type.color}" />
 								{type.label}

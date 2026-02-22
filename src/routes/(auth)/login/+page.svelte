@@ -5,9 +5,9 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import logo from '$lib/assets/plain_icon.svg';
 	import { enhance } from '$app/forms';
-	import type { PageData } from './$types';
 
-	let { data, form }: { data: any; form: any } = $props();
+	let { data, form }: { data: { signupDisabled: boolean }; form: { error?: string } | null } =
+		$props();
 	let isSignup = $state(false);
 	let loading = $state(false);
 

@@ -1,11 +1,9 @@
-import { createAccount } from '$lib/application/account/create-account';
 import { createTransaction } from '$lib/application/transaction/create-transaction';
 import { editTransaction } from '$lib/application/transaction/edit-transaction';
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
-import type { AccountType } from '$lib/domain/account';
 import type { TransactionType } from '$lib/domain/transaction';
-import { parseDateLocal, toDateObject } from '$lib/domain/date-formatter';
+import { parseDateLocal } from '$lib/domain/date-formatter';
 import { fromZonedTime } from 'date-fns-tz';
 
 export const actions: Actions = {

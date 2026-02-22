@@ -2,7 +2,6 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { enhance } from '$app/forms';
 	import { useQueryClient, createQuery } from '@tanstack/svelte-query';
@@ -19,13 +18,23 @@
 		Wallet
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
-	import type { Account } from '$lib/domain/account';
 	import { cn } from '$lib/utils.js';
 
 	const queryClient = useQueryClient();
 
 	// We use any here because the account might come from a serialized API response (dates as strings)
-	let { open = $bindable(false), account } = $props<{ open?: boolean; account: any }>();
+	let { open = $bindable(false), account } = $props<{
+		open?: boolean;
+		account: {
+			id: string;
+			type: string;
+			name: string;
+			description: string | null;
+			initialBalance: number;
+			currencyId: string;
+			color: string;
+		};
+	}>();
 
 	const currenciesQuery = createQuery(() => ({
 		queryKey: ['currencies'],
@@ -174,7 +183,7 @@
 							{/if}
 						</Select.Trigger>
 						<Select.Content>
-							{#each accountTypes as type}
+							{#each accountTypes as type (type.value)}
 								<Select.Item value={type.value} label={type.label} class="text-xs">
 									<type.icon class="mr-2 h-3.5 w-3.5" />
 									{type.label}
@@ -191,11 +200,12 @@
 						>
 							<Globe class="h-3.5 w-3.5 text-muted-foreground/60" />
 							<span
-								>{currencies.find((c: any) => c.id === currencyId)?.code ?? 'Select Currency'}</span
+								>{currencies.find((c: { id: string; code: string }) => c.id === currencyId)?.code ??
+									'Select Currency'}</span
 							>
 						</Select.Trigger>
 						<Select.Content>
-							{#each currencies as currency}
+							{#each currencies as currency (currency.id)}
 								<Select.Item value={currency.id} label={currency.code} class="text-xs">
 									<div class="flex items-center gap-2">
 										<span class="font-bold text-primary">{currency.symbol}</span>

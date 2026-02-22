@@ -10,8 +10,9 @@
 	import Header from '$lib/components/layout/header.svelte';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import type { Snippet } from 'svelte';
 
-	let { children, data }: { children: any; data: LayoutData } = $props();
+	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
 	const isAuthRoute = $derived(page.route.id?.startsWith('/(auth)') ?? false);
 

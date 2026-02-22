@@ -172,7 +172,7 @@
 							{/if}
 						</Select.Trigger>
 						<Select.Content>
-							{#each accountTypes as type}
+							{#each accountTypes as type (type.value)}
 								<Select.Item value={type.value} label={type.label} class="text-xs">
 									<type.icon class="mr-2 h-3.5 w-3.5" />
 									{type.label}
@@ -189,11 +189,12 @@
 						>
 							<Globe class="h-3.5 w-3.5 text-muted-foreground/60" />
 							<span
-								>{currencies.find((c: any) => c.id === currencyId)?.code ?? 'Select Currency'}</span
+								>{currencies.find((c: { id: string; code: string }) => c.id === currencyId)?.code ??
+									'Select Currency'}</span
 							>
 						</Select.Trigger>
 						<Select.Content>
-							{#each currencies as currency}
+							{#each currencies as currency (currency.id)}
 								<Select.Item value={currency.id} label={currency.code} class="text-xs">
 									<div class="flex items-center gap-2">
 										<span class="font-bold text-primary">{currency.symbol}</span>

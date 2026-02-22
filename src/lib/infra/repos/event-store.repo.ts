@@ -7,7 +7,7 @@
 
 import { db } from '../db';
 import { eventStore, account, transaction, accountSnapshot, budget, currency } from '../db/schema';
-import { eq, and, asc, desc, lte, gt, sql, between } from 'drizzle-orm';
+import { eq, and, asc, desc, lte, gt, sql } from 'drizzle-orm';
 import type { DomainEvent, StreamType, EventType } from '$lib/domain/events';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
@@ -248,7 +248,7 @@ export const eventStoreRepo = {
 	 */
 	async getStreamVersion(
 		streamId: string,
-		tx?: PgTransaction<NodePgQueryResultHKT, any, any>
+		tx?: PgTransaction<NodePgQueryResultHKT, Record<string, unknown>, Record<string, unknown>>
 	): Promise<number> {
 		const dbInstance = tx ?? db;
 		const [result] = await dbInstance
@@ -536,7 +536,23 @@ export const eventStoreRepo = {
 	/**
 	 * Get active budgets for a category and date
 	 */
-	async getActiveBudgetsByCategory(category: string, date: Date): Promise<any[]> {
+	async getActiveBudgetsByCategory(
+		category: string,
+		date: Date
+	): Promise<
+		Array<{
+			id: string;
+			userId: string;
+			category: string;
+			limit: number;
+			currencyId: string;
+			period: 'monthly' | 'weekly' | 'yearly';
+			startDate: Date;
+			currentSpent: number;
+			createdAt: Date;
+			updatedAt: Date;
+		}>
+	> {
 		// This is a simplified check - in a real app we'd handle periods more robustly
 		return db
 			.select()
@@ -583,7 +599,14 @@ export const eventStoreRepo = {
 	/**
 	 * Get currency by code
 	 */
-	async getCurrencyByCode(code: string): Promise<any | null> {
+	async getCurrencyByCode(code: string): Promise<{
+		id: string;
+		code: string;
+		symbol: string;
+		name: string;
+		createdAt: Date;
+		updatedAt: Date;
+	} | null> {
 		const [result] = await db.select().from(currency).where(eq(currency.code, code));
 		return result ?? null;
 	},
@@ -591,7 +614,14 @@ export const eventStoreRepo = {
 	/**
 	 * Get currency by ID
 	 */
-	async getCurrencyById(id: string): Promise<any | null> {
+	async getCurrencyById(id: string): Promise<{
+		id: string;
+		code: string;
+		symbol: string;
+		name: string;
+		createdAt: Date;
+		updatedAt: Date;
+	} | null> {
 		const [result] = await db.select().from(currency).where(eq(currency.id, id));
 		return result ?? null;
 	},
@@ -599,7 +629,16 @@ export const eventStoreRepo = {
 	/**
 	 * Get all currencies
 	 */
-	async getAllCurrencies(): Promise<any[]> {
+	async getAllCurrencies(): Promise<
+		Array<{
+			id: string;
+			code: string;
+			symbol: string;
+			name: string;
+			createdAt: Date;
+			updatedAt: Date;
+		}>
+	> {
 		return db.select().from(currency).orderBy(asc(currency.code));
 	}
 };

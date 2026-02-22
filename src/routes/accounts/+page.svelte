@@ -8,16 +8,7 @@
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
 	import EditAccountDialog from '$lib/components/account/edit-account-dialog.svelte';
 	import CurrencyManagerDialog from '$lib/components/currency/currency-manager-dialog.svelte';
-	import {
-		CreditCard,
-		TrendingUp,
-		TrendingDown,
-		Coins,
-		ArrowUpRight,
-		ArrowDownLeft,
-		Wallet,
-		ArrowRight
-	} from '@lucide/svelte';
+	import { CreditCard, TrendingUp, TrendingDown, Coins, Wallet, ArrowRight } from '@lucide/svelte';
 	import { scaleTime, scaleLinear } from 'd3-scale';
 	import { Chart, Area, Axis, Tooltip as LCTooltip, Svg } from 'layerchart';
 	import ChartContainer from '$lib/components/ui/chart/chart-container.svelte';
@@ -71,7 +62,7 @@
 		queryFn: async () => (await fetch('/api/accounts')).json()
 	}));
 
-	let basicAccounts = $derived(basicAccountsQuery.data ?? []);
+	let _basicAccounts = $derived(basicAccountsQuery.data ?? []);
 
 	const typeIcons: Record<AccountType, typeof CreditCard> = {
 		asset: CreditCard,
@@ -125,7 +116,7 @@
 	</Card.Root>
 {:else}
 	<div class="grid grid-cols-1 gap-8">
-		{#each accounts as account}
+		{#each accounts as account (account.id)}
 			{@const Icon = typeIcons[account.type] ?? Wallet}
 			{@const chartConfig = {
 				balance: { label: 'Balance', color: account.color }
@@ -299,7 +290,7 @@
 												</Table.Cell>
 											</Table.Row>
 										{:else}
-											{#each account.last10Transactions as tx}
+											{#each account.last10Transactions as tx (tx.id)}
 												<Table.Row
 													class="group border-b border-border/40 transition-colors hover:bg-muted/20"
 												>

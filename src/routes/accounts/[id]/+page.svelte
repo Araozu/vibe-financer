@@ -16,7 +16,6 @@
 		Loader2
 	} from '@lucide/svelte';
 	import type { AccountType } from '$lib/domain/account';
-	import type { TransactionType } from '$lib/domain/transaction';
 
 	let { data } = $props();
 	const account = $derived(data.account);
@@ -195,7 +194,7 @@
 								</Table.Cell>
 							</Table.Row>
 						{:else}
-							{#each transactions as tx}
+							{#each transactions as tx (tx.id)}
 								<Table.Row
 									class="group border-b border-border/40 transition-colors hover:bg-muted/20"
 								>

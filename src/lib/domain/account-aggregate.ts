@@ -5,7 +5,7 @@
  * An aggregate is rebuilt from its event stream - it has no direct database state.
  */
 
-import type { Account, AccountType } from './account';
+import type { Account } from './account';
 import type {
 	AccountCreatedEvent,
 	AccountDeletedEvent,

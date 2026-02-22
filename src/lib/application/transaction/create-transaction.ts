@@ -1,4 +1,3 @@
-import { db } from '$lib/infra/db';
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { getAccountState, getAccountVersion } from '../account/account-projection';
 import { calculateBalanceChange, canAcceptTransaction } from '$lib/domain/account-aggregate';

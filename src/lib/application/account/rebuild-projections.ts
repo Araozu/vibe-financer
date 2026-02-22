@@ -9,12 +9,8 @@
  */
 
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
-import { projectAccountState, type AccountState } from '$lib/domain/account-aggregate';
-import type {
-	DomainEvent,
-	TransactionCreatedEvent,
-	TransferCreatedEvent
-} from '$lib/domain/events';
+import { projectAccountState } from '$lib/domain/account-aggregate';
+import type { TransactionCreatedEvent, TransferCreatedEvent } from '$lib/domain/events';
 import { invalidateSnapshots, forceCreateSnapshot } from './account-projection';
 
 export interface RebuildResult {

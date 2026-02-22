@@ -5,7 +5,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
-	import { Plus, Trash2, PiggyBank, Globe } from '@lucide/svelte';
+	import { Plus, PiggyBank, Globe } from '@lucide/svelte';
 	import { enhance } from '$app/forms';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 
@@ -107,7 +107,7 @@
 								{periods.find((p) => p.value === selectedPeriod)?.label ?? 'Select period'}
 							</Select.Trigger>
 							<Select.Content>
-								{#each periods as period}
+								{#each periods as period (period.value)}
 									<Select.Item value={period.value}>{period.label}</Select.Item>
 								{/each}
 							</Select.Content>
@@ -121,13 +121,13 @@
 								<div class="flex items-center gap-2">
 									<Globe class="h-4 w-4 text-muted-foreground" />
 									<span
-										>{currencies.find((c: any) => c.id === currencyId)?.code ??
-											'Select currency'}</span
+										>{currencies.find((c: { id: string; code: string }) => c.id === currencyId)
+											?.code ?? 'Select currency'}</span
 									>
 								</div>
 							</Select.Trigger>
 							<Select.Content>
-								{#each currencies as currency}
+								{#each currencies as currency (currency.id)}
 									<Select.Item value={currency.id} label={currency.code}>
 										{currency.code} - {currency.name}
 									</Select.Item>
@@ -169,7 +169,7 @@
 					></div>
 				</div>
 			{:else}
-				{#each budgets as budget}
+				{#each budgets as budget (budget.id)}
 					<Card.Root>
 						<Card.Content class="pt-6">
 							<div class="mb-4 flex items-center justify-between">
