@@ -12,7 +12,7 @@ export const actions: Actions = {
         const formData = await request.formData();
         const category = formData.get('category') as string;
         const limitStr = formData.get('limit') as string;
-        const currencyCode = formData.get('currencyCode') as string || 'USD';
+        const currencyId = formData.get('currencyId') as string;
         const period = formData.get('period') as 'monthly' | 'weekly' | 'yearly';
         const startDateStr = formData.get('startDate') as string;
 
@@ -24,7 +24,7 @@ export const actions: Actions = {
                 userId: locals.user.id,
                 category,
                 limit,
-                currencyCode,
+                currencyId,
                 period,
                 startDate
             });

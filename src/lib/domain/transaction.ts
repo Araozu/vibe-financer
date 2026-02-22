@@ -23,10 +23,6 @@ export function validateTransactionAmount(amount: number): boolean {
 	return amount > 0;
 }
 
-export function validateTransferAccounts(fromCurrency: string, toCurrency: string): boolean {
-	return fromCurrency === toCurrency;
-}
-
 export function calculateNewBalance(
 	currentBalance: number,
 	amount: number,

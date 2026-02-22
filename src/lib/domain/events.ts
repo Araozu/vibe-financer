@@ -17,9 +17,12 @@ export type EventType =
 	| 'TransferCreated'
 	| 'BudgetCreated'
 	| 'BudgetUpdated'
-	| 'BudgetDeleted';
+	| 'BudgetDeleted'
+	| 'CurrencyCreated'
+	| 'CurrencyUpdated'
+	| 'CurrencyDeleted';
 
-export type StreamType = 'account' | 'transaction' | 'budget';
+export type StreamType = 'account' | 'transaction' | 'budget' | 'currency';
 
 /**
  * Base event structure - all events extend this
@@ -45,8 +48,7 @@ export interface AccountCreatedPayload {
 	description: string | null;
 	type: 'asset' | 'expense' | 'revenue' | 'liability';
 	initialBalance: number;
-	currencyCode: string;
-	currencySymbol: string;
+	currencyId: string;
 	color: string;
 }
 
@@ -56,8 +58,7 @@ export interface AccountUpdatedPayload {
 		description?: string | null;
 		type?: 'asset' | 'expense' | 'revenue' | 'liability';
 		initialBalance?: number;
-		currencyCode?: string;
-		currencySymbol?: string;
+		currencyId?: string;
 		color?: string;
 	};
 	previousValues: {
@@ -65,8 +66,7 @@ export interface AccountUpdatedPayload {
 		description?: string | null;
 		type?: 'asset' | 'expense' | 'revenue' | 'liability';
 		initialBalance?: number;
-		currencyCode?: string;
-		currencySymbol?: string;
+		currencyId?: string;
 		color?: string;
 	};
 }
@@ -162,7 +162,7 @@ export type TransactionEvent =
 	| TransactionUpdatedEvent
 	| TransactionDeletedEvent
 	| TransferCreatedEvent;
-export type DomainEvent = AccountEvent | TransactionEvent | BudgetEvent;
+export type DomainEvent = AccountEvent | TransactionEvent | BudgetEvent | CurrencyEvent;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Budget Events
@@ -172,7 +172,7 @@ export interface BudgetCreatedPayload {
 	budgetId: string;
 	category: string;
 	limit: number;
-	currencyCode: string;
+	currencyId: string;
 	period: 'monthly' | 'weekly' | 'yearly';
 	startDate: Date;
 }
@@ -203,11 +203,99 @@ export type BudgetDeletedEvent = BaseEvent<'BudgetDeleted', BudgetDeletedPayload
 export type BudgetEvent = BudgetCreatedEvent | BudgetUpdatedEvent | BudgetDeletedEvent;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Currency Events
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CurrencyCreatedPayload {
+	currencyId: string;
+	code: string;
+	symbol: string;
+	name: string;
+}
+
+export interface CurrencyUpdatedPayload {
+	changes: {
+		code?: string;
+		symbol?: string;
+		name?: string;
+	};
+	previousValues: {
+		code?: string;
+		symbol?: string;
+		name?: string;
+	};
+}
+
+export interface CurrencyDeletedPayload {
+	reason?: string;
+}
+
+export type CurrencyCreatedEvent = BaseEvent<'CurrencyCreated', CurrencyCreatedPayload>;
+export type CurrencyUpdatedEvent = BaseEvent<'CurrencyUpdated', CurrencyUpdatedPayload>;
+export type CurrencyDeletedEvent = BaseEvent<'CurrencyDeleted', CurrencyDeletedPayload>;
+
+export type CurrencyEvent = CurrencyCreatedEvent | CurrencyUpdatedEvent | CurrencyDeletedEvent;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Event Factory Functions (Pure)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function createEventId(): string {
 	return crypto.randomUUID();
+}
+
+export function createCurrencyCreatedEvent(
+	currencyId: string,
+	userId: string,
+	payload: CurrencyCreatedPayload,
+	version: number = 1
+): CurrencyCreatedEvent {
+	return {
+		id: createEventId(),
+		streamId: currencyId,
+		streamType: 'currency',
+		eventType: 'CurrencyCreated',
+		payload,
+		version,
+		occurredAt: toUTC(new Date()),
+		userId
+	};
+}
+
+export function createCurrencyUpdatedEvent(
+	currencyId: string,
+	userId: string,
+	payload: CurrencyUpdatedPayload,
+	version: number
+): CurrencyUpdatedEvent {
+	return {
+		id: createEventId(),
+		streamId: currencyId,
+		streamType: 'currency',
+		eventType: 'CurrencyUpdated',
+		payload,
+		version,
+		occurredAt: toUTC(new Date()),
+		userId
+	};
+}
+
+export function createCurrencyDeletedEvent(
+	currencyId: string,
+	userId: string,
+	payload: CurrencyDeletedPayload,
+	version: number
+): CurrencyDeletedEvent {
+	return {
+		id: createEventId(),
+		streamId: currencyId,
+		streamType: 'currency',
+		eventType: 'CurrencyDeleted',
+		payload,
+		version,
+		occurredAt: toUTC(new Date()),
+		userId
+	};
 }
 
 export function createBudgetCreatedEvent(

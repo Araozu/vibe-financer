@@ -23,7 +23,7 @@
 		id: string;
 		name: string;
 		color: string;
-		currencyCode: string;
+		currencyId: string;
 	}
 
 	const queryClient = useQueryClient();

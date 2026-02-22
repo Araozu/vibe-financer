@@ -70,8 +70,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 				name: accountWithHistory.name,
 				type: accountWithHistory.type,
 				currentBalance: accountWithHistory.currentBalance,
-				currencyCode: accountWithHistory.currencyCode,
-				currencySymbol: accountWithHistory.currencySymbol
+				currencyId: accountWithHistory.currencyId
 			}
 		};
 

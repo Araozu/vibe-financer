@@ -2,11 +2,7 @@ import { db } from '$lib/infra/db';
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { getAccountState, getAccountVersion } from '../account/account-projection';
 import { calculateBalanceChange, canAcceptTransaction } from '$lib/domain/account-aggregate';
-import {
-	validateTransferAccounts,
-	type CreateTransactionDTO,
-	type Transaction
-} from '$lib/domain/transaction';
+import type { CreateTransactionDTO, Transaction } from '$lib/domain/transaction';
 import {
 	createTransactionCreatedEvent,
 	createTransferCreatedEvent,
@@ -54,7 +50,7 @@ export async function createTransaction(
 			throw error(404, 'Destination account not found or deleted');
 		}
 
-		if (!validateTransferAccounts(sourceAccount.currencyCode, destAccount.currencyCode)) {
+		if (sourceAccount.currencyId !== destAccount.currencyId) {
 			throw error(400, 'Cannot transfer between accounts with different currencies');
 		}
 

@@ -1,10 +1,5 @@
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
-import {
-	validateAccountName,
-	validateCurrencyCode,
-	type CreateAccountDTO,
-	type Account
-} from '$lib/domain/account';
+import { validateAccountName, type CreateAccountDTO, type Account } from '$lib/domain/account';
 import { createAccountCreatedEvent, type AccountCreatedPayload } from '$lib/domain/events';
 
 export async function createAccount(data: CreateAccountDTO): Promise<Account> {
@@ -12,8 +7,9 @@ export async function createAccount(data: CreateAccountDTO): Promise<Account> {
 		throw new Error('Invalid account name');
 	}
 
-	if (!validateCurrencyCode(data.currencyCode)) {
-		throw new Error('Invalid currency code (must be 3 uppercase letters)');
+	const currency = await eventStoreRepo.getCurrencyById(data.currencyId);
+	if (!currency) {
+		throw new Error('Currency not found');
 	}
 
 	const accountId = crypto.randomUUID();
@@ -25,8 +21,7 @@ export async function createAccount(data: CreateAccountDTO): Promise<Account> {
 		description: data.description,
 		type: data.type,
 		initialBalance,
-		currencyCode: data.currencyCode,
-		currencySymbol: data.currencySymbol,
+		currencyId: data.currencyId,
 		color: data.color
 	};
 
@@ -44,8 +39,7 @@ export async function createAccount(data: CreateAccountDTO): Promise<Account> {
 		type: data.type,
 		initialBalance,
 		currentBalance: initialBalance,
-		currencyCode: data.currencyCode,
-		currencySymbol: data.currencySymbol,
+		currencyId: data.currencyId,
 		color: data.color
 	});
 
@@ -58,8 +52,7 @@ export async function createAccount(data: CreateAccountDTO): Promise<Account> {
 		type: data.type,
 		initialBalance,
 		currentBalance: initialBalance,
-		currencyCode: data.currencyCode,
-		currencySymbol: data.currencySymbol,
+		currencyId: data.currencyId,
 		color: data.color,
 		createdAt: event.occurredAt,
 		updatedAt: event.occurredAt

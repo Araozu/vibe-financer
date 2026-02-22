@@ -30,7 +30,7 @@
 		id: string;
 		name: string;
 		color: string;
-		currencyCode: string;
+		currencyId: string;
 	}
 
 	const queryClient = useQueryClient();
@@ -72,7 +72,7 @@
 		selectedType === 'transfer' && selectedAccountId
 			? accounts.filter((acc) => {
 					const fromAccount = accounts.find((a) => a.id === selectedAccountId);
-					return acc.id !== selectedAccountId && acc.currencyCode === fromAccount?.currencyCode;
+					return acc.id !== selectedAccountId && acc.currencyId === fromAccount?.currencyId;
 				})
 			: []
 	);

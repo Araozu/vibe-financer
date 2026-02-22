@@ -70,6 +70,21 @@ export const eventStore = pgTable(
 // These are rebuilt from events but cached for performance
 // ─────────────────────────────────────────────────────────────────────────────
 
+export const currency = pgTable('currency', {
+	id: text('id')
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	code: text('code').notNull().unique(),
+	symbol: text('symbol').notNull(),
+	name: text('name').notNull(),
+	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
 export const account = pgTable('account', {
 	id: text('id')
 		.primaryKey()
@@ -82,8 +97,9 @@ export const account = pgTable('account', {
 	type: text('type').$type<AccountType>().notNull(),
 	currentBalance: integer('current_balance').notNull(),
 	initialBalance: integer('initial_balance').notNull(),
-	currencyCode: text('currency_code').notNull(),
-	currencySymbol: text('currency_symbol').notNull(),
+	currencyId: text('currency_id')
+		.notNull()
+		.references(() => currency.id),
 	color: text('color').notNull(),
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
 		.notNull()
@@ -125,7 +141,9 @@ export const budget = pgTable('budget', {
 		.references(() => user.id, { onDelete: 'cascade' }),
 	category: text('category').notNull(),
 	limit: integer('limit').notNull(),
-	currencyCode: text('currency_code').notNull(),
+	currencyId: text('currency_id')
+		.notNull()
+		.references(() => currency.id),
 	period: text('period').$type<'monthly' | 'weekly' | 'yearly'>().notNull(),
 	startDate: timestamp('start_date', { withTimezone: true, mode: 'date' }).notNull(),
 	currentSpent: integer('current_spent').notNull().default(0),

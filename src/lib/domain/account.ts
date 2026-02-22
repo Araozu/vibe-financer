@@ -8,8 +8,9 @@ export interface Account {
 	type: AccountType;
 	currentBalance: number;
 	initialBalance: number;
-	currencyCode: string;
-	currencySymbol: string;
+	currencyId: string;
+	currencyCode?: string | null;
+	currencySymbol?: string | null;
 	color: string;
 	createdAt: Date;
 	updatedAt: Date;
@@ -20,8 +21,4 @@ export type UpdateAccountDTO = Partial<Omit<Account, 'id' | 'userId' | 'createdA
 
 export function validateAccountName(name: string): boolean {
 	return name.trim().length >= 1;
-}
-
-export function validateCurrencyCode(code: string): boolean {
-	return /^[A-Z]{3}$/.test(code);
 }

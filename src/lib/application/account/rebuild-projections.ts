@@ -84,8 +84,7 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 				type: state.type,
 				initialBalance: state.initialBalance,
 				currentBalance: state.currentBalance,
-				currencyCode: state.currencyCode,
-				currencySymbol: state.currencySymbol,
+				currencyId: state.currencyId,
 				color: state.color
 			});
 		}

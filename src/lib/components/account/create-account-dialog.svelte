@@ -28,8 +28,7 @@
 	let accountName = $state('');
 	let description = $state('');
 	let initialBalance = $state('');
-	let currencyCode = $state('USD');
-	let currencySymbol = $state('$');
+	let currencyId = $state('');
 	let color = $state('#3b82f6');
 	let isLoading = $state(false);
 
@@ -129,9 +128,9 @@
 						>
 							BAL
 						</div>
-						<div class="flex items-center gap-2 px-2">
-							<span class="text-xs text-muted-foreground/60">{currencySymbol}</span>
-							<Input
+					<div class="flex items-center gap-2 px-2">
+						<span class="text-xs text-muted-foreground/60">{currencyId ? '$' : '$'}</span>
+						<Input
 								id="initialBalance"
 								name="initialBalance"
 								type="number"
@@ -164,7 +163,7 @@
 					</Select.Root>
 					<input type="hidden" name="type" value={selectedType} />
 
-					<!-- Currency Code Badge -->
+					<!-- Currency ID Badge -->
 					<div class="flex items-center overflow-hidden rounded-md bg-muted/50">
 						<div
 							class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
@@ -172,24 +171,9 @@
 							CUR
 						</div>
 						<Input
-							name="currencyCode"
-							bind:value={currencyCode}
-							class="h-8 w-14 border-none bg-transparent px-2 py-1 text-xs font-medium uppercase focus-visible:ring-0"
-							required
-						/>
-					</div>
-
-					<!-- Currency Symbol Badge -->
-					<div class="flex items-center overflow-hidden rounded-md bg-muted/50">
-						<div
-							class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
-						>
-							SYM
-						</div>
-						<Input
-							name="currencySymbol"
-							bind:value={currencySymbol}
-							class="h-8 w-10 border-none bg-transparent px-2 py-1 text-xs font-medium focus-visible:ring-0"
+							name="currencyId"
+							bind:value={currencyId}
+							class="h-8 w-32 border-none bg-transparent px-2 py-1 text-xs font-medium focus-visible:ring-0"
 							required
 						/>
 					</div>

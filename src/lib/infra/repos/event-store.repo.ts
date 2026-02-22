@@ -6,7 +6,7 @@
  */
 
 import { db } from '../db';
-import { eventStore, account, transaction, accountSnapshot, budget } from '../db/schema';
+import { eventStore, account, transaction, accountSnapshot, budget, currency } from '../db/schema';
 import { eq, and, asc, desc, lte, gt, sql, between } from 'drizzle-orm';
 import type { DomainEvent, StreamType, EventType } from '$lib/domain/events';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
@@ -322,8 +322,7 @@ export const eventStoreRepo = {
 			type?: 'asset' | 'expense' | 'revenue' | 'liability';
 			initialBalance?: number;
 			currentBalance?: number;
-			currencyCode?: string;
-			currencySymbol?: string;
+			currencyId?: string;
 			color?: string;
 		}
 	): Promise<void> {
@@ -344,8 +343,7 @@ export const eventStoreRepo = {
 		type: 'asset' | 'expense' | 'revenue' | 'liability';
 		initialBalance: number;
 		currentBalance: number;
-		currencyCode: string;
-		currencySymbol: string;
+		currencyId: string;
 		color: string;
 	}): Promise<void> {
 		await db.insert(account).values(data);
@@ -501,7 +499,7 @@ export const eventStoreRepo = {
 		userId: string;
 		category: string;
 		limit: number;
-		currencyCode: string;
+		currencyId: string;
 		period: 'monthly' | 'weekly' | 'yearly';
 		startDate: Date;
 		currentSpent: number;
@@ -544,5 +542,64 @@ export const eventStoreRepo = {
 			.select()
 			.from(budget)
 			.where(and(eq(budget.category, category), lte(budget.startDate, date)));
+	},
+
+	/**
+	 * Create read model (projection) for a new currency
+	 */
+	async createCurrencyProjection(data: {
+		id: string;
+		code: string;
+		symbol: string;
+		name: string;
+	}): Promise<void> {
+		await db.insert(currency).values(data);
+	},
+
+	/**
+	 * Update read model (projection) for a currency
+	 */
+	async updateCurrencyProjection(
+		currencyId: string,
+		data: {
+			code?: string;
+			symbol?: string;
+			name?: string;
+		}
+	): Promise<void> {
+		await db
+			.update(currency)
+			.set({ ...data, updatedAt: new Date() })
+			.where(eq(currency.id, currencyId));
+	},
+
+	/**
+	 * Delete currency projection
+	 */
+	async deleteCurrencyProjection(currencyId: string): Promise<void> {
+		await db.delete(currency).where(eq(currency.id, currencyId));
+	},
+
+	/**
+	 * Get currency by code
+	 */
+	async getCurrencyByCode(code: string): Promise<any | null> {
+		const [result] = await db.select().from(currency).where(eq(currency.code, code));
+		return result ?? null;
+	},
+
+	/**
+	 * Get currency by ID
+	 */
+	async getCurrencyById(id: string): Promise<any | null> {
+		const [result] = await db.select().from(currency).where(eq(currency.id, id));
+		return result ?? null;
+	},
+
+	/**
+	 * Get all currencies
+	 */
+	async getAllCurrencies(): Promise<any[]> {
+		return db.select().from(currency).orderBy(asc(currency.code));
 	}
 };

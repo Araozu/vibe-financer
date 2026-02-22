@@ -17,7 +17,7 @@ export interface BudgetState {
     userId: string;
     category: string;
     limit: number;
-    currencyCode: string;
+    currencyId: string;
     period: 'monthly' | 'weekly' | 'yearly';
     startDate: Date;
     createdAt: Date;
@@ -54,7 +54,7 @@ function applyEvent(state: BudgetState | null, event: DomainEvent): BudgetState 
                 userId: e.userId,
                 category: e.payload.category,
                 limit: e.payload.limit,
-                currencyCode: e.payload.currencyCode,
+                currencyId: e.payload.currencyId,
                 period: e.payload.period,
                 startDate: e.payload.startDate,
                 createdAt: e.occurredAt,

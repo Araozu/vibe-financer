@@ -50,7 +50,7 @@
 		liability: 'Liability'
 	};
 
-	function formatAmount(amount: number, currencySymbol: string) {
+	function formatAmount(amount: number, currencySymbol: string = '$') {
 		const formatted = (Math.abs(amount) / 100).toLocaleString('en-US', {
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2
@@ -109,10 +109,10 @@
 			<div class="text-right">
 				<p class="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">Current Balance</p>
 				<p class="text-5xl font-black tracking-tighter">
-					{formatAmount(account.currentBalance, account.currencySymbol)}
+					{formatAmount(account.currentBalance, account.currencySymbol ?? '$')}
 				</p>
 				<p class="text-[10px] font-bold tracking-[0.1em] text-muted-foreground/60 uppercase">
-					{account.currencyCode} • {account.currencySymbol}
+					{account.currencyCode ?? 'USD'} • {account.currencySymbol ?? '$'}
 				</p>
 			</div>
 		</div>
@@ -186,7 +186,7 @@
 									</Table.Cell>
 									<Table.Cell class="py-4 text-right pr-6 font-black">
 										<span class={tx.type === 'income' ? 'text-emerald-500' : 'text-foreground'}>
-											{tx.type === 'income' ? '+' : ''}{formatAmount(tx.amount, account.currencySymbol)}
+											{tx.type === 'income' ? '+' : ''}{formatAmount(tx.amount, account.currencySymbol ?? '$')}
 										</span>
 									</Table.Cell>
 								</Table.Row>

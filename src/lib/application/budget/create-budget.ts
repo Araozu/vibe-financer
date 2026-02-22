@@ -5,7 +5,7 @@ export interface CreateBudgetDTO {
     userId: string;
     category: string;
     limit: number;
-    currencyCode: string;
+    currencyId: string;
     period: 'monthly' | 'weekly' | 'yearly';
     startDate: Date;
 }
@@ -13,11 +13,16 @@ export interface CreateBudgetDTO {
 export async function createBudget(data: CreateBudgetDTO) {
     const budgetId = crypto.randomUUID();
 
+    const currency = await eventStoreRepo.getCurrencyById(data.currencyId);
+    if (!currency) {
+        throw new Error('Currency not found');
+    }
+
     const payload: BudgetCreatedPayload = {
         budgetId,
         category: data.category,
         limit: data.limit,
-        currencyCode: data.currencyCode,
+        currencyId: data.currencyId,
         period: data.period,
         startDate: data.startDate
     };
@@ -33,7 +38,7 @@ export async function createBudget(data: CreateBudgetDTO) {
         userId: data.userId,
         category: data.category,
         limit: data.limit,
-        currencyCode: data.currencyCode,
+        currencyId: data.currencyId,
         period: data.period,
         startDate: data.startDate,
         currentSpent: 0

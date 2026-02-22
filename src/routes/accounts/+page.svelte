@@ -86,7 +86,7 @@
 		liability: 'Liability'
 	};
 
-	function formatAmount(amount: number, currencyCode: string, currencySymbol: string) {
+	function formatAmount(amount: number, currencySymbol: string) {
 		const formatted = (Math.abs(amount) / 100).toLocaleString('en-US', {
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2
@@ -167,7 +167,7 @@
 						</div>
 						<div class="flex items-baseline gap-3">
 							<div class="text-6xl font-black tracking-tighter">
-								{formatAmount(account.currentBalance, account.currencyCode, account.currencySymbol)}
+								{formatAmount(account.currentBalance, account.currencySymbol ?? '$')}
 							</div>
 							<p
 								class="mt-1 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold"
@@ -177,8 +177,7 @@
 									<span class="text-emerald-500">
 										+{formatAmount(
 											account.currentBalance - account.initialBalance,
-											account.currencyCode,
-											account.currencySymbol
+											account.currencySymbol ?? '$'
 										)}
 									</span>
 								{:else}
@@ -186,8 +185,7 @@
 									<span class="text-rose-500">
 										-{formatAmount(
 											account.initialBalance - account.currentBalance,
-											account.currencyCode,
-											account.currencySymbol
+											account.currencySymbol ?? '$'
 										)}
 									</span>
 								{/if}
@@ -195,7 +193,7 @@
 							</p>
 						</div>
 						<div class="mt-1 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/60 uppercase">
-							{account.currencyCode} • {account.currencySymbol}
+							{account.currencyCode ?? 'USD'} • {account.currencySymbol ?? '$'}
 						</div>
 					</div>
 
@@ -245,12 +243,11 @@
 											{#snippet children({ data: tooltipData })}
 												<LCTooltip.Header>{formatDate(tooltipData.date)}</LCTooltip.Header>
 												<LCTooltip.List>
-													<LCTooltip.Item
+														<LCTooltip.Item
 														label="Balance"
 														value={formatAmount(
 															tooltipData.balance * 100,
-															account.currencyCode,
-															account.currencySymbol
+															account.currencySymbol ?? '$'
 														)}
 														color={account.color}
 													/>
@@ -320,8 +317,7 @@
 														>
 															{tx.type === 'income' ? '+' : ''}{formatAmount(
 																tx.amount,
-																account.currencyCode,
-																account.currencySymbol
+																account.currencySymbol ?? '$'
 															)}
 														</span>
 													</Table.Cell>

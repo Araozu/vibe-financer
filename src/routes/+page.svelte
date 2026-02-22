@@ -47,7 +47,7 @@
 		category: string;
 		limit: number;
 		currentSpent: number;
-		currencyCode: string;
+		currencyId: string;
 		period: string;
 		color?: string;
 	}

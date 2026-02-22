@@ -1,11 +1,6 @@
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { getAccountState, getAccountVersion } from './account-projection';
-import {
-	validateAccountName,
-	validateCurrencyCode,
-	type UpdateAccountDTO,
-	type Account
-} from '$lib/domain/account';
+import { validateAccountName, type UpdateAccountDTO, type Account } from '$lib/domain/account';
 import { createAccountUpdatedEvent, type AccountUpdatedPayload } from '$lib/domain/events';
 
 /**
@@ -29,8 +24,11 @@ export async function updateAccount(
 		throw new Error('Invalid account name');
 	}
 
-	if (data.currencyCode !== undefined && !validateCurrencyCode(data.currencyCode)) {
-		throw new Error('Invalid currency code (must be 3 uppercase letters)');
+	if (data.currencyId !== undefined) {
+		const currency = await eventStoreRepo.getCurrencyById(data.currencyId);
+		if (!currency) {
+			throw new Error('Currency not found');
+		}
 	}
 
 	// Get current state from event stream
@@ -63,13 +61,9 @@ export async function updateAccount(
 		changes.initialBalance = data.initialBalance;
 		previousValues.initialBalance = currentState.initialBalance;
 	}
-	if (data.currencyCode !== undefined && data.currencyCode !== currentState.currencyCode) {
-		changes.currencyCode = data.currencyCode;
-		previousValues.currencyCode = currentState.currencyCode;
-	}
-	if (data.currencySymbol !== undefined && data.currencySymbol !== currentState.currencySymbol) {
-		changes.currencySymbol = data.currencySymbol;
-		previousValues.currencySymbol = currentState.currencySymbol;
+	if (data.currencyId !== undefined && data.currencyId !== currentState.currencyId) {
+		changes.currencyId = data.currencyId;
+		previousValues.currencyId = currentState.currencyId;
 	}
 	if (data.color !== undefined && data.color !== currentState.color) {
 		changes.color = data.color;
@@ -86,8 +80,7 @@ export async function updateAccount(
 			type: currentState.type,
 			initialBalance: currentState.initialBalance,
 			currentBalance: currentState.currentBalance,
-			currencyCode: currentState.currencyCode,
-			currencySymbol: currentState.currencySymbol,
+			currencyId: currentState.currencyId,
 			color: currentState.color,
 			createdAt: currentState.createdAt,
 			updatedAt: currentState.updatedAt
@@ -128,8 +121,7 @@ export async function updateAccount(
 		type: changes.type ?? currentState.type,
 		initialBalance: changes.initialBalance ?? currentState.initialBalance,
 		currentBalance: newBalance,
-		currencyCode: changes.currencyCode ?? currentState.currencyCode,
-		currencySymbol: changes.currencySymbol ?? currentState.currencySymbol,
+		currencyId: changes.currencyId ?? currentState.currencyId,
 		color: changes.color ?? currentState.color,
 		createdAt: currentState.createdAt,
 		updatedAt: event.occurredAt
