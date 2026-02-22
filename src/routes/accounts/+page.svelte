@@ -7,6 +7,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
 	import EditAccountDialog from '$lib/components/account/edit-account-dialog.svelte';
+	import CurrencyManagerDialog from '$lib/components/currency/currency-manager-dialog.svelte';
 	import {
 		CreditCard,
 		TrendingUp,
@@ -103,6 +104,7 @@
 </script>
 
 <div class="mb-8 flex justify-end gap-2">
+	<CurrencyManagerDialog />
 	<CreateAccountDialog />
 </div>
 

@@ -5,7 +5,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
-	import { Plus, Trash2, PiggyBank } from '@lucide/svelte';
+	import { Plus, Trash2, PiggyBank, Globe } from '@lucide/svelte';
 	import { enhance } from '$app/forms';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 
@@ -26,7 +26,24 @@
 		{ value: 'yearly', label: 'Yearly' }
 	];
 
+	const currenciesQuery = createQuery(() => ({
+		queryKey: ['currencies'],
+		queryFn: async () => {
+			const res = await fetch('/api/currencies');
+			return res.json();
+		}
+	}));
+
+	let currencies = $derived(currenciesQuery.data ?? []);
+
 	let selectedPeriod = $state('monthly');
+	let currencyId = $state('');
+
+	$effect(() => {
+		if (currencies.length > 0 && !currencyId) {
+			currencyId = currencies[0].id;
+		}
+	});
 </script>
 
 <div class="container mx-auto py-8">
@@ -98,6 +115,26 @@
 					</div>
 
 					<div class="space-y-2">
+						<Label for="currencyId">Currency</Label>
+						<Select.Root type="single" bind:value={currencyId}>
+							<Select.Trigger class="w-full">
+								<div class="flex items-center gap-2">
+									<Globe class="h-4 w-4 text-muted-foreground" />
+									<span>{currencies.find((c: any) => c.id === currencyId)?.code ?? 'Select currency'}</span>
+								</div>
+							</Select.Trigger>
+							<Select.Content>
+								{#each currencies as currency}
+									<Select.Item value={currency.id} label={currency.code}>
+										{currency.code} - {currency.name}
+									</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<input type="hidden" name="currencyId" value={currencyId} />
+					</div>
+
+					<div class="space-y-2">
 						<Label for="startDate">Start Date</Label>
 						<Input id="startDate" name="startDate" type="date" required value={new Date().toISOString().split('T')[0]} />
 					</div>
@@ -136,7 +173,7 @@
 								</div>
 								<div class="text-right">
 									<div class="text-sm font-medium">
-										${(budget.currentSpent / 100).toFixed(2)} / <span class="text-lg font-bold">${(budget.limit / 100).toFixed(2)}</span>
+										{budget.currencySymbol ?? '$'}{(budget.currentSpent / 100).toFixed(2)} / <span class="text-lg font-bold">{budget.currencySymbol ?? '$'}{(budget.limit / 100).toFixed(2)}</span>
 									</div>
 								</div>
 							</div>
@@ -146,9 +183,9 @@
 								<div class="flex justify-between text-xs text-muted-foreground">
 									<span>{Math.round((budget.currentSpent / budget.limit) * 100)}% spent</span>
 									{#if budget.currentSpent > budget.limit}
-										<span class="text-rose-500 font-medium">Over budget by ${((budget.currentSpent - budget.limit) / 100).toFixed(2)}</span>
+										<span class="text-rose-500 font-medium">Over budget by {budget.currencySymbol ?? '$'}{((budget.currentSpent - budget.limit) / 100).toFixed(2)}</span>
 									{:else}
-										<span>${((budget.limit - budget.currentSpent) / 100).toFixed(2)} remaining</span>
+										<span>{budget.currencySymbol ?? '$'}{((budget.limit - budget.currentSpent) / 100).toFixed(2)} remaining</span>
 									{/if}
 								</div>
 							</div>

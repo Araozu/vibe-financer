@@ -5,7 +5,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { enhance } from '$app/forms';
-	import { useQueryClient } from '@tanstack/svelte-query';
+	import { useQueryClient, createQuery } from '@tanstack/svelte-query';
 	import {
 		CreditCard,
 		Type,
@@ -14,7 +14,8 @@
 		ChevronRight,
 		Save,
 		Loader2,
-		Pencil
+		Pencil,
+		Globe
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import type { Account } from '$lib/domain/account';
@@ -24,6 +25,16 @@
 
 	// We use any here because the account might come from a serialized API response (dates as strings)
 	let { open = $bindable(false), account } = $props<{ open?: boolean; account: any }>();
+
+	const currenciesQuery = createQuery(() => ({
+		queryKey: ['currencies'],
+		queryFn: async () => {
+			const res = await fetch('/api/currencies');
+			return res.json();
+		}
+	}));
+
+	let currencies = $derived(currenciesQuery.data ?? []);
 
 	let selectedType = $state<string>('');
 	let accountName = $state<string>('');
@@ -171,20 +182,26 @@
 					</Select.Root>
 					<input type="hidden" name="type" value={selectedType} />
 
-					<!-- Currency ID Badge -->
-					<div class="flex items-center overflow-hidden rounded-md bg-muted/50">
-						<div
-							class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
+					<!-- Currency Select Badge -->
+					<Select.Root type="single" bind:value={currencyId}>
+						<Select.Trigger
+							class="h-8 w-auto gap-2 rounded-md border-none bg-muted/50 px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted"
 						>
-							CUR
-						</div>
-						<Input
-							name="currencyId"
-							bind:value={currencyId}
-							class="h-8 w-32 border-none bg-transparent px-2 py-1 text-xs font-medium focus-visible:ring-0"
-							required
-						/>
-					</div>
+							<Globe class="h-3.5 w-3.5 text-muted-foreground/60" />
+							<span>{currencies.find((c: any) => c.id === currencyId)?.code ?? 'Select Currency'}</span>
+						</Select.Trigger>
+						<Select.Content>
+							{#each currencies as currency}
+								<Select.Item value={currency.id} label={currency.code} class="text-xs">
+									<div class="flex items-center gap-2">
+										<span class="font-bold text-primary">{currency.symbol}</span>
+										<span>{currency.code} - {currency.name}</span>
+									</div>
+								</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+					<input type="hidden" name="currencyId" value={currencyId} />
 
 					<!-- Color Picker Badge -->
 					<div class="flex items-center overflow-hidden rounded-md bg-muted/50 pr-2">

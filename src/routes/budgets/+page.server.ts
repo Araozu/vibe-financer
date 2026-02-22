@@ -16,7 +16,8 @@ export const actions: Actions = {
         const period = formData.get('period') as 'monthly' | 'weekly' | 'yearly';
         const startDateStr = formData.get('startDate') as string;
 
-        const limit = Math.round(parseFloat(limitStr) * 100);
+        const parsedLimit = parseFloat(limitStr);
+        const limit = isNaN(parsedLimit) ? 0 : Math.round(parsedLimit * 100);
         const startDate = startDateStr ? parseDateAsUTC(startDateStr) : toUTC(new Date());
 
         try {
