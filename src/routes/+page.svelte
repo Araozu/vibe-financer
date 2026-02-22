@@ -25,7 +25,34 @@
 		Plus,
 		Info
 	} from '@lucide/svelte';
-	import type { SerializedAccount, SerializedTransaction, SerializedBudget } from './$types';
+	import type { Account } from '$lib/domain/account';
+	import type { Transaction } from '$lib/domain/transaction';
+
+	type SerializedAccount = Omit<Account, 'createdAt' | 'updatedAt'> & {
+		createdAt: string;
+		updatedAt: string;
+	};
+
+	type SerializedTransaction = Omit<Transaction, 'createdAt' | 'updatedAt' | 'deletedAt'> & {
+		createdAt: string;
+		updatedAt: string;
+		deletedAt: string | null;
+	};
+
+	type SerializedBudget = {
+		id: string;
+		userId: string;
+		category: string;
+		limit: number;
+		currencyId: string;
+		period: 'monthly' | 'weekly' | 'yearly';
+		startDate: string;
+		currentSpent: number;
+		createdAt: string;
+		updatedAt: string;
+		currencyCode: string | null;
+		currencySymbol: string | null;
+	};
 
 	import { calculateDailySpending } from '$lib/domain/spending-analytics';
 	import { formatLocalDate, formatLocalDateTime } from '$lib/domain/date-formatter';
@@ -467,9 +494,10 @@
 		transaction={{
 			...editingTransaction,
 			createdAt: new Date(editingTransaction.createdAt),
-			updatedAt: new Date(editingTransaction.updatedAt)
+			updatedAt: new Date(editingTransaction.updatedAt),
+			deletedAt: editingTransaction.deletedAt ? new Date(editingTransaction.deletedAt) : null
 		}}
-		{accounts}
+		_accounts={accounts}
 		bind:open={editDialogOpen}
 	/>
 {/if}

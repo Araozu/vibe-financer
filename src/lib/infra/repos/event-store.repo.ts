@@ -248,7 +248,7 @@ export const eventStoreRepo = {
 	 */
 	async getStreamVersion(
 		streamId: string,
-		tx?: PgTransaction<NodePgQueryResultHKT, Record<string, unknown>, Record<string, unknown>>
+		tx?: PgTransaction<NodePgQueryResultHKT, any, any>
 	): Promise<number> {
 		const dbInstance = tx ?? db;
 		const [result] = await dbInstance
