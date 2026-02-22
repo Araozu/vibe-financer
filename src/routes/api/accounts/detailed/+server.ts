@@ -20,7 +20,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 			// Month to date chart data
 			const now = toUTC(new Date());
-			const firstDayOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+			const firstDayOfMonth = toUTC(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
 
 			// Filter transactions for this month
 			const thisMonthTransactions = transactions.filter((t) => t.createdAt >= firstDayOfMonth);
@@ -39,15 +39,15 @@ export const GET: RequestHandler = async ({ locals }) => {
 			today.setUTCHours(23, 59, 59, 999);
 
 			let txIndex = 0;
-			for (let d = new Date(today); d >= firstDayOfMonth; d.setUTCDate(d.getUTCDate() - 1)) {
-				const dayStart = new Date(d);
+			for (let d = toUTC(new Date(today)); d >= firstDayOfMonth; d.setUTCDate(d.getUTCDate() - 1)) {
+				const dayStart = toUTC(new Date(d));
 				dayStart.setUTCHours(0, 0, 0, 0);
-				const dayEnd = new Date(d);
+				const dayEnd = toUTC(new Date(d));
 				dayEnd.setUTCHours(23, 59, 59, 999);
 
 				// Balance at the END of this day is the runningBalance
 				chartData.unshift({
-					date: new Date(d).toISOString(),
+					date: toUTC(new Date(d)).toISOString(),
 					balance: runningBalance / 100
 				});
 

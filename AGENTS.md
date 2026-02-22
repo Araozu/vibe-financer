@@ -199,7 +199,7 @@ await eventStoreRepo.updateAccountProjection(accountId, {
 5. **Time Travel**: Use `getStreamAsOf()` for point-in-time queries (e.g., account balance on specific date)
 6. **Audit Compliance**: Always pass `userId` to event factories for audit trails
 7. **Projection Rebuild**: If projections become inconsistent, rebuild from events
-8. **Testing**: Test aggregates with pure functions (no mocking needed)
+8. **Times**: Use date-fnz libraries. Build for times with timezones.
 
 ### Known Limitations
 

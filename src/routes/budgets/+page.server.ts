@@ -1,7 +1,7 @@
 import { createBudget } from '$lib/application/budget/create-budget';
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
-import { parseDateAsUTC } from '$lib/domain/date-formatter';
+import { parseDateAsUTC, toUTC } from '$lib/domain/date-formatter';
 
 export const actions: Actions = {
     create: async ({ request, locals }) => {
@@ -17,7 +17,7 @@ export const actions: Actions = {
         const startDateStr = formData.get('startDate') as string;
 
         const limit = Math.round(parseFloat(limitStr) * 100);
-        const startDate = startDateStr ? parseDateAsUTC(startDateStr) : new Date();
+        const startDate = startDateStr ? parseDateAsUTC(startDateStr) : toUTC(new Date());
 
         try {
             await createBudget({

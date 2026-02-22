@@ -27,6 +27,24 @@ export function toISOWithOffset(date: Date | string | number): string {
 }
 
 /**
+ * Normalizes a date to UTC.
+ */
+export function toUTC(date: Date | string | number): Date {
+	const d = toDateObject(date);
+	return toDate(d, { timeZone: 'UTC' });
+}
+
+/**
+ * Parses a date string as UTC.
+ */
+export function parseDateAsUTC(dateStr: string): Date {
+	if (dateStr.includes('T')) {
+		return toUTC(parseISO(dateStr));
+	}
+	return toUTC(new Date(dateStr + 'T00:00:00Z'));
+}
+
+/**
  * Normalizes a date string (like "2026-02-16") to a Date object at local midnight.
  * This avoids the local timezone shift when parsing date-only strings.
  */

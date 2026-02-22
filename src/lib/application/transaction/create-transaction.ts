@@ -39,7 +39,7 @@ export async function createTransaction(
 	}
 
 	const transactionId = crypto.randomUUID();
-	const transactionDate = data.createdAt ?? new Date();
+	const transactionDate = toUTC(data.createdAt ?? new Date());
 	const sourceVersion = await getAccountVersion(data.accountId);
 
 	// 2. Handle transfers specially (two accounts involved)

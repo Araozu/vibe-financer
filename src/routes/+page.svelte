@@ -22,12 +22,14 @@
 		MoreVertical,
 		Pencil,
 		Trash2,
-		Plus
+		Plus,
+		Info
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
 	import { calculateDailySpending } from '$lib/domain/spending-analytics';
-	import { formatLocalDate } from '$lib/domain/date-formatter';
+	import { formatLocalDate, formatLocalDateTime } from '$lib/domain/date-formatter';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	// Serialized types from API (dates as strings)
 	interface SerializedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
@@ -321,9 +323,29 @@
 										</div>
 										<div>
 											<div class="font-medium">{tx.name ?? 'Untitled'}</div>
-											<div class="text-xs text-muted-foreground">
-												{formatLocalDate(tx.createdAt)}
-											</div>
+											<Tooltip.Provider>
+												<Tooltip.Root>
+													<Tooltip.Trigger>
+														<div class="text-xs text-muted-foreground">
+															{formatLocalDate(tx.createdAt)}
+														</div>
+													</Tooltip.Trigger>
+													<Tooltip.Content>
+														<div class="flex flex-col gap-1 p-1">
+															<div class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+																<Info class="h-3 w-3" />
+																Full Timestamp
+															</div>
+															<div class="text-xs font-medium">
+																{formatLocalDateTime(tx.createdAt)}
+															</div>
+															<div class="text-[10px] text-muted-foreground/80 italic">
+																{new Intl.DateTimeFormat('en-US', { timeZoneName: 'long' }).format(new Date(tx.createdAt)).split(', ')[1]}
+															</div>
+														</div>
+													</Tooltip.Content>
+												</Tooltip.Root>
+											</Tooltip.Provider>
 										</div>
 									</div>
 								</Table.Cell>
