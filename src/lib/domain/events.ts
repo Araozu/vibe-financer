@@ -46,7 +46,7 @@ export interface BaseEvent<T extends EventType = EventType, P = unknown> {
 export interface AccountCreatedPayload {
 	name: string;
 	description: string | null;
-	type: 'asset' | 'expense' | 'revenue' | 'liability';
+	type: 'asset' | 'expense' | 'revenue' | 'liability' | 'savings';
 	initialBalance: number;
 	currencyId: string;
 	color: string;
@@ -56,7 +56,7 @@ export interface AccountUpdatedPayload {
 	changes: {
 		name?: string;
 		description?: string | null;
-		type?: 'asset' | 'expense' | 'revenue' | 'liability';
+		type?: 'asset' | 'expense' | 'revenue' | 'liability' | 'savings';
 		initialBalance?: number;
 		currencyId?: string;
 		color?: string;
@@ -64,7 +64,7 @@ export interface AccountUpdatedPayload {
 	previousValues: {
 		name?: string;
 		description?: string | null;
-		type?: 'asset' | 'expense' | 'revenue' | 'liability';
+		type?: 'asset' | 'expense' | 'revenue' | 'liability' | 'savings';
 		initialBalance?: number;
 		currencyId?: string;
 		color?: string;

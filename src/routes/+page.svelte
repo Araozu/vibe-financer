@@ -215,7 +215,7 @@
 </script>
 
 <!-- Summary Grid -->
-<div class="hidden md:grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+<div class="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-4">
 	{#each summaryStats as stat}
 		<Card.Root>
 			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -280,9 +280,7 @@
 									})}
 								</div>
 							</div>
-							<span
-								class="mt-2 block w-full text-center text-[10px] text-muted-foreground"
-							>
+							<span class="mt-2 block w-full text-center text-[10px] text-muted-foreground">
 								{day.label}
 							</span>
 						</div>
@@ -332,7 +330,9 @@
 													</Tooltip.Trigger>
 													<Tooltip.Content>
 														<div class="flex flex-col gap-1 p-1">
-															<div class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+															<div
+																class="flex items-center gap-2 text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase"
+															>
 																<Info class="h-3 w-3" />
 																Full Timestamp
 															</div>
@@ -340,7 +340,9 @@
 																{formatLocalDateTime(tx.createdAt)}
 															</div>
 															<div class="text-[10px] text-muted-foreground/80 italic">
-																{new Intl.DateTimeFormat('en-US', { timeZoneName: 'long' }).format(new Date(tx.createdAt)).split(', ')[1]}
+																{new Intl.DateTimeFormat('en-US', { timeZoneName: 'long' })
+																	.format(new Date(tx.createdAt))
+																	.split(', ')[1]}
 															</div>
 														</div>
 													</Tooltip.Content>
@@ -432,9 +434,8 @@
 							<div class="flex items-center justify-between text-sm">
 								<span class="font-medium">{budget.category}</span>
 								<span class="text-muted-foreground">
-									${(budget.currentSpent / 100).toFixed(0)} / <span class="font-semibold"
-										>${(budget.limit / 100).toFixed(0)}</span
-									>
+									${(budget.currentSpent / 100).toFixed(0)} /
+									<span class="font-semibold">${(budget.limit / 100).toFixed(0)}</span>
 								</span>
 							</div>
 							<Progress

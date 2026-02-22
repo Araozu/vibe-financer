@@ -92,7 +92,11 @@ export function formatLocalTime(date: Date | string | number): string {
 /**
  * Time-travel helper: get a date at a specific timezone
  */
-export function formatInTZ(date: Date | string | number, tz: string, fmt: string = "yyyy-MM-dd HH:mm:ssxxx"): string {
+export function formatInTZ(
+	date: Date | string | number,
+	tz: string,
+	fmt: string = 'yyyy-MM-dd HH:mm:ssxxx'
+): string {
 	const d = toDateObject(date);
 	return formatInTimeZone(d, tz, fmt);
 }

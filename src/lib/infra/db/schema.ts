@@ -1,4 +1,13 @@
-import { pgTable, text, integer, timestamp, index, pgEnum, boolean, jsonb } from 'drizzle-orm/pg-core';
+import {
+	pgTable,
+	text,
+	integer,
+	timestamp,
+	index,
+	pgEnum,
+	boolean,
+	jsonb
+} from 'drizzle-orm/pg-core';
 import type { AccountType } from '$lib/domain/account';
 import type { TransactionType } from '$lib/domain/transaction';
 import type { EventType, StreamType } from '$lib/domain/events';

@@ -36,12 +36,7 @@ export function calculateDailySpending(
 		const daySpending = transactions
 			.filter((tx) => {
 				const txDate = new Date(tx.createdAt);
-				return (
-					tx.type === 'expense' &&
-					txDate >= date &&
-					txDate < nextDay &&
-					!tx.deletedAt
-				);
+				return tx.type === 'expense' && txDate >= date && txDate < nextDay && !tx.deletedAt;
 			})
 			.reduce((sum, tx) => sum + tx.amount, 0);
 

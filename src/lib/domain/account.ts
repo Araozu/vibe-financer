@@ -1,4 +1,4 @@
-export type AccountType = 'asset' | 'expense' | 'revenue' | 'liability';
+export type AccountType = 'asset' | 'expense' | 'revenue' | 'liability' | 'savings';
 
 export interface Account {
 	id: string;

@@ -77,14 +77,16 @@
 		asset: CreditCard,
 		expense: TrendingDown,
 		revenue: TrendingUp,
-		liability: Coins
+		liability: Coins,
+		savings: Wallet
 	};
 
 	const typeLabels: Record<AccountType, string> = {
 		asset: 'Asset',
 		expense: 'Expense',
 		revenue: 'Revenue',
-		liability: 'Liability'
+		liability: 'Liability',
+		savings: 'Savings'
 	};
 
 	function formatAmount(amount: number, currencySymbol: string) {
@@ -171,9 +173,7 @@
 							<div class="text-6xl font-black tracking-tighter">
 								{formatAmount(account.currentBalance, account.currencySymbol ?? '$')}
 							</div>
-							<p
-								class="mt-1 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold"
-							>
+							<p class="mt-1 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold">
 								{#if account.currentBalance >= account.initialBalance}
 									<TrendingUp class="h-3.5 w-3.5 text-emerald-500" />
 									<span class="text-emerald-500">
@@ -194,7 +194,9 @@
 								<span class="ml-1 font-medium text-muted-foreground/60 lowercase">vs initial</span>
 							</p>
 						</div>
-						<div class="mt-1 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/60 uppercase">
+						<div
+							class="mt-1 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/60 uppercase"
+						>
 							{account.currencyCode ?? 'USD'} • {account.currencySymbol ?? '$'}
 						</div>
 					</div>
@@ -205,10 +207,7 @@
 							<h3
 								class="mb-6 flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase"
 							>
-								<div
-									class="h-1 w-3 rounded-full"
-									style="background-color: {account.color}"
-								></div>
+								<div class="h-1 w-3 rounded-full" style="background-color: {account.color}"></div>
 								Balance History (MTD)
 							</h3>
 							<ChartContainer config={chartConfig} class="aspect-auto h-[280px] w-full">
@@ -240,12 +239,17 @@
 											ticks={10}
 											rule={false}
 										/>
-										<Area fill={account.color} fillOpacity={0.1} stroke={account.color} strokeWidth={2} />
+										<Area
+											fill={account.color}
+											fillOpacity={0.1}
+											stroke={account.color}
+											strokeWidth={2}
+										/>
 										<LCTooltip.Root>
 											{#snippet children({ data: tooltipData })}
 												<LCTooltip.Header>{formatDate(tooltipData.date)}</LCTooltip.Header>
 												<LCTooltip.List>
-														<LCTooltip.Item
+													<LCTooltip.Item
 														label="Balance"
 														value={formatAmount(
 															tooltipData.balance * 100,
@@ -282,9 +286,9 @@
 											<Table.Head class="h-8 text-[9px] font-bold tracking-widest uppercase"
 												>Name</Table.Head
 											>
-											<Table.Head class="h-8 text-right text-[9px] font-bold tracking-widest uppercase"
-												></Table.Head
-											>
+											<Table.Head
+												class="h-8 text-right text-[9px] font-bold tracking-widest uppercase"
+											></Table.Head>
 										</Table.Row>
 									</Table.Header>
 									<Table.Body>

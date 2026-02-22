@@ -81,9 +81,10 @@ export const actions: Actions = {
 		const color = formData.get('color') as string;
 
 		const parsedBalance = initialBalanceStr ? parseFloat(initialBalanceStr) : undefined;
-		const initialBalance = parsedBalance !== undefined && !isNaN(parsedBalance) 
-			? Math.round(parsedBalance * 100) 
-			: undefined;
+		const initialBalance =
+			parsedBalance !== undefined && !isNaN(parsedBalance)
+				? Math.round(parsedBalance * 100)
+				: undefined;
 
 		try {
 			await updateAccount(
@@ -122,7 +123,7 @@ export const actions: Actions = {
 
 		const parsedAmount = parseFloat(amountStr);
 		const amount = isNaN(parsedAmount) ? 0 : Math.round(parsedAmount * 100);
-		
+
 		// If it's a date-only string (YYYY-MM-DD), parse it as local midnight
 		const createdAt = dateStr ? parseDateLocal(dateStr) : new Date();
 

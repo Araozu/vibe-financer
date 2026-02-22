@@ -339,7 +339,9 @@
 
 			<!-- Category Badge (hidden for transfers) -->
 			{#if selectedType !== 'transfer'}
-				<div class="flex items-center overflow-hidden rounded-md border border-border/40 bg-muted/50">
+				<div
+					class="flex items-center overflow-hidden rounded-md border border-border/40 bg-muted/50"
+				>
 					<div
 						class="border-r border-border/40 px-2 py-1 text-[10px] font-bold tracking-tight text-muted-foreground/60 uppercase"
 					>
@@ -423,7 +425,7 @@
 						type="button"
 						variant="ghost"
 						size="sm"
-						class="h-6 px-2 text-[10px] font-bold text-muted-foreground hover:text-primary uppercase"
+						class="h-6 px-2 text-[10px] font-bold text-muted-foreground uppercase hover:text-primary"
 						onclick={resetTime}
 					>
 						Reset

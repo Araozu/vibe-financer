@@ -87,7 +87,7 @@
 					<div class="space-y-2">
 						<Label for="limit">Monthly Limit</Label>
 						<div class="relative">
-							<span class="absolute left-3 top-2.5 text-muted-foreground">$</span>
+							<span class="absolute top-2.5 left-3 text-muted-foreground">$</span>
 							<Input
 								id="limit"
 								name="limit"
@@ -120,7 +120,10 @@
 							<Select.Trigger class="w-full">
 								<div class="flex items-center gap-2">
 									<Globe class="h-4 w-4 text-muted-foreground" />
-									<span>{currencies.find((c: any) => c.id === currencyId)?.code ?? 'Select currency'}</span>
+									<span
+										>{currencies.find((c: any) => c.id === currencyId)?.code ??
+											'Select currency'}</span
+									>
 								</div>
 							</Select.Trigger>
 							<Select.Content>
@@ -136,7 +139,13 @@
 
 					<div class="space-y-2">
 						<Label for="startDate">Start Date</Label>
-						<Input id="startDate" name="startDate" type="date" required value={new Date().toISOString().split('T')[0]} />
+						<Input
+							id="startDate"
+							name="startDate"
+							type="date"
+							required
+							value={new Date().toISOString().split('T')[0]}
+						/>
 					</div>
 
 					<Button type="submit" class="w-full" disabled={isSubmitting}>
@@ -152,40 +161,58 @@
 		</Card.Root>
 
 		<!-- Budget List -->
-		<div class="lg:col-span-2 space-y-4">
+		<div class="space-y-4 lg:col-span-2">
 			{#if budgetsQuery.isLoading}
 				<div class="flex justify-center py-12">
-					<div class="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+					<div
+						class="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
+					></div>
 				</div>
 			{:else}
 				{#each budgets as budget}
 					<Card.Root>
 						<Card.Content class="pt-6">
-							<div class="flex items-center justify-between mb-4">
+							<div class="mb-4 flex items-center justify-between">
 								<div class="flex items-center gap-3">
 									<div class="rounded-full bg-primary/10 p-2 text-primary">
 										<PiggyBank class="h-5 w-5" />
 									</div>
 									<div>
-										<h3 class="font-semibold text-lg">{budget.category}</h3>
+										<h3 class="text-lg font-semibold">{budget.category}</h3>
 										<p class="text-xs text-muted-foreground capitalize">{budget.period} limit</p>
 									</div>
 								</div>
 								<div class="text-right">
 									<div class="text-sm font-medium">
-										{budget.currencySymbol ?? '$'}{(budget.currentSpent / 100).toFixed(2)} / <span class="text-lg font-bold">{budget.currencySymbol ?? '$'}{(budget.limit / 100).toFixed(2)}</span>
+										{budget.currencySymbol ?? '$'}{(budget.currentSpent / 100).toFixed(2)} /
+										<span class="text-lg font-bold"
+											>{budget.currencySymbol ?? '$'}{(budget.limit / 100).toFixed(2)}</span
+										>
 									</div>
 								</div>
 							</div>
-							
+
 							<div class="space-y-2">
-								<Progress value={Math.min((budget.currentSpent / budget.limit) * 100, 100)} class="h-3" />
+								<Progress
+									value={Math.min((budget.currentSpent / budget.limit) * 100, 100)}
+									class="h-3"
+								/>
 								<div class="flex justify-between text-xs text-muted-foreground">
 									<span>{Math.round((budget.currentSpent / budget.limit) * 100)}% spent</span>
 									{#if budget.currentSpent > budget.limit}
-										<span class="text-rose-500 font-medium">Over budget by {budget.currencySymbol ?? '$'}{((budget.currentSpent - budget.limit) / 100).toFixed(2)}</span>
+										<span class="font-medium text-rose-500"
+											>Over budget by {budget.currencySymbol ?? '$'}{(
+												(budget.currentSpent - budget.limit) /
+												100
+											).toFixed(2)}</span
+										>
 									{:else}
-										<span>{budget.currencySymbol ?? '$'}{((budget.limit - budget.currentSpent) / 100).toFixed(2)} remaining</span>
+										<span
+											>{budget.currencySymbol ?? '$'}{(
+												(budget.limit - budget.currentSpent) /
+												100
+											).toFixed(2)} remaining</span
+										>
 									{/if}
 								</div>
 							</div>
@@ -196,7 +223,9 @@
 						<Card.Content class="flex flex-col items-center justify-center py-12 text-center">
 							<PiggyBank class="h-12 w-12 text-muted-foreground mb-4" />
 							<h3 class="text-lg font-semibold">No budgets found</h3>
-							<p class="text-muted-foreground max-w-xs">Create your first budget to start tracking your spending by category.</p>
+							<p class="text-muted-foreground max-w-xs">
+								Create your first budget to start tracking your spending by category.
+							</p>
 						</Card.Content>
 					</Card.Root>
 				{/each}

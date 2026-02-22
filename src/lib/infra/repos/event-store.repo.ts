@@ -319,7 +319,7 @@ export const eventStoreRepo = {
 		data: {
 			name?: string;
 			description?: string | null;
-			type?: 'asset' | 'expense' | 'revenue' | 'liability';
+			type?: 'asset' | 'expense' | 'revenue' | 'liability' | 'savings';
 			initialBalance?: number;
 			currentBalance?: number;
 			currencyId?: string;
@@ -340,7 +340,7 @@ export const eventStoreRepo = {
 		userId: string;
 		name: string;
 		description: string | null;
-		type: 'asset' | 'expense' | 'revenue' | 'liability';
+		type: 'asset' | 'expense' | 'revenue' | 'liability' | 'savings';
 		initialBalance: number;
 		currentBalance: number;
 		currencyId: string;

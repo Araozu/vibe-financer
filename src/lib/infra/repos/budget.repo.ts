@@ -1,6 +1,6 @@
 /**
  * Budget Repository
- * 
+ *
  * Handles queries for budget projections.
  */
 
@@ -9,9 +9,9 @@ import { budget, currency } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export const budgetRepo = {
-    /**
-     * Get all budgets for a user
-     */
+	/**
+	 * Get all budgets for a user
+	 */
 	async getByUser(userId: string) {
 		return db
 			.select({
@@ -33,9 +33,9 @@ export const budgetRepo = {
 			.where(eq(budget.userId, userId));
 	},
 
-    /**
-     * Get a specific budget by ID
-     */
+	/**
+	 * Get a specific budget by ID
+	 */
 	async getById(budgetId: string) {
 		const [result] = await db
 			.select({
@@ -58,12 +58,13 @@ export const budgetRepo = {
 		return result ?? null;
 	},
 
-    /**
-     * Get budgets by category
-     */
-    async getByCategory(userId: string, category: string) {
-        return db.select()
-            .from(budget)
-            .where(and(eq(budget.userId, userId), eq(budget.category, category)));
-    }
+	/**
+	 * Get budgets by category
+	 */
+	async getByCategory(userId: string, category: string) {
+		return db
+			.select()
+			.from(budget)
+			.where(and(eq(budget.userId, userId), eq(budget.category, category)));
+	}
 };

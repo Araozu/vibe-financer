@@ -5,15 +5,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { enhance } from '$app/forms';
 	import { useQueryClient, createQuery } from '@tanstack/svelte-query';
-	import {
-		Coins,
-		ChevronRight,
-		Plus,
-		Loader2,
-		Globe,
-		Tag,
-		Type
-	} from '@lucide/svelte';
+	import { Coins, ChevronRight, Plus, Loader2, Globe, Tag, Type } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { cn } from '$lib/utils.js';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -52,7 +44,9 @@
 	<Dialog.Content class="overflow-hidden p-0 shadow-2xl sm:max-w-2xl">
 		<div class="flex h-[600px] flex-col">
 			<!-- Header -->
-			<div class="flex items-center justify-between border-b border-border/40 bg-muted/30 px-4 py-3">
+			<div
+				class="flex items-center justify-between border-b border-border/40 bg-muted/30 px-4 py-3"
+			>
 				<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
 					<div class="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-primary">
 						<Coins class="h-3 w-3" />
@@ -67,7 +61,9 @@
 				<!-- List side -->
 				<div class="flex flex-col border-r border-border/40 bg-muted/10">
 					<div class="p-4">
-						<h3 class="text-sm font-bold tracking-tight text-muted-foreground uppercase">Available Currencies</h3>
+						<h3 class="text-sm font-bold tracking-tight text-muted-foreground uppercase">
+							Available Currencies
+						</h3>
 					</div>
 					<div class="flex-1 overflow-y-auto px-4 pb-4">
 						{#if currenciesQuery.isPending}
@@ -91,9 +87,13 @@
 								<Table.Body>
 									{#each currencies as currency}
 										<Table.Row class="group">
-											<Table.Cell class="py-2 font-mono text-xs font-bold">{currency.code}</Table.Cell>
+											<Table.Cell class="py-2 font-mono text-xs font-bold"
+												>{currency.code}</Table.Cell
+											>
 											<Table.Cell class="py-2 text-xs">{currency.name}</Table.Cell>
-											<Table.Cell class="py-2 text-right font-bold text-primary">{currency.symbol}</Table.Cell>
+											<Table.Cell class="py-2 text-right font-bold text-primary"
+												>{currency.symbol}</Table.Cell
+											>
 										</Table.Row>
 									{/each}
 								</Table.Body>
@@ -121,7 +121,10 @@
 									queryClient.invalidateQueries({ queryKey: ['currencies'] });
 									resetForm();
 								} else if (result.type === 'failure') {
-									const errorMessage = typeof result.data?.error === 'string' ? result.data.error : 'Failed to create currency';
+									const errorMessage =
+										typeof result.data?.error === 'string'
+											? result.data.error
+											: 'Failed to create currency';
 									toast.error(errorMessage);
 								}
 							};
@@ -129,9 +132,15 @@
 						class="space-y-4"
 					>
 						<div class="space-y-2">
-							<Label for="code" class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Currency Code</Label>
+							<Label
+								for="code"
+								class="text-xs font-bold tracking-wider text-muted-foreground uppercase"
+								>Currency Code</Label
+							>
 							<div class="relative">
-								<Globe class="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+								<Globe
+									class="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60"
+								/>
 								<Input
 									id="code"
 									name="code"
@@ -145,9 +154,15 @@
 						</div>
 
 						<div class="space-y-2">
-							<Label for="name" class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Full Name</Label>
+							<Label
+								for="name"
+								class="text-xs font-bold tracking-wider text-muted-foreground uppercase"
+								>Full Name</Label
+							>
 							<div class="relative">
-								<Type class="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+								<Type
+									class="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60"
+								/>
 								<Input
 									id="name"
 									name="name"
@@ -160,9 +175,15 @@
 						</div>
 
 						<div class="space-y-2">
-							<Label for="symbol" class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Symbol</Label>
+							<Label
+								for="symbol"
+								class="text-xs font-bold tracking-wider text-muted-foreground uppercase"
+								>Symbol</Label
+							>
 							<div class="relative">
-								<Tag class="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+								<Tag
+									class="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60"
+								/>
 								<Input
 									id="symbol"
 									name="symbol"

@@ -4,35 +4,35 @@ import type { Actions } from './$types';
 import { parseDateAsUTC, toUTC } from '$lib/domain/date-formatter';
 
 export const actions: Actions = {
-    create: async ({ request, locals }) => {
-        if (!locals.user) {
-            return fail(401, { error: 'Unauthorized' });
-        }
+	create: async ({ request, locals }) => {
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
 
-        const formData = await request.formData();
-        const category = formData.get('category') as string;
-        const limitStr = formData.get('limit') as string;
-        const currencyId = formData.get('currencyId') as string;
-        const period = formData.get('period') as 'monthly' | 'weekly' | 'yearly';
-        const startDateStr = formData.get('startDate') as string;
+		const formData = await request.formData();
+		const category = formData.get('category') as string;
+		const limitStr = formData.get('limit') as string;
+		const currencyId = formData.get('currencyId') as string;
+		const period = formData.get('period') as 'monthly' | 'weekly' | 'yearly';
+		const startDateStr = formData.get('startDate') as string;
 
-        const parsedLimit = parseFloat(limitStr);
-        const limit = isNaN(parsedLimit) ? 0 : Math.round(parsedLimit * 100);
-        const startDate = startDateStr ? parseDateAsUTC(startDateStr) : toUTC(new Date());
+		const parsedLimit = parseFloat(limitStr);
+		const limit = isNaN(parsedLimit) ? 0 : Math.round(parsedLimit * 100);
+		const startDate = startDateStr ? parseDateAsUTC(startDateStr) : toUTC(new Date());
 
-        try {
-            await createBudget({
-                userId: locals.user.id,
-                category,
-                limit,
-                currencyId,
-                period,
-                startDate
-            });
-            return { success: true };
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : 'Unknown error';
-            return fail(400, { error: message });
-        }
-    }
+		try {
+			await createBudget({
+				userId: locals.user.id,
+				category,
+				limit,
+				currencyId,
+				period,
+				startDate
+			});
+			return { success: true };
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : 'Unknown error';
+			return fail(400, { error: message });
+		}
+	}
 };

@@ -15,7 +15,8 @@
 		ChevronRight,
 		Plus,
 		Loader2,
-		Globe
+		Globe,
+		Wallet
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { cn } from '$lib/utils.js';
@@ -53,7 +54,8 @@
 		{ value: 'asset', label: 'Asset', icon: CreditCard },
 		{ value: 'expense', label: 'Expense', icon: Type },
 		{ value: 'revenue', label: 'Revenue', icon: CircleDollarSign },
-		{ value: 'liability', label: 'Liability', icon: Coins }
+		{ value: 'liability', label: 'Liability', icon: Coins },
+		{ value: 'savings', label: 'Savings', icon: Wallet }
 	];
 
 	function resetForm() {
@@ -145,9 +147,9 @@
 						>
 							BAL
 						</div>
-					<div class="flex items-center gap-2 px-2">
-						<span class="text-xs text-muted-foreground/60">{currencyId ? '$' : '$'}</span>
-						<Input
+						<div class="flex items-center gap-2 px-2">
+							<span class="text-xs text-muted-foreground/60">{currencyId ? '$' : '$'}</span>
+							<Input
 								id="initialBalance"
 								name="initialBalance"
 								type="number"
@@ -186,7 +188,9 @@
 							class="h-8 w-auto gap-2 rounded-md border-none bg-muted/50 px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted"
 						>
 							<Globe class="h-3.5 w-3.5 text-muted-foreground/60" />
-							<span>{currencies.find((c: any) => c.id === currencyId)?.code ?? 'Select Currency'}</span>
+							<span
+								>{currencies.find((c: any) => c.id === currencyId)?.code ?? 'Select Currency'}</span
+							>
 						</Select.Trigger>
 						<Select.Content>
 							{#each currencies as currency}

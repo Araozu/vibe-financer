@@ -27,27 +27,33 @@
 	const transactionsQuery = createQuery(() => ({
 		queryKey: ['accounts', account.id, 'transactions', offset],
 		queryFn: async () => {
-			const res = await fetch(`/api/accounts/${account.id}/transactions?limit=${limit}&offset=${offset}`);
+			const res = await fetch(
+				`/api/accounts/${account.id}/transactions?limit=${limit}&offset=${offset}`
+			);
 			return res.json();
 		},
 		placeholderData: (previousData) => previousData
 	}));
 
-	let transactions = $derived(transactionsQuery.data?.transactions ?? (offset === 0 ? data.initialTransactions : []));
+	let transactions = $derived(
+		transactionsQuery.data?.transactions ?? (offset === 0 ? data.initialTransactions : [])
+	);
 	let hasMore = $derived(transactionsQuery.data?.hasMore ?? true);
 
 	const typeIcons: Record<AccountType, typeof CreditCard> = {
 		asset: CreditCard,
 		expense: TrendingDown,
 		revenue: TrendingUp,
-		liability: Coins
+		liability: Coins,
+		savings: Wallet
 	};
 
 	const typeLabels: Record<AccountType, string> = {
 		asset: 'Asset',
 		expense: 'Expense',
 		revenue: 'Revenue',
-		liability: 'Liability'
+		liability: 'Liability',
+		savings: 'Savings'
 	};
 
 	function formatAmount(amount: number, currencySymbol: string = '$') {
@@ -77,7 +83,11 @@
 
 <div class="container mx-auto max-w-5xl py-8">
 	<div class="mb-8">
-		<Button variant="ghost" href="/accounts" class="mb-4 gap-2 text-muted-foreground hover:text-primary">
+		<Button
+			variant="ghost"
+			href="/accounts"
+			class="mb-4 gap-2 text-muted-foreground hover:text-primary"
+		>
 			<ArrowLeft class="h-4 w-4" />
 			Back to Accounts
 		</Button>
@@ -98,7 +108,10 @@
 				<div>
 					<div class="flex items-center gap-3">
 						<h1 class="text-4xl font-black tracking-tighter">{account.name}</h1>
-						<Badge variant="secondary" class="px-3 py-1 text-xs font-bold tracking-widest uppercase">
+						<Badge
+							variant="secondary"
+							class="px-3 py-1 text-xs font-bold tracking-widest uppercase"
+						>
 							{typeLabels[account.type as AccountType]}
 						</Badge>
 					</div>
@@ -107,7 +120,9 @@
 			</div>
 
 			<div class="text-right">
-				<p class="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">Current Balance</p>
+				<p class="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
+					Current Balance
+				</p>
 				<p class="text-5xl font-black tracking-tighter">
 					{formatAmount(account.currentBalance, account.currencySymbol ?? '$')}
 				</p>
@@ -157,10 +172,19 @@
 				<Table.Root>
 					<Table.Header class="bg-muted/30">
 						<Table.Row class="hover:bg-transparent">
-							<Table.Head class="h-10 text-[10px] font-bold tracking-widest uppercase pl-6">Date</Table.Head>
-							<Table.Head class="h-10 text-[10px] font-bold tracking-widest uppercase">Name</Table.Head>
-							<Table.Head class="h-10 text-[10px] font-bold tracking-widest uppercase">Category</Table.Head>
-							<Table.Head class="h-10 text-right text-[10px] font-bold tracking-widest uppercase pr-6">Amount</Table.Head>
+							<Table.Head class="h-10 pl-6 text-[10px] font-bold tracking-widest uppercase"
+								>Date</Table.Head
+							>
+							<Table.Head class="h-10 text-[10px] font-bold tracking-widest uppercase"
+								>Name</Table.Head
+							>
+							<Table.Head class="h-10 text-[10px] font-bold tracking-widest uppercase"
+								>Category</Table.Head
+							>
+							<Table.Head
+								class="h-10 pr-6 text-right text-[10px] font-bold tracking-widest uppercase"
+								>Amount</Table.Head
+							>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
@@ -172,21 +196,31 @@
 							</Table.Row>
 						{:else}
 							{#each transactions as tx}
-								<Table.Row class="group border-b border-border/40 transition-colors hover:bg-muted/20">
+								<Table.Row
+									class="group border-b border-border/40 transition-colors hover:bg-muted/20"
+								>
 									<Table.Cell class="py-4 pl-6 text-xs font-medium text-muted-foreground/70">
 										{formatDate(tx.createdAt)}
 									</Table.Cell>
 									<Table.Cell class="py-4">
-										<span class="text-sm font-bold tracking-tight">{tx.name || tx.payee || 'Untitled'}</span>
+										<span class="text-sm font-bold tracking-tight"
+											>{tx.name || tx.payee || 'Untitled'}</span
+										>
 									</Table.Cell>
 									<Table.Cell class="py-4">
-										<Badge variant="outline" class="text-[10px] font-bold tracking-widest uppercase">
+										<Badge
+											variant="outline"
+											class="text-[10px] font-bold tracking-widest uppercase"
+										>
 											{tx.category || 'Uncategorized'}
 										</Badge>
 									</Table.Cell>
-									<Table.Cell class="py-4 text-right pr-6 font-black">
+									<Table.Cell class="py-4 pr-6 text-right font-black">
 										<span class={tx.type === 'income' ? 'text-emerald-500' : 'text-foreground'}>
-											{tx.type === 'income' ? '+' : ''}{formatAmount(tx.amount, account.currencySymbol ?? '$')}
+											{tx.type === 'income' ? '+' : ''}{formatAmount(
+												tx.amount,
+												account.currencySymbol ?? '$'
+											)}
 										</span>
 									</Table.Cell>
 								</Table.Row>
