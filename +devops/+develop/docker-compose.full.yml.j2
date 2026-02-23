@@ -6,6 +6,8 @@ services:
     environment:
       - TZ=America/Lima
       - ORIGIN=https://financer.araoz.dev
+    env_file:
+      - .env.database
     networks:
       - proxy
     volumes:
