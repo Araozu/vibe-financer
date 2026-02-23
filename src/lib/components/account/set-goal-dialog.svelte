@@ -35,9 +35,9 @@
 		} | null;
 	}>();
 
-	let goalName = $state(existingGoal?.name ?? 'Savings Goal');
-	let targetAmount = $state(existingGoal ? (existingGoal.targetAmount / 100).toString() : '');
-	let targetDate = $state(existingGoal?.targetDate ? existingGoal.targetDate.split('T')[0] : '');
+	let goalName = $state('');
+	let targetAmount = $state('');
+	let targetDate = $state('');
 	let isLoading = $state(false);
 	let isDeleting = $state(false);
 

@@ -2,17 +2,22 @@
 	import { createQuery } from '@tanstack/svelte-query';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
-	import * as ChartUI from '$lib/components/ui/chart/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
 	import EditAccountDialog from '$lib/components/account/edit-account-dialog.svelte';
 	import CurrencyManagerDialog from '$lib/components/currency/currency-manager-dialog.svelte';
+	import BalanceChart from '$lib/components/account/balance-chart.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
-	import { CreditCard, TrendingUp, TrendingDown, Coins, Wallet, ArrowRight, Calendar } from '@lucide/svelte';
-	import { scaleTime, scaleLinear } from 'd3-scale';
-	import { Chart, Area, Axis, Tooltip as LCTooltip, Svg } from 'layerchart';
-	import ChartContainer from '$lib/components/ui/chart/chart-container.svelte';
+	import {
+		CreditCard,
+		TrendingUp,
+		TrendingDown,
+		Coins,
+		Wallet,
+		ArrowRight,
+		Calendar
+	} from '@lucide/svelte';
 	import type { Account, AccountType } from '$lib/domain/account';
 	import type { TransactionType } from '$lib/domain/transaction';
 
@@ -55,8 +60,18 @@
 	let selectedYear = $state(now.getUTCFullYear());
 
 	const months = [
-		'January', 'February', 'March', 'April', 'May', 'June',
-		'July', 'August', 'September', 'October', 'November', 'December'
+		'January',
+		'February',
+		'March',
+		'April',
+		'May',
+		'June',
+		'July',
+		'August',
+		'September',
+		'October',
+		'November',
+		'December'
 	];
 
 	const years = Array.from({ length: 5 }, (_, i) => now.getUTCFullYear() - 2 + i);
@@ -125,16 +140,13 @@
 				{/each}
 			</select>
 			<div class="h-4 w-px bg-border"></div>
-			<select
-				bind:value={selectedYear}
-				class="bg-transparent text-sm font-bold focus:outline-none"
-			>
+			<select bind:value={selectedYear} class="bg-transparent text-sm font-bold focus:outline-none">
 				{#each years as year}
 					<option value={year}>{year}</option>
 				{/each}
 			</select>
 		</div>
-		
+
 		{#if selectedMonth !== now.getUTCMonth() || selectedYear !== now.getUTCFullYear()}
 			<Button
 				variant="ghost"
@@ -173,13 +185,6 @@
 	<div class="grid grid-cols-1 gap-8">
 		{#each accounts as account (account.id)}
 			{@const Icon = typeIcons[account.type] ?? Wallet}
-			{@const chartConfig = {
-				balance: { label: 'Balance', color: account.color }
-			} satisfies ChartUI.ChartConfig}
-			{@const chartDataParsed = account.chartData.map((d: ChartDataPoint) => ({
-				...d,
-				date: new Date(d.date)
-			}))}
 			<Card.Root class="group overflow-hidden border-2 transition-all hover:border-primary/30">
 				<Card.Header class="border-b bg-muted/10 pb-6">
 					<div class="flex items-start justify-between">
@@ -254,61 +259,15 @@
 								class="mb-6 flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase"
 							>
 								<div class="h-1 w-3 rounded-full" style="background-color: {account.color}"></div>
-								Balance History ({months[selectedMonth]} {selectedYear})
+								Balance History ({months[selectedMonth]}
+								{selectedYear})
 							</h3>
-							<ChartContainer config={chartConfig} class="aspect-auto h-[280px] w-full">
-								<Chart
-									data={chartDataParsed}
-									x="date"
-									y="balance"
-									xScale={scaleTime()}
-									yScale={scaleLinear()}
-									padding={{ left: 40, bottom: 20, right: 10, top: 10 }}
-								>
-									<Svg>
-										<Axis
-											placement="left"
-											grid={{ class: 'stroke-border/20' }}
-											format={(v) =>
-												v.toLocaleString('en-US', {
-													style: 'currency',
-													currency: account.currencyCode,
-													maximumFractionDigits: 0
-												})}
-											ticks={5}
-											rule={false}
-										/>
-										<Axis
-											placement="bottom"
-											grid={{ class: 'stroke-border/20' }}
-											format={(v) => v.toLocaleDateString('en-US', { day: 'numeric' })}
-											ticks={10}
-											rule={false}
-										/>
-										<Area
-											fill={account.color}
-											fillOpacity={0.1}
-											stroke={account.color}
-											strokeWidth={2}
-										/>
-										<LCTooltip.Root>
-											{#snippet children({ data: tooltipData })}
-												<LCTooltip.Header>{formatDate(tooltipData.date)}</LCTooltip.Header>
-												<LCTooltip.List>
-													<LCTooltip.Item
-														label="Balance"
-														value={formatAmount(
-															tooltipData.balance * 100,
-															account.currencySymbol ?? '$'
-														)}
-														color={account.color}
-													/>
-												</LCTooltip.List>
-											{/snippet}
-										</LCTooltip.Root>
-									</Svg>
-								</Chart>
-							</ChartContainer>
+							<BalanceChart
+								data={account.chartData}
+								color={account.color}
+								currencySymbol={account.currencySymbol ?? '$'}
+								currencyCode={account.currencyCode ?? 'USD'}
+							/>
 						</div>
 
 						<!-- Bottom: Transactions -->
