@@ -66,4 +66,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD bun --bun -e "fetch('http://localhost:3000').then(() => process.exit(0)).catch(() => process.exit(1))"
 
 # Start the application with bun runtime
-CMD ["bun", "--bun", "./build/index.js"]
+CMD ["/app/docker-entrypoint.sh"]
