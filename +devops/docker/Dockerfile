@@ -25,8 +25,6 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build the SvelteKit app
-RUN touch ./database.sqlite
-ENV DATABASE_URL=./database.sqlite
 RUN bun run check
 RUN bun --bun run build
 

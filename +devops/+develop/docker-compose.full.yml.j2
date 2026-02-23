@@ -10,8 +10,7 @@ services:
       - .env.database
     networks:
       - proxy
-    volumes:
-      - vibe_financer_data:/app/data
+      - {{ project_name }}-network-{{ project_stage}}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.{{ project_name }}-{{ project_stage }}.rule=Host(`financer.araoz.dev`)"
@@ -21,10 +20,3 @@ services:
       - "traefik.http.routers.{{ project_name }}-{{ project_stage }}.tls.domains[0].main=araoz.dev"
       - "traefik.http.routers.{{ project_name }}-{{ project_stage }}.tls.domains[0].sans=*.araoz.dev"
       - "traefik.http.services.{{ project_name }}-{{ project_stage }}.loadbalancer.server.port=3000"
-
-networks:
-  proxy:
-    external: true
-
-volumes:
-  vibe_financer_data:
