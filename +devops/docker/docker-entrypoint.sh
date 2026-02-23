@@ -2,7 +2,8 @@
 set -eu pipefail
 
 # Run migrations
-./node_modules/.bin/drizzle-kit migrate
+bun i drizzle-kit
+bun x drizzle-kit migrate
 
 # Run the application
 bun --bun ./build/index.js
