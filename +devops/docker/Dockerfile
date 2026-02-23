@@ -65,5 +65,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD bun --bun -e "fetch('http://localhost:3000').then(() => process.exit(0)).catch(() => process.exit(1))"
 
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+
 # Start the application with bun runtime
 CMD ["/app/docker-entrypoint.sh"]
