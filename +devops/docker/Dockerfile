@@ -25,6 +25,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build the SvelteKit app
+#  placeholder for the database url
+ENV DATABASE_URL=postgresql://postgres:postgres@localhost:5432/vibe_financer
 RUN bun run check
 RUN bun --bun run build
 
