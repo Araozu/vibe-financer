@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { LineChart } from 'layerchart';
-	import { scaleUtc } from 'd3-scale';
+	import { scaleTime } from 'd3-scale';
 	import { curveNatural } from 'd3-shape';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Chart from '$lib/components/ui/chart/index.js';
@@ -188,7 +188,7 @@
 				<LineChart
 					data={chartData}
 					x="date"
-					xScale={scaleUtc()}
+					xScale={scaleTime()}
 					padding={chartPadding}
 					axis={true}
 					series={chartSeries}
