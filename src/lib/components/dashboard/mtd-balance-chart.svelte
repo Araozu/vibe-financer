@@ -26,10 +26,14 @@
 
 	let {
 		accounts,
-		transactions
+		transactions,
+		selectedMonth = new Date().getUTCMonth(),
+		selectedYear = new Date().getUTCFullYear()
 	}: {
 		accounts: ChartAccount[];
 		transactions: ChartTransaction[];
+		selectedMonth?: number;
+		selectedYear?: number;
 	} = $props();
 
 	const CHART_WIDTH = 920;
@@ -61,17 +65,8 @@
 			return [] as MonthToDateBalancePoint[];
 		}
 
-		const nowDate = new Date();
-		const now = new Date(
-			nowDate.getFullYear(),
-			nowDate.getMonth(),
-			nowDate.getDate(),
-			23,
-			59,
-			59,
-			999
-		);
-		const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+		const monthStart = new Date(Date.UTC(selectedYear, selectedMonth, 1));
+		const monthEnd = new Date(Date.UTC(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999));
 		const accountIds = new Set(accounts.map((account) => account.id));
 
 		const monthDeltaByAccount = new Map<string, number>();
@@ -91,7 +86,7 @@
 			if (tx.deletedAt !== null) continue;
 
 			const txDate = new Date(tx.createdAt);
-			if (txDate < monthStart || txDate > now) continue;
+			if (txDate < monthStart || txDate > monthEnd) continue;
 
 			const dayKey = toLocalDateKey(txDate);
 
@@ -109,17 +104,32 @@
 			applyDelta(dayKey, tx.accountId, -tx.amount);
 		}
 
+		// Calculate balance at the start of the selected month
 		const runningBalanceByAccount = new Map<string, number>();
 		for (const account of accounts) {
-			const monthDelta = monthDeltaByAccount.get(account.id) ?? 0;
-			runningBalanceByAccount.set(account.id, account.currentBalance - monthDelta);
+			// To get the balance at the start of the month, we need to subtract all transactions 
+			// that happened AFTER the start of the month from the current balance.
+			let deltaSinceMonthStart = 0;
+			for (const tx of transactions) {
+				if (tx.deletedAt !== null) continue;
+				const txDate = new Date(tx.createdAt);
+				if (txDate >= monthStart) {
+					if (tx.accountId === account.id) {
+						if (tx.type === 'income') deltaSinceMonthStart += tx.amount;
+						else deltaSinceMonthStart -= tx.amount;
+					}
+					if (tx.toAccountId === account.id && tx.type === 'transfer') {
+						deltaSinceMonthStart += tx.amount;
+					}
+				}
+			}
+			runningBalanceByAccount.set(account.id, account.currentBalance - deltaSinceMonthStart);
 		}
 
 		const points: MonthToDateBalancePoint[] = [];
-		const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 		let cursor = new Date(monthStart);
 
-		while (cursor <= today) {
+		while (cursor <= monthEnd) {
 			const dayDate = new Date(cursor);
 			const dayKey = toLocalDateKey(dayDate);
 			const dayDeltaMap = dailyDeltaByDateAndAccount.get(dayKey);
@@ -201,7 +211,7 @@
 <Card.Root>
 	<Card.Header>
 		<Card.Title>Balance Overview</Card.Title>
-		<Card.Description>Month-to-date end-of-day balance for each account</Card.Description>
+		<Card.Description>End-of-day balance for each account in {new Date(selectedYear, selectedMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Card.Description>
 	</Card.Header>
 	<Card.Content>
 		<div class="space-y-4">

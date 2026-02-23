@@ -150,7 +150,7 @@ export function projectBalanceHistory(events: DomainEvent[]): BalanceSnapshot[] 
 				currentBalance = e.payload.balanceAfter;
 				history.push({
 					balance: currentBalance,
-					timestamp: e.occurredAt,
+					timestamp: e.payload.transactionDate ?? e.occurredAt,
 					eventId: e.id,
 					eventType: 'TransactionUpdated',
 					transactionId: e.payload.transactionId

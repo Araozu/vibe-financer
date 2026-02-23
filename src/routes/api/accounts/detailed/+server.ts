@@ -4,10 +4,17 @@ import { listAccounts } from '$lib/application/account/list-accounts';
 import { listTransactionsByAccount } from '$lib/application/transaction/list-transactions';
 import { toUTC } from '$lib/domain/date-formatter';
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
+
+	const monthParam = url.searchParams.get('month');
+	const yearParam = url.searchParams.get('year');
+
+	const now = toUTC(new Date());
+	const targetMonth = monthParam ? parseInt(monthParam) : now.getUTCMonth();
+	const targetYear = yearParam ? parseInt(yearParam) : now.getUTCFullYear();
 
 	const allAccounts = await listAccounts();
 	// Filter accounts by user
@@ -16,43 +23,63 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const accountsWithData = await Promise.all(
 		accounts.map(async (account) => {
 			const transactions = await listTransactionsByAccount(account.id);
-			const last10Transactions = transactions.slice(0, 10);
+			
+			// Target month range
+			const firstDayOfMonth = toUTC(new Date(Date.UTC(targetYear, targetMonth, 1)));
+			const lastDayOfMonth = toUTC(new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59, 999)));
 
-			// Month to date chart data
-			const now = toUTC(new Date());
-			const firstDayOfMonth = toUTC(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
+			// Filter transactions up to the end of the target month
+			const transactionsUpToTarget = transactions.filter((t) => t.createdAt <= lastDayOfMonth);
+			const sortedTransactionsAll = [...transactionsUpToTarget].sort(
+				(a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+			);
+			const last10Transactions = sortedTransactionsAll.slice(0, 10);
 
-			// Filter transactions for this month
-			const thisMonthTransactions = transactions.filter((t) => t.createdAt >= firstDayOfMonth);
+			const thisMonthTransactions = transactions.filter(
+				(t) => t.createdAt >= firstDayOfMonth && t.createdAt <= lastDayOfMonth
+			);
+
+			// Calculate balance at the end of the target month
+			// We can't just use account.currentBalance if we are looking at a past month
+			// But if we are looking at a future month, we need to include future transactions
+			
+			// Let's get all transactions to calculate the balance at the end of the target month
+			let balanceAtEndOfMonth = account.initialBalance;
+			const allTransactionsSorted = [...transactions].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+			
+			for (const tx of allTransactionsSorted) {
+				if (tx.createdAt <= lastDayOfMonth) {
+					if (tx.type === 'income') {
+						balanceAtEndOfMonth += tx.amount;
+					} else {
+						balanceAtEndOfMonth -= tx.amount;
+					}
+				} else {
+					break;
+				}
+			}
 
 			// Calculate daily balances
-			// Start with current balance and work backwards to the beginning of the month
 			const chartData = [];
-			let runningBalance = account.currentBalance;
+			let runningBalance = balanceAtEndOfMonth;
 
-			// Sort transactions by date descending for easier backward calculation
+			// Sort transactions for this month by date descending
 			const sortedTransactions = [...thisMonthTransactions].sort(
 				(a, b) => b.createdAt.getTime() - a.createdAt.getTime()
 			);
 
-			const today = toUTC(new Date());
-			today.setUTCHours(23, 59, 59, 999);
-
 			let txIndex = 0;
-			for (let d = toUTC(new Date(today)); d >= firstDayOfMonth; d.setUTCDate(d.getUTCDate() - 1)) {
+			for (let d = new Date(lastDayOfMonth); d >= firstDayOfMonth; d.setUTCDate(d.getUTCDate() - 1)) {
 				const dayStart = toUTC(new Date(d));
 				dayStart.setUTCHours(0, 0, 0, 0);
 				const dayEnd = toUTC(new Date(d));
 				dayEnd.setUTCHours(23, 59, 59, 999);
 
-				// Balance at the END of this day is the runningBalance
 				chartData.unshift({
 					date: toUTC(new Date(d)).toISOString(),
 					balance: runningBalance / 100
 				});
 
-				// Now adjust runningBalance by removing transactions that happened on this day
-				// to get the balance at the start of this day (which is the end of previous day)
 				while (
 					txIndex < sortedTransactions.length &&
 					sortedTransactions[txIndex].createdAt >= dayStart &&
@@ -70,6 +97,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 			return {
 				...account,
+				currentBalance: balanceAtEndOfMonth,
 				createdAt: account.createdAt.toISOString(),
 				updatedAt: account.updatedAt.toISOString(),
 				last10Transactions: last10Transactions.map((tx) => ({

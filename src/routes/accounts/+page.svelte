@@ -8,7 +8,8 @@
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
 	import EditAccountDialog from '$lib/components/account/edit-account-dialog.svelte';
 	import CurrencyManagerDialog from '$lib/components/currency/currency-manager-dialog.svelte';
-	import { CreditCard, TrendingUp, TrendingDown, Coins, Wallet, ArrowRight } from '@lucide/svelte';
+	import * as Select from '$lib/components/ui/select/index.js';
+	import { CreditCard, TrendingUp, TrendingDown, Coins, Wallet, ArrowRight, Calendar } from '@lucide/svelte';
 	import { scaleTime, scaleLinear } from 'd3-scale';
 	import { Chart, Area, Axis, Tooltip as LCTooltip, Svg } from 'layerchart';
 	import ChartContainer from '$lib/components/ui/chart/chart-container.svelte';
@@ -48,10 +49,25 @@
 		chartData: ChartDataPoint[];
 	}
 
+	// Month/Year selection
+	const now = new Date();
+	let selectedMonth = $state(now.getUTCMonth());
+	let selectedYear = $state(now.getUTCFullYear());
+
+	const months = [
+		'January', 'February', 'March', 'April', 'May', 'June',
+		'July', 'August', 'September', 'October', 'November', 'December'
+	];
+
+	const years = Array.from({ length: 5 }, (_, i) => now.getUTCFullYear() - 2 + i);
+
 	// Query for detailed accounts
 	const accountsQuery = createQuery<DetailedAccount[]>(() => ({
-		queryKey: ['accounts', 'detailed'],
-		queryFn: async () => (await fetch('/api/accounts/detailed')).json()
+		queryKey: ['accounts', 'detailed', selectedMonth, selectedYear],
+		queryFn: async () => {
+			const res = await fetch(`/api/accounts/detailed?month=${selectedMonth}&year=${selectedYear}`);
+			return res.json();
+		}
 	}));
 
 	let accounts = $derived(accountsQuery.data ?? []);
@@ -96,9 +112,48 @@
 	}
 </script>
 
-<div class="mb-8 flex justify-end gap-2">
-	<CurrencyManagerDialog />
-	<CreateAccountDialog />
+<div class="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
+	<div class="flex items-center gap-3">
+		<div class="flex h-10 items-center gap-2 rounded-xl border bg-card px-3 shadow-sm">
+			<Calendar class="h-4 w-4 text-muted-foreground" />
+			<select
+				bind:value={selectedMonth}
+				class="bg-transparent text-sm font-bold focus:outline-none"
+			>
+				{#each months as month, i}
+					<option value={i}>{month}</option>
+				{/each}
+			</select>
+			<div class="h-4 w-px bg-border"></div>
+			<select
+				bind:value={selectedYear}
+				class="bg-transparent text-sm font-bold focus:outline-none"
+			>
+				{#each years as year}
+					<option value={year}>{year}</option>
+				{/each}
+			</select>
+		</div>
+		
+		{#if selectedMonth !== now.getUTCMonth() || selectedYear !== now.getUTCFullYear()}
+			<Button
+				variant="ghost"
+				size="sm"
+				onclick={() => {
+					selectedMonth = now.getUTCMonth();
+					selectedYear = now.getUTCFullYear();
+				}}
+				class="text-[10px] font-bold tracking-widest uppercase"
+			>
+				Reset to Today
+			</Button>
+		{/if}
+	</div>
+
+	<div class="flex items-center gap-2">
+		<CurrencyManagerDialog />
+		<CreateAccountDialog />
+	</div>
 </div>
 
 {#if accounts.length === 0}
@@ -199,7 +254,7 @@
 								class="mb-6 flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase"
 							>
 								<div class="h-1 w-3 rounded-full" style="background-color: {account.color}"></div>
-								Balance History (MTD)
+								Balance History ({months[selectedMonth]} {selectedYear})
 							</h3>
 							<ChartContainer config={chartConfig} class="aspect-auto h-[280px] w-full">
 								<Chart

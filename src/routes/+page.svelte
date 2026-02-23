@@ -26,7 +26,8 @@
 		Trash2,
 		Plus,
 		Info,
-		Target
+		Target,
+		Calendar
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
@@ -104,6 +105,18 @@
 	let goalDialogOpen = $state(false);
 	let goalAccount = $state<SerializedAccount | null>(null);
 
+	// Month/Year selection for dashboard
+	const dashboardNow = new Date();
+	let selectedMonth = $state(dashboardNow.getUTCMonth());
+	let selectedYear = $state(dashboardNow.getUTCFullYear());
+
+	const months = [
+		'January', 'February', 'March', 'April', 'May', 'June',
+		'July', 'August', 'September', 'October', 'November', 'December'
+	];
+
+	const years = Array.from({ length: 5 }, (_, i) => dashboardNow.getUTCFullYear() - 2 + i);
+
 	function openGoalDialog(account: SerializedAccount) {
 		goalAccount = account;
 		goalDialogOpen = true;
@@ -151,19 +164,19 @@
 		(totalBalance / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 	);
 
-	// Calculate real stats (filtered for current month)
-	const now = new Date();
-	const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+	// Calculate real stats (filtered for selected month)
+	let firstDayOfSelectedMonth = $derived(new Date(Date.UTC(selectedYear, selectedMonth, 1)));
+	let lastDayOfSelectedMonth = $derived(new Date(Date.UTC(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999)));
 
 	let monthlyIncome = $derived(
 		transactions
-			.filter((tx) => tx.type === 'income' && new Date(tx.createdAt) >= firstDayOfMonth)
+			.filter((tx) => tx.type === 'income' && new Date(tx.createdAt) >= firstDayOfSelectedMonth && new Date(tx.createdAt) <= lastDayOfSelectedMonth)
 			.reduce((acc: number, curr) => acc + curr.amount, 0)
 	);
 
 	let monthlyExpenses = $derived(
 		transactions
-			.filter((tx) => tx.type === 'expense' && new Date(tx.createdAt) >= firstDayOfMonth)
+			.filter((tx) => tx.type === 'expense' && new Date(tx.createdAt) >= firstDayOfSelectedMonth && new Date(tx.createdAt) <= lastDayOfSelectedMonth)
 			.reduce((acc: number, curr) => acc + curr.amount, 0)
 	);
 
@@ -242,6 +255,45 @@
 </script>
 
 <!-- Summary Grid -->
+<div class="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
+	<div class="flex items-center gap-3">
+		<div class="flex h-10 items-center gap-2 rounded-xl border bg-card px-3 shadow-sm">
+			<Calendar class="h-4 w-4 text-muted-foreground" />
+			<select
+				bind:value={selectedMonth}
+				class="bg-transparent text-sm font-bold focus:outline-none"
+			>
+				{#each months as month, i}
+					<option value={i}>{month}</option>
+				{/each}
+			</select>
+			<div class="h-4 w-px bg-border"></div>
+			<select
+				bind:value={selectedYear}
+				class="bg-transparent text-sm font-bold focus:outline-none"
+			>
+				{#each years as year}
+					<option value={year}>{year}</option>
+				{/each}
+			</select>
+		</div>
+		
+		{#if selectedMonth !== dashboardNow.getUTCMonth() || selectedYear !== dashboardNow.getUTCFullYear()}
+			<Button
+				variant="ghost"
+				size="sm"
+				onclick={() => {
+					selectedMonth = dashboardNow.getUTCMonth();
+					selectedYear = dashboardNow.getUTCFullYear();
+				}}
+				class="text-[10px] font-bold tracking-widest uppercase"
+			>
+				Reset to Today
+			</Button>
+		{/if}
+	</div>
+</div>
+
 <div class="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-4">
 	{#each summaryStats as stat (stat.title)}
 		<Card.Root>
@@ -378,7 +430,7 @@
 </div>
 
 <div class="mt-8">
-	<MtdBalanceChart {accounts} {transactions} />
+	<MtdBalanceChart {accounts} {transactions} {selectedMonth} {selectedYear} />
 </div>
 
 {#if goalAccount}
