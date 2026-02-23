@@ -31,11 +31,13 @@
 	let {
 		accounts,
 		transactions,
+		initialBalances = {},
 		selectedMonth = new Date().getUTCMonth(),
 		selectedYear = new Date().getUTCFullYear()
 	}: {
 		accounts: ChartAccount[];
 		transactions: ChartTransaction[];
+		initialBalances?: Record<string, number>;
 		selectedMonth?: number;
 		selectedYear?: number;
 	} = $props();
@@ -60,8 +62,9 @@
 			return [] as MonthToDateBalancePoint[];
 		}
 
-		const monthStart = new Date(Date.UTC(selectedYear, selectedMonth, 1));
-		const monthEnd = new Date(Date.UTC(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999));
+		// Use local dates for start and end of month
+		const monthStart = new Date(selectedYear, selectedMonth, 1);
+		const monthEnd = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999);
 		const accountIds = new Set(accounts.map((account) => account.id));
 
 		const dailyDeltaByDateAndAccount = new Map<string, Map<string, number>>();
@@ -78,8 +81,6 @@
 			if (tx.deletedAt !== null) continue;
 
 			const txDate = new Date(tx.createdAt);
-			if (txDate < monthStart || txDate > monthEnd) continue;
-
 			const dayKey = toLocalDateKey(txDate);
 
 			if (tx.type === 'income') {
@@ -99,23 +100,8 @@
 		// Calculate balance at the start of the selected month
 		const runningBalanceByAccount = new Map<string, number>();
 		for (const account of accounts) {
-			// To get the balance at the start of the month, we need to subtract all transactions 
-			// that happened AFTER the start of the month from the current balance.
-			let deltaSinceMonthStart = 0;
-			for (const tx of transactions) {
-				if (tx.deletedAt !== null) continue;
-				const txDate = new Date(tx.createdAt);
-				if (txDate >= monthStart) {
-					if (tx.accountId === account.id) {
-						if (tx.type === 'income') deltaSinceMonthStart += tx.amount;
-						else deltaSinceMonthStart -= tx.amount;
-					}
-					if (tx.toAccountId === account.id && tx.type === 'transfer') {
-						deltaSinceMonthStart += tx.amount;
-					}
-				}
-			}
-			runningBalanceByAccount.set(account.id, account.currentBalance - deltaSinceMonthStart);
+			// Use the initial balance provided by the server
+			runningBalanceByAccount.set(account.id, initialBalances[account.id] ?? 0);
 		}
 
 		const points: MonthToDateBalancePoint[] = [];
@@ -128,7 +114,7 @@
 
 			const balances: Record<string, number> = {};
 			for (const account of accounts) {
-				const currentBalance = runningBalanceByAccount.get(account.id) ?? account.currentBalance;
+				const currentBalance = runningBalanceByAccount.get(account.id) ?? 0;
 				const dayDelta = dayDeltaMap?.get(account.id) ?? 0;
 				const endOfDayBalance = currentBalance + dayDelta;
 				runningBalanceByAccount.set(account.id, endOfDayBalance);

@@ -74,6 +74,11 @@
 
 	let { data: _data } = $props();
 
+	// Month/Year selection for dashboard
+	const dashboardNow = new Date();
+	let selectedMonth = $state(dashboardNow.getUTCMonth());
+	let selectedYear = $state(dashboardNow.getUTCFullYear());
+
 	// Query for accounts
 	const accountsQuery = createQuery<SerializedAccount[]>(() => ({
 		queryKey: ['accounts'],
@@ -81,9 +86,21 @@
 	}));
 
 	// Query for transactions
-	const transactionsQuery = createQuery<SerializedTransaction[]>(() => ({
-		queryKey: ['transactions'],
-		queryFn: async () => (await fetch('/api/transactions')).json()
+	const transactionsQuery = createQuery<{
+		transactions: SerializedTransaction[];
+		initialBalances: Record<string, number>;
+	}>(() => ({
+		queryKey: [
+			'transactions',
+			selectedMonth,
+			selectedYear,
+			Intl.DateTimeFormat().resolvedOptions().timeZone
+		],
+		queryFn: async () => {
+			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+			const res = await fetch(`/api/transactions?month=${selectedMonth}&year=${selectedYear}&tz=${tz}`);
+			return res.json();
+		}
 	}));
 
 	// Query for budgets
@@ -95,7 +112,8 @@
 	const queryClient = useQueryClient();
 
 	let accounts = $derived(accountsQuery.data ?? []);
-	let transactions = $derived(transactionsQuery.data ?? []);
+	let transactions = $derived(transactionsQuery.data?.transactions ?? []);
+	let initialBalances = $derived(transactionsQuery.data?.initialBalances ?? {});
 	let budgets = $derived(budgetsQuery.data ?? []);
 
 	let editingTransaction = $state<SerializedTransaction | null>(null);
@@ -104,11 +122,6 @@
 
 	let goalDialogOpen = $state(false);
 	let goalAccount = $state<SerializedAccount | null>(null);
-
-	// Month/Year selection for dashboard
-	const dashboardNow = new Date();
-	let selectedMonth = $state(dashboardNow.getUTCMonth());
-	let selectedYear = $state(dashboardNow.getUTCFullYear());
 
 	const months = [
 		'January', 'February', 'March', 'April', 'May', 'June',
@@ -430,7 +443,7 @@
 </div>
 
 <div class="mt-8">
-	<MtdBalanceChart {accounts} {transactions} {selectedMonth} {selectedYear} />
+	<MtdBalanceChart {accounts} {transactions} {initialBalances} {selectedMonth} {selectedYear} />
 </div>
 
 {#if goalAccount}

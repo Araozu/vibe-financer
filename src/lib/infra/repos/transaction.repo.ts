@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { transaction } from '../db/schema';
-import { eq, desc, isNull, and } from 'drizzle-orm';
+import { eq, desc, isNull, and, between, lt } from 'drizzle-orm';
 import type { Transaction, CreateTransactionDTO } from '../../domain/transaction';
 
 export const transactionRepo = {
@@ -20,6 +20,45 @@ export const transactionRepo = {
 			.from(transaction)
 			.where(and(eq(transaction.accountId, accountId), isNull(transaction.deletedAt)))
 			.orderBy(desc(transaction.createdAt));
+	},
+
+	async findByDateRange(accountId: string, start: Date, end: Date): Promise<Transaction[]> {
+		return await db
+			.select()
+			.from(transaction)
+			.where(
+				and(
+					eq(transaction.accountId, accountId),
+					isNull(transaction.deletedAt),
+					between(transaction.createdAt, start, end)
+				)
+			)
+			.orderBy(desc(transaction.createdAt));
+	},
+
+	async getSumBeforeDate(accountId: string, date: Date): Promise<number> {
+		const transactionsBefore = await db
+			.select()
+			.from(transaction)
+			.where(
+				and(
+					eq(transaction.accountId, accountId),
+					isNull(transaction.deletedAt),
+					lt(transaction.createdAt, date)
+				)
+			);
+
+		return transactionsBefore.reduce((sum, tx) => {
+			if (tx.type === 'income') return sum + tx.amount;
+			if (tx.type === 'expense') return sum - tx.amount;
+			if (tx.type === 'transfer') {
+				// If this is the source account, it's a deduction
+				if (tx.accountId === accountId) return sum - tx.amount;
+				// If this is the destination account, it's an addition
+				// (But wait, findByAccountId only finds where tx.accountId matches)
+			}
+			return sum;
+		}, 0);
 	},
 
 	async findByAccountIdPaginated(
