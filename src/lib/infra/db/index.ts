@@ -1,4 +1,5 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
 import { env } from '$env/dynamic/private';
 
@@ -11,3 +12,4 @@ const pool = new pg.Pool({
 });
 
 export const db = drizzle(pool);
+await migrate(db, { migrationsFolder: './drizzle' });
