@@ -26,7 +26,8 @@
         project_src: '{{ remote_folder }}'
         files: >
           {{
-            project_services | map('regex_replace', '^(.*)$', 'docker-compose.\1.yml')
+            project_services | map('regex_replace', '^(.*)$', 'docker-compose.\1.yml') +
+            ['docker-compose.base.yml']
           }}
         env_files: >
           {{
