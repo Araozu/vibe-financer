@@ -140,12 +140,8 @@
 		amount = '';
 		category = '';
 		_payee = '';
-		selectedToAccountId = '';
-		transactionDate = new Date().toISOString().split('T')[0];
-		transactionTime = new Date().toLocaleTimeString('en-GB', {
-			hour: '2-digit',
-			minute: '2-digit'
-		});
+		// We no longer reset transactionDate and transactionTime and selectedToAccountId here
+		// as per user request to keep their values on submit.
 	}
 
 	function addDayToDate() {
