@@ -88,16 +88,64 @@ export async function deleteTransaction(
 		deletedAt: new Date()
 	});
 
-	// TODO: Handle transfers
-	// If the transaction is a transfer, we need to create a corresponding
-	// TransactionDeleted event for the destination account to reverse the transfer.
-	// This requires multi-stream transaction support (similar to create-transaction.ts TODO)
-	if (tx.type === 'transfer' && tx.toAccountId) {
-		// For now, log a warning about incomplete transfer deletion
-		console.warn(
-			`Transfer deletion for transaction ${transactionId} is incomplete. ` +
-				`Destination account ${tx.toAccountId} was not adjusted. ` +
-				`This requires implementing multi-stream atomic operations.`
+	// 8. Update budget projections
+	// If the transaction was an expense and had a category, we need to reverse its impact
+	if (tx.category && tx.type === 'expense') {
+		const activeBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
+			tx.category,
+			tx.createdAt
 		);
+		for (const b of activeBudgets) {
+			await eventStoreRepo.updateBudgetProjection(b.id, {
+				currentSpent: b.currentSpent - tx.amount
+			});
+		}
+	}
+
+	// 9. Handle transfers (reverse impact on destination account)
+	if (tx.type === 'transfer' && tx.toAccountId) {
+		const destAccount = await getAccountState(tx.toAccountId);
+		if (destAccount && canAcceptTransaction(destAccount)) {
+			const destVersion = await getAccountVersion(tx.toAccountId);
+			
+			// For destination account, the transfer was an income.
+			// To delete it, we need to subtract the amount.
+			const destBalanceAdjustment = -tx.amount;
+			const destPayload: TransactionDeletedPayload = {
+				transactionId: tx.id,
+				reason: reason ? `${reason} (Transfer reversal)` : 'Transfer reversal',
+				balanceAdjustment: destBalanceAdjustment
+			};
+
+			const destEvent = createTransactionDeletedEvent(
+				tx.toAccountId,
+				userId,
+				destPayload,
+				destVersion + 1
+			);
+
+			// Append event to destination stream
+			try {
+				await eventStoreRepo.append(destEvent, { expectedVersion: destVersion });
+				
+				// Update destination account read model
+				await eventStoreRepo.updateAccountProjection(tx.toAccountId, {
+					currentBalance: destAccount.currentBalance + destBalanceAdjustment
+				});
+
+				// Update transaction projection for the destination account side
+				// Note: Transfers have a single transaction ID but may appear in multiple account views
+				// We need to ensure the projection reflects the deletion for any view
+				await eventStoreRepo.updateTransactionProjection(transactionId, {
+					deletedAt: new Date()
+				});
+			} catch (err: unknown) {
+				const e = err as { name?: string };
+				if (e?.name === 'ConcurrencyError') {
+					throw error(409, 'Concurrent update detected while reversing transfer on destination account. Please retry.');
+				}
+				throw err;
+			}
+		}
 	}
 }

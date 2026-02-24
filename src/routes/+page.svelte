@@ -268,6 +268,10 @@
 	];
 </script>
 
+<svelte:head>
+	<title>Dashboard - {months[selectedMonth]} {selectedYear}</title>
+</svelte:head>
+
 <!-- Summary Grid -->
 <div class="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
 	<div class="flex items-center gap-3">

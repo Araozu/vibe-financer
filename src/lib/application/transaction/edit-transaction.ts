@@ -41,9 +41,21 @@ export async function editTransaction(
 		throw error(404, 'Transaction not found');
 	}
 
-	// 2. For now, don't support editing transfers (would require multi-account event coordination)
+	// 2. Handle transfers
 	if (currentTransaction.type === 'transfer' || updates.type === 'transfer') {
-		throw error(400, 'Editing transfers is not yet supported');
+		// If it's a transfer, we need to coordinate updates across two accounts
+		// For now, we only support editing transfer details (name, description, category, payee)
+		// and not the core financial data (amount, from/to accounts) to avoid complex coordination.
+		const isFinancialChange = 
+			(updates.amount !== undefined && updates.amount !== currentTransaction.amount) ||
+			(updates.type !== undefined && updates.type !== currentTransaction.type) ||
+			(updates.toAccountId !== undefined && updates.toAccountId !== currentTransaction.toAccountId);
+
+		if (isFinancialChange) {
+			throw error(400, 'Editing transfer amounts or accounts is not yet supported. Please delete and recreate the transfer.');
+		}
+
+		// Continue with non-financial updates for transfers
 	}
 
 	// 3. Get the account state to validate and calculate balance changes
@@ -165,6 +177,52 @@ export async function editTransaction(
 
 	if (!updated) {
 		throw error(500, 'Failed to update transaction projection');
+	}
+
+	// 10.5. If it's a transfer, we might need to update the destination account's view
+	// (Though currently transfers share a single projection, we ensure it's updated)
+	if (currentTransaction.type === 'transfer' && currentTransaction.toAccountId) {
+		// In our current projection model, transfers are a single record, 
+		// but if we ever split them, we'd update the destination side here.
+		// For now, the update above already covered the shared projection.
+	}
+
+	// 11. Update budget projections
+	// If the amount or category changed, we need to adjust the budgets
+	const oldCategory = currentTransaction.category;
+	const newCategory = updates.category !== undefined ? updates.category : currentTransaction.category;
+	const oldAmount = currentTransaction.amount;
+	const newAmount = updates.amount !== undefined ? updates.amount : currentTransaction.amount;
+	const oldType = currentTransaction.type;
+	const newType = updates.type !== undefined ? updates.type : currentTransaction.type;
+
+	// Only adjust budgets if it's an expense or was an expense
+	if ((oldCategory && oldType === 'expense') || (newCategory && newType === 'expense')) {
+		// 1. Reverse the old impact if it was an expense
+		if (oldCategory && oldType === 'expense') {
+			const oldActiveBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
+				oldCategory,
+				currentTransaction.createdAt
+			);
+			for (const b of oldActiveBudgets) {
+				await eventStoreRepo.updateBudgetProjection(b.id, {
+					currentSpent: b.currentSpent - oldAmount
+				});
+			}
+		}
+
+		// 2. Apply the new impact if it is an expense
+		if (newCategory && newType === 'expense') {
+			const newActiveBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
+				newCategory,
+				updates.transactionDate ? toUTC(updates.transactionDate) : currentTransaction.createdAt
+			);
+			for (const b of newActiveBudgets) {
+				await eventStoreRepo.updateBudgetProjection(b.id, {
+					currentSpent: b.currentSpent + newAmount
+				});
+			}
+		}
 	}
 
 	return updated;
