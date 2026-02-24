@@ -13,9 +13,57 @@
 		ArrowLeft,
 		ChevronLeft,
 		ChevronRight,
-		Loader2
+		Loader2,
+		MoreVertical,
+		Pencil,
+		Trash2
 	} from '@lucide/svelte';
+	import { useQueryClient } from '@tanstack/svelte-query';
+	import TransactionRow from '$lib/components/transaction/transaction-row.svelte';
+	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
 	import type { AccountType } from '$lib/domain/account';
+
+	const queryClient = useQueryClient();
+
+	let editingTransaction = $state<any | null>(null);
+	let editDialogOpen = $state(false);
+	let deletingTransactionId = $state<string | null>(null);
+
+	function openEditDialog(tx: any) {
+		editingTransaction = tx;
+		editDialogOpen = true;
+	}
+
+	async function handleDeleteTransaction(transactionId: string) {
+		if (
+			!confirm(
+				'Are you sure you want to delete this transaction? This will adjust the account balance accordingly.'
+			)
+		) {
+			return;
+		}
+
+		deletingTransactionId = transactionId;
+
+		try {
+			const response = await fetch(`/api/transactions/${transactionId}`, {
+				method: 'DELETE'
+			});
+
+			if (!response.ok) {
+				const error = await response.json();
+				throw new Error(error.error ?? 'Failed to delete transaction');
+			}
+
+			// Invalidate queries to refresh the UI
+			await queryClient.invalidateQueries({ queryKey: ['accounts', account.id] });
+		} catch (error) {
+			console.error('Error deleting transaction:', error);
+			alert(error instanceof Error ? error.message : 'Failed to delete transaction');
+		} finally {
+			deletingTransactionId = null;
+		}
+	}
 
 	let { data } = $props();
 	const account = $derived(data.account);
@@ -195,34 +243,13 @@
 							</Table.Row>
 						{:else}
 							{#each transactions as tx (tx.id)}
-								<Table.Row
-									class="group border-b border-border/40 transition-colors hover:bg-muted/20"
-								>
-									<Table.Cell class="py-4 pl-6 text-xs font-medium text-muted-foreground/70">
-										{formatDate(tx.createdAt)}
-									</Table.Cell>
-									<Table.Cell class="py-4">
-										<span class="text-sm font-bold tracking-tight"
-											>{tx.name || tx.payee || 'Untitled'}</span
-										>
-									</Table.Cell>
-									<Table.Cell class="py-4">
-										<Badge
-											variant="outline"
-											class="text-[10px] font-bold tracking-widest uppercase"
-										>
-											{tx.category || 'Uncategorized'}
-										</Badge>
-									</Table.Cell>
-									<Table.Cell class="py-4 pr-6 text-right font-black">
-										<span class={tx.type === 'income' ? 'text-emerald-500' : 'text-foreground'}>
-											{tx.type === 'income' ? '+' : ''}{formatAmount(
-												tx.amount,
-												account.currencySymbol ?? '$'
-											)}
-										</span>
-									</Table.Cell>
-								</Table.Row>
+								<TransactionRow
+									{tx}
+									{account}
+									{deletingTransactionId}
+									onEdit={openEditDialog}
+									onDelete={handleDeleteTransaction}
+								/>
 							{/each}
 						{/if}
 					</Table.Body>
@@ -231,3 +258,17 @@
 		</Card.Content>
 	</Card.Root>
 </div>
+
+<!-- Edit Transaction Dialog -->
+{#if editingTransaction}
+	<EditTransactionDialog
+		transaction={{
+			...editingTransaction,
+			createdAt: new Date(editingTransaction.createdAt),
+			updatedAt: new Date(editingTransaction.updatedAt),
+			deletedAt: null
+		}}
+		_accounts={[account]}
+		bind:open={editDialogOpen}
+	/>
+{/if}

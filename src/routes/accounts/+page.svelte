@@ -8,6 +8,7 @@
 	import EditAccountDialog from '$lib/components/account/edit-account-dialog.svelte';
 	import CurrencyManagerDialog from '$lib/components/currency/currency-manager-dialog.svelte';
 	import BalanceChart from '$lib/components/account/balance-chart.svelte';
+	import TransactionRow from '$lib/components/transaction/transaction-row.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import {
 		CreditCard,
@@ -16,10 +17,58 @@
 		Coins,
 		Wallet,
 		ArrowRight,
-		Calendar
+		Calendar,
+		MoreVertical,
+		Pencil,
+		Trash2
 	} from '@lucide/svelte';
+	import { useQueryClient } from '@tanstack/svelte-query';
+	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
 	import type { Account, AccountType } from '$lib/domain/account';
 	import type { TransactionType } from '$lib/domain/transaction';
+
+	const queryClient = useQueryClient();
+
+	let editingTransaction = $state<DetailedTransaction | null>(null);
+	let editDialogOpen = $state(false);
+	let deletingTransactionId = $state<string | null>(null);
+
+	function openEditDialog(tx: DetailedTransaction) {
+		editingTransaction = tx;
+		editDialogOpen = true;
+	}
+
+	async function handleDeleteTransaction(transactionId: string) {
+		if (
+			!confirm(
+				'Are you sure you want to delete this transaction? This will adjust the account balance accordingly.'
+			)
+		) {
+			return;
+		}
+
+		deletingTransactionId = transactionId;
+
+		try {
+			const response = await fetch(`/api/transactions/${transactionId}`, {
+				method: 'DELETE'
+			});
+
+			if (!response.ok) {
+				const error = await response.json();
+				throw new Error(error.error ?? 'Failed to delete transaction');
+			}
+
+			// Invalidate queries to refresh the UI
+			await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+			await queryClient.invalidateQueries({ queryKey: ['transactions'] });
+		} catch (error) {
+			console.error('Error deleting transaction:', error);
+			alert(error instanceof Error ? error.message : 'Failed to delete transaction');
+		} finally {
+			deletingTransactionId = null;
+		}
+	}
 
 	// Serialized types from API
 	interface SerializedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
@@ -305,34 +354,13 @@
 											</Table.Row>
 										{:else}
 											{#each account.last10Transactions as tx (tx.id)}
-												<Table.Row
-													class="group border-b border-border/40 transition-colors hover:bg-muted/20"
-												>
-													<Table.Cell class="py-4 text-[11px] font-medium text-muted-foreground/70">
-														{formatDate(tx.createdAt)}
-													</Table.Cell>
-													<Table.Cell class="py-4">
-														<div class="flex flex-col">
-															<span class="line-clamp-1 text-sm font-bold tracking-tight"
-																>{tx.name || tx.payee || 'Untitled'}</span
-															>
-															<span
-																class="text-[9px] font-bold tracking-widest text-muted-foreground/50 uppercase"
-																>{tx.category || 'Uncategorized'}</span
-															>
-														</div>
-													</Table.Cell>
-													<Table.Cell class="py-4 text-right font-black">
-														<span
-															class={tx.type === 'income' ? 'text-emerald-500' : 'text-foreground'}
-														>
-															{tx.type === 'income' ? '+' : ''}{formatAmount(
-																tx.amount,
-																account.currencySymbol ?? '$'
-															)}
-														</span>
-													</Table.Cell>
-												</Table.Row>
+												<TransactionRow
+													{tx}
+													{account}
+													{deletingTransactionId}
+													onEdit={openEditDialog}
+													onDelete={handleDeleteTransaction}
+												/>
 											{/each}
 										{/if}
 									</Table.Body>
@@ -355,4 +383,18 @@
 			</Card.Root>
 		{/each}
 	</div>
+{/if}
+
+<!-- Edit Transaction Dialog -->
+{#if editingTransaction}
+	<EditTransactionDialog
+		transaction={{
+			...editingTransaction,
+			createdAt: new Date(editingTransaction.createdAt),
+			updatedAt: new Date(editingTransaction.updatedAt),
+			deletedAt: null
+		}}
+		_accounts={_basicAccounts}
+		bind:open={editDialogOpen}
+	/>
 {/if}
