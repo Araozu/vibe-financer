@@ -20,13 +20,25 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	return {
 		account: {
 			...account,
-			createdAt: account.createdAt.toISOString(),
-			updatedAt: account.updatedAt.toISOString()
+			createdAt:
+				account.createdAt instanceof Date
+					? account.createdAt.toISOString()
+					: new Date(account.createdAt).toISOString(),
+			updatedAt:
+				account.updatedAt instanceof Date
+					? account.updatedAt.toISOString()
+					: new Date(account.updatedAt).toISOString()
 		},
 		initialTransactions: initialTransactions.map((tx) => ({
 			...tx,
-			createdAt: tx.createdAt.toISOString(),
-			updatedAt: tx.updatedAt.toISOString()
+			createdAt:
+				tx.createdAt instanceof Date
+					? tx.createdAt.toISOString()
+					: new Date(tx.createdAt).toISOString(),
+			updatedAt:
+				tx.updatedAt instanceof Date
+					? tx.updatedAt.toISOString()
+					: new Date(tx.updatedAt).toISOString()
 		}))
 	};
 };

@@ -428,8 +428,15 @@ export const eventStoreRepo = {
 
 		if (!result) return null;
 
+		const state = result.state as unknown as AccountState;
+
+		// Hydrate dates from JSONB
 		return {
-			state: result.state as unknown as AccountState,
+			state: {
+				...state,
+				createdAt: new Date(state.createdAt),
+				updatedAt: new Date(state.updatedAt)
+			},
 			version: result.version
 		};
 	},
