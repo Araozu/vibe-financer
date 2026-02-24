@@ -85,7 +85,7 @@
 		{/if}
 	</Table.Cell>
 	<Table.Cell class="hidden md:table-cell">
-		<Badge variant="secondary">{tx.category ?? 'Uncategorized'}</Badge>
+		<Badge variant="secondary">{tx.category && tx.category.trim() !== '' ? tx.category : 'None'}</Badge>
 	</Table.Cell>
 	<Table.Cell
 		class="text-right font-medium {tx.type === 'income'
