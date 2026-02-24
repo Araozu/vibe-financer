@@ -205,7 +205,7 @@
 		<!-- Type Select -->
 		<Select.Root type="single" bind:value={selectedType}>
 			<Select.Trigger
-				class="h-8 w-32 gap-2 rounded-md border border-border/40 bg-linear-to-b from-background to-muted/30 px-2.5 py-1.5 text-xs font-medium shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset,0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:to-muted/50 active:translate-y-[1px] active:shadow-inner dark:from-muted/15 dark:to-muted/5 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_1.5px_3px_rgba(0,0,0,0.3)]"
+				class="h-8 w-32 gap-2 rounded-md border border-border/40 bg-linear-to-b from-background to-accent/10 px-2.5 py-1.5 text-xs font-medium shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset,0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:to-accent/20 active:translate-y-[1px] active:shadow-inner dark:from-muted/15 dark:to-muted/5 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_1.5px_3px_rgba(0,0,0,0.3)]"
 			>
 				{@const currentType = transactionTypes.find((t) => t.value === selectedType)}
 				{#if currentType}
@@ -229,7 +229,7 @@
 		<!-- Account Select -->
 		<Select.Root type="single" bind:value={selectedAccountId}>
 			<Select.Trigger
-				class="h-8 w-auto gap-2 rounded-md border border-border/40 bg-linear-to-b from-background to-muted/30 px-2.5 py-1.5 text-xs font-medium shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset,0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:to-muted/50 active:translate-y-[1px] active:shadow-inner dark:from-muted/15 dark:to-muted/5 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_1.5px_3px_rgba(0,0,0,0.3)]"
+				class="h-8 w-auto gap-2 rounded-md border border-border/40 bg-linear-to-b from-background to-accent/10 px-2.5 py-1.5 text-xs font-medium shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset,0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:to-accent/20 active:translate-y-[1px] active:shadow-inner dark:from-muted/15 dark:to-muted/5 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_1.5px_3px_rgba(0,0,0,0.3)]"
 			>
 				<Wallet class="h-3.5 w-3.5 text-muted-foreground/60" />
 				<span>{accounts.find((a) => a.id === selectedAccountId)?.name ?? 'Select Account'}</span>
@@ -253,7 +253,7 @@
 			{#if availableToAccounts.length > 0}
 				<Select.Root type="single" bind:value={selectedToAccountId}>
 					<Select.Trigger
-						class="h-8 w-auto gap-2 rounded-md border border-blue-500/30 bg-linear-to-b from-blue-500/10 to-blue-500/20 px-2.5 py-1.5 text-xs font-medium shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset,0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:to-blue-500/30 active:translate-y-[1px] active:shadow-inner dark:from-blue-600/20 dark:to-blue-600/10 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_1.5px_3px_rgba(0,0,0,0.3)]"
+						class="h-8 w-auto gap-2 rounded-md border border-blue-500/30 bg-linear-to-b from-blue-500/5 to-blue-500/10 px-2.5 py-1.5 text-xs font-medium shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset,0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:to-blue-500/20 active:translate-y-[1px] active:shadow-inner dark:from-blue-600/20 dark:to-blue-600/10 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_1.5px_3px_rgba(0,0,0,0.3)]"
 					>
 						<ArrowLeftRight class="h-3.5 w-3.5 text-blue-500" />
 						<span
