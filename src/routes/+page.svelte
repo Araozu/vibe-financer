@@ -11,6 +11,7 @@
 	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
 	import SetGoalDialog from '$lib/components/account/set-goal-dialog.svelte';
 	import MtdBalanceChart from '$lib/components/dashboard/mtd-balance-chart.svelte';
+	import TransactionRow from '$lib/components/transaction/transaction-row.svelte';
 	import {
 		Wallet,
 		TrendingUp,
@@ -479,97 +480,13 @@
 					</Table.Header>
 					<Table.Body>
 						{#each transactions.slice(0, 10) as tx (tx.id)}
-							{@const account = accounts.find((a) => a.id === tx.accountId)}
-							{@const Icon = getCategoryIcon(tx.category)}
-							<Table.Row>
-								<Table.Cell>
-									<div class="flex items-center gap-3">
-										<div class="rounded-full bg-muted p-2">
-											<Icon class="h-4 w-4" />
-										</div>
-										<div>
-											<div class="font-medium">{tx.name ?? 'Untitled'}</div>
-											<Tooltip.Provider>
-												<Tooltip.Root>
-													<Tooltip.Trigger>
-														<div class="text-xs text-muted-foreground">
-															{formatLocalDate(tx.createdAt)}
-														</div>
-													</Tooltip.Trigger>
-													<Tooltip.Content>
-														<div class="flex flex-col gap-1 p-1">
-															<div
-																class="flex items-center gap-2 text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase"
-															>
-																<Info class="h-3 w-3" />
-																Full Timestamp
-															</div>
-															<div class="text-xs font-medium">
-																{formatLocalDateTime(tx.createdAt)}
-															</div>
-															<div class="text-[10px] text-muted-foreground/80 italic">
-																{new Intl.DateTimeFormat('en-US', { timeZoneName: 'long' })
-																	.format(new Date(tx.createdAt))
-																	.split(', ')[1]}
-															</div>
-														</div>
-													</Tooltip.Content>
-												</Tooltip.Root>
-											</Tooltip.Provider>
-										</div>
-									</div>
-								</Table.Cell>
-								<Table.Cell class="hidden md:table-cell">
-									{#if account}
-										<div class="flex items-center gap-2">
-											<div
-												class="h-2 w-2 rounded-full"
-												style="background-color: {account.color}"
-											></div>
-											<span class="text-xs">{account.name}</span>
-										</div>
-									{/if}
-								</Table.Cell>
-								<Table.Cell class="hidden md:table-cell">
-									<Badge variant="secondary">{tx.category ?? 'Uncategorized'}</Badge>
-								</Table.Cell>
-								<Table.Cell
-									class="text-right font-medium {tx.type === 'income'
-										? 'text-income'
-										: 'text-expense'}"
-								>
-									{tx.type === 'income' ? '+' : '-'}{(tx.amount / 100).toLocaleString('en-US', {
-										style: 'currency',
-										currency: 'USD'
-									})}
-								</Table.Cell>
-								<Table.Cell>
-									<DropdownMenu.Root>
-										<DropdownMenu.Trigger>
-											<Button variant="ghost" size="icon" class="h-8 w-8">
-												<MoreVertical class="h-4 w-4" />
-												<span class="sr-only">Open menu</span>
-											</Button>
-										</DropdownMenu.Trigger>
-										<DropdownMenu.Content align="end">
-											<DropdownMenu.Label>Actions</DropdownMenu.Label>
-											<DropdownMenu.Separator />
-											<DropdownMenu.Item onclick={() => openEditDialog(tx)}>
-												<Pencil class="mr-2 h-4 w-4" />
-												Edit
-											</DropdownMenu.Item>
-											<DropdownMenu.Item
-												class="text-destructive"
-												onclick={() => handleDeleteTransaction(tx.id)}
-												disabled={deletingTransactionId === tx.id}
-											>
-												<Trash2 class="mr-2 h-4 w-4" />
-												{deletingTransactionId === tx.id ? 'Deleting...' : 'Delete'}
-											</DropdownMenu.Item>
-										</DropdownMenu.Content>
-									</DropdownMenu.Root>
-								</Table.Cell>
-							</Table.Row>
+							<TransactionRow
+								{tx}
+								account={accounts.find((a) => a.id === tx.accountId)}
+								{deletingTransactionId}
+								onEdit={openEditDialog}
+								onDelete={handleDeleteTransaction}
+							/>
 						{/each}
 					</Table.Body>
 				</Table.Root>
