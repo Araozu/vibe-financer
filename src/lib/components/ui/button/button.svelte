@@ -13,7 +13,7 @@
 				outline:
 					'bg-linear-to-b from-background to-accent/10 hover:bg-accent/50 hover:text-accent-foreground dark:from-muted/15 dark:to-muted/5 dark:border-border/40 border border-b-2 shadow-[0_1px_0_rgba(255,255,255,0.1)_inset,0_1px_2px_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_1.5px_3px_rgba(0,0,0,0.3)] hover:border-accent/50 active:border-b active:shadow-inner',
 				secondary: 'bg-linear-to-b from-secondary/90 to-secondary text-secondary-foreground border-b-2 border-secondary/70 shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_2px_4px_rgba(0,0,0,0.1)] hover:brightness-105 active:shadow-inner active:border-b-0',
-				ghost: 'hover:bg-linear-to-b hover:from-accent/40 hover:to-accent/60 hover:text-accent-foreground dark:hover:bg-accent/30 border-transparent hover:border-accent/30 border-b-2 hover:shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_1px_2px_rgba(0,0,0,0.1)] active:bg-accent/60 active:shadow-inner active:border-b-0 transition-all',
+				ghost: 'hover:bg-linear-to-b hover:from-accent/40 hover:to-accent/60 hover:text-accent-foreground dark:hover:from-muted/20 dark:hover:to-muted/10 border-transparent hover:border-accent/30 border-b-2 hover:shadow-[0_1px_0_rgba(255,255,255,0.1)_inset,0_1px_2px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_1px_2px_rgba(0,0,0,0.3)] active:bg-accent/60 active:shadow-inner active:border-b-0 transition-all',
 				link: 'text-primary underline-offset-4 hover:underline'
 			},
 			size: {
