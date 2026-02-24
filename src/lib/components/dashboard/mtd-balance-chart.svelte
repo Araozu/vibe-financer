@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteMap, SvelteDate } from 'svelte/reactivity';
 	import { LineChart } from 'layerchart';
 	import { scaleTime } from 'd3-scale';
 	import { curveNatural } from 'd3-shape';
@@ -67,14 +68,17 @@
 		const monthEnd = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999);
 		const accountIds = new Set(accounts.map((account) => account.id));
 
-		const dailyDeltaByDateAndAccount = new Map<string, Map<string, number>>();
+		const dailyDeltaByDateAndAccount = new SvelteMap<string, SvelteMap<string, number>>();
 
 		function applyDelta(dayKey: string, accountId: string | null, delta: number) {
 			if (!accountId || !accountIds.has(accountId)) return;
 
-			const dayDeltaMap = dailyDeltaByDateAndAccount.get(dayKey) ?? new Map<string, number>();
+			let dayDeltaMap = dailyDeltaByDateAndAccount.get(dayKey);
+			if (!dayDeltaMap) {
+				dayDeltaMap = new SvelteMap<string, number>();
+				dailyDeltaByDateAndAccount.set(dayKey, dayDeltaMap);
+			}
 			dayDeltaMap.set(accountId, (dayDeltaMap.get(accountId) ?? 0) + delta);
-			dailyDeltaByDateAndAccount.set(dayKey, dayDeltaMap);
 		}
 
 		for (const tx of transactions) {
@@ -98,17 +102,17 @@
 		}
 
 		// Calculate balance at the start of the selected month
-		const runningBalanceByAccount = new Map<string, number>();
+		const runningBalanceByAccount = new SvelteMap<string, number>();
 		for (const account of accounts) {
 			// Use the initial balance provided by the server
 			runningBalanceByAccount.set(account.id, initialBalances[account.id] ?? 0);
 		}
 
 		const points: MonthToDateBalancePoint[] = [];
-		let cursor = new Date(monthStart);
+		let cursorDate = new SvelteDate(monthStart);
 
-		while (cursor <= monthEnd) {
-			const dayDate = new Date(cursor);
+		while (cursorDate <= monthEnd) {
+			const dayDate = new Date(cursorDate);
 			const dayKey = toLocalDateKey(dayDate);
 			const dayDeltaMap = dailyDeltaByDateAndAccount.get(dayKey);
 
@@ -128,8 +132,8 @@
 				balances
 			});
 
-			cursor = new Date(cursor);
-			cursor.setDate(cursor.getDate() + 1);
+			cursorDate = new SvelteDate(cursorDate);
+			cursorDate.setDate(cursorDate.getDate() + 1);
 		}
 
 		return points;

@@ -1,12 +1,11 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { useQueryClient } from '@tanstack/svelte-query';
-	import { PiggyBank, Target, Calendar, ChevronRight, Loader2, Plus, Trash2 } from '@lucide/svelte';
+	import { PiggyBank, Target, ChevronRight, Loader2, Trash2 } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
-	import { cn } from '$lib/utils.js';
 
 	const queryClient = useQueryClient();
 

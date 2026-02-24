@@ -1,7 +1,7 @@
 import { transactionRepo } from '$lib/infra/repos/transaction.repo';
 import type { Transaction } from '$lib/domain/transaction';
 import { startOfMonth, endOfMonth } from 'date-fns';
-import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { fromZonedTime } from 'date-fns-tz';
 
 export async function listTransactions(): Promise<Transaction[]> {
 	return await transactionRepo.findAll();

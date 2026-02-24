@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
-import { getAccountState, getAccountVersion } from './account-projection';
+import { getAccountState } from './account-projection';
 import {
 	createGoalSetEvent,
 	createGoalUpdatedEvent,

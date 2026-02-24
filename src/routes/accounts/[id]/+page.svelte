@@ -13,23 +13,22 @@
 		ArrowLeft,
 		ChevronLeft,
 		ChevronRight,
-		Loader2,
-		MoreVertical,
-		Pencil,
-		Trash2
+		Loader2
 	} from '@lucide/svelte';
 	import { useQueryClient } from '@tanstack/svelte-query';
 	import TransactionRow from '$lib/components/transaction/transaction-row.svelte';
 	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
 	import type { AccountType } from '$lib/domain/account';
 
+	import type { Transaction } from '$lib/domain/transaction';
+
 	const queryClient = useQueryClient();
 
-	let editingTransaction = $state<any | null>(null);
+	let editingTransaction = $state<Transaction | null>(null);
 	let editDialogOpen = $state(false);
 	let deletingTransactionId = $state<string | null>(null);
 
-	function openEditDialog(tx: any) {
+	function openEditDialog(tx: Transaction) {
 		editingTransaction = tx;
 		editDialogOpen = true;
 	}
@@ -109,14 +108,6 @@
 			maximumFractionDigits: 2
 		});
 		return `${currencySymbol}${formatted}`;
-	}
-
-	function formatDate(date: string | Date) {
-		return new Date(date).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
-		});
 	}
 
 	function nextPage() {

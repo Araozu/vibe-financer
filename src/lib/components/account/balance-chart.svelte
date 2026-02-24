@@ -7,12 +7,10 @@
 	let {
 		data,
 		color = '#3b82f6',
-		currencySymbol = '$',
 		currencyCode = 'USD'
 	}: {
 		data: ChartDataPoint[];
 		color?: string;
-		currencySymbol?: string;
 		currencyCode?: string;
 	} = $props();
 

@@ -9,7 +9,6 @@
 	import CurrencyManagerDialog from '$lib/components/currency/currency-manager-dialog.svelte';
 	import BalanceChart from '$lib/components/account/balance-chart.svelte';
 	import TransactionRow from '$lib/components/transaction/transaction-row.svelte';
-	import * as Select from '$lib/components/ui/select/index.js';
 	import {
 		CreditCard,
 		TrendingUp,
@@ -17,58 +16,13 @@
 		Coins,
 		Wallet,
 		ArrowRight,
-		Calendar,
-		MoreVertical,
-		Pencil,
-		Trash2
+		Calendar
 	} from '@lucide/svelte';
-	import { useQueryClient } from '@tanstack/svelte-query';
 	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
 	import type { Account, AccountType } from '$lib/domain/account';
 	import type { TransactionType } from '$lib/domain/transaction';
 
-	const queryClient = useQueryClient();
-
 	let editingTransaction = $state<DetailedTransaction | null>(null);
-	let editDialogOpen = $state(false);
-	let deletingTransactionId = $state<string | null>(null);
-
-	function openEditDialog(tx: DetailedTransaction) {
-		editingTransaction = tx;
-		editDialogOpen = true;
-	}
-
-	async function handleDeleteTransaction(transactionId: string) {
-		if (
-			!confirm(
-				'Are you sure you want to delete this transaction? This will adjust the account balance accordingly.'
-			)
-		) {
-			return;
-		}
-
-		deletingTransactionId = transactionId;
-
-		try {
-			const response = await fetch(`/api/transactions/${transactionId}`, {
-				method: 'DELETE'
-			});
-
-			if (!response.ok) {
-				const error = await response.json();
-				throw new Error(error.error ?? 'Failed to delete transaction');
-			}
-
-			// Invalidate queries to refresh the UI
-			await queryClient.invalidateQueries({ queryKey: ['accounts'] });
-			await queryClient.invalidateQueries({ queryKey: ['transactions'] });
-		} catch (error) {
-			console.error('Error deleting transaction:', error);
-			alert(error instanceof Error ? error.message : 'Failed to delete transaction');
-		} finally {
-			deletingTransactionId = null;
-		}
-	}
 
 	// Serialized types from API
 	interface SerializedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
@@ -167,13 +121,6 @@
 		});
 		return `${currencySymbol}${formatted}`;
 	}
-
-	function formatDate(date: string | Date) {
-		return new Date(date).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric'
-		});
-	}
 </script>
 
 <div class="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
@@ -184,13 +131,13 @@
 				bind:value={selectedMonth}
 				class="bg-transparent text-sm font-bold focus:outline-none"
 			>
-				{#each months as month, i}
+				{#each months as month, i (i)}
 					<option value={i}>{month}</option>
 				{/each}
 			</select>
 			<div class="h-4 w-px bg-border"></div>
 			<select bind:value={selectedYear} class="bg-transparent text-sm font-bold focus:outline-none">
-				{#each years as year}
+				{#each years as year (year)}
 					<option value={year}>{year}</option>
 				{/each}
 			</select>

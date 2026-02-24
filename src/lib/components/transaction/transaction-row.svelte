@@ -18,11 +18,33 @@
 	} from '@lucide/svelte';
 	import { formatLocalDate, formatLocalDateTime } from '$lib/domain/date-formatter';
 
+	export interface Transaction {
+		id: string;
+		accountId: string;
+		type: 'expense' | 'income' | 'transfer';
+		amount: number;
+		name: string | null;
+		description: string | null;
+		category: string | null;
+		payee: string | null;
+		toAccountId: string | null;
+		createdAt: string;
+		updatedAt: string;
+		deletedAt: string | null;
+	}
+
+	export interface Account {
+		id: string;
+		name: string;
+		color: string;
+		// ... other fields if needed
+	}
+
 	let { tx, account, deletingTransactionId, onEdit, onDelete } = $props<{
-		tx: any;
-		account: any;
+		tx: Transaction;
+		account: Account | null;
 		deletingTransactionId: string | null;
-		onEdit: (tx: any) => void;
+		onEdit: (tx: Transaction) => void;
 		onDelete: (id: string) => void;
 	}>();
 

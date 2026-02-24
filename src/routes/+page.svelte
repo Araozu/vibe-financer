@@ -4,8 +4,6 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
 	import CreateTransactionForm from '$lib/components/transaction/create-transaction-form.svelte';
@@ -18,18 +16,10 @@
 		TrendingUp,
 		TrendingDown,
 		PiggyBank,
-		Utensils,
-		Car,
-		Home,
-		ShoppingBag,
-		Tag,
-		MoreVertical,
-		Pencil,
-		Trash2,
 		Plus,
-		Info,
 		Target,
-		Calendar
+		Calendar,
+		Pencil
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
@@ -70,9 +60,6 @@
 		currencyCode: string | null;
 		currencySymbol: string | null;
 	};
-
-	import { formatLocalDate, formatLocalDateTime } from '$lib/domain/date-formatter';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	let { data: _data } = $props();
 
@@ -270,19 +257,6 @@
 		}
 	]);
 
-	// Icon mapping for categories (simplified for now)
-	function getCategoryIcon(category: string | null) {
-		if (!category) return Tag;
-		const cat = category.toLowerCase();
-		if (cat.includes('food') || cat.includes('eat')) return Utensils;
-		if (cat.includes('car') || cat.includes('transport')) return Car;
-		if (cat.includes('home') || cat.includes('rent')) return Home;
-		if (cat.includes('shop')) return ShoppingBag;
-		if (cat.includes('income') || cat.includes('salary')) return TrendingUp;
-		return Tag;
-	}
-
-	// Budgets
 	const budgetColors = [
 		'bg-blue-500',
 		'bg-income',
@@ -310,7 +284,7 @@
 					{months[selectedMonth]}
 				</Select.Trigger>
 				<Select.Content>
-					{#each months as month, i}
+					{#each months as month, i (i)}
 						<Select.Item value={i.toString()} label={month}>{month}</Select.Item>
 					{/each}
 				</Select.Content>
@@ -329,7 +303,7 @@
 					{selectedYear}
 				</Select.Trigger>
 				<Select.Content>
-					{#each years as year}
+					{#each years as year (year)}
 						<Select.Item value={year.toString()} label={year.toString()}>{year}</Select.Item>
 					{/each}
 				</Select.Content>
@@ -533,7 +507,7 @@
 						{#each transactions.slice(0, 10) as tx (tx.id)}
 							<TransactionRow
 								{tx}
-								account={accounts.find((a) => a.id === tx.accountId)}
+								account={accounts.find((a) => a.id === tx.accountId) ?? null}
 								{deletingTransactionId}
 								onEdit={openEditDialog}
 								onDelete={handleDeleteTransaction}
