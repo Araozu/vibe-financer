@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { SvelteMap, SvelteDate } from 'svelte/reactivity';
+	import { SvelteMap, SvelteDate, SvelteSet } from 'svelte/reactivity';
 	import { LineChart } from 'layerchart';
 	import { scaleTime } from 'd3-scale';
 	import { curveNatural } from 'd3-shape';
@@ -42,6 +42,22 @@
 		selectedMonth?: number;
 		selectedYear?: number;
 	} = $props();
+
+	let activeAccountIds = $state(new SvelteSet(accounts.map((a) => a.id)));
+
+	function toggleAccount(accountId: string) {
+		if (activeAccountIds.has(accountId)) {
+			activeAccountIds.delete(accountId);
+		} else {
+			activeAccountIds.add(accountId);
+		}
+	}
+
+	function resetAccounts() {
+		for (const account of accounts) {
+			activeAccountIds.add(account.id);
+		}
+	}
 
 	function toLocalDateKey(date: Date): string {
 		const year = date.getFullYear();
@@ -157,11 +173,13 @@
 	);
 
 	let chartSeries = $derived.by(() =>
-		accounts.map((account) => ({
-			key: account.id,
-			label: account.name,
-			color: account.color
-		}))
+		accounts
+			.filter((account) => activeAccountIds.has(account.id))
+			.map((account) => ({
+				key: account.id,
+				label: account.name,
+				color: account.color
+			}))
 	);
 
 	function formatDayTick(date: Date): string {
@@ -223,16 +241,36 @@
 				/>
 			</Chart.Container>
 
-			<div class="flex flex-wrap gap-3">
+			<div class="flex flex-wrap items-center gap-2">
 				{#each accounts as account (account.id)}
-					<div class="flex items-center gap-2 text-xs">
+					{@const isActive = activeAccountIds.has(account.id)}
+					<button
+						type="button"
+						onclick={() => toggleAccount(account.id)}
+						class={[
+							'flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-all hover:bg-muted',
+							isActive
+								? 'border-transparent bg-secondary text-secondary-foreground shadow-sm'
+								: 'border-dashed border-muted-foreground/30 bg-transparent text-muted-foreground opacity-60'
+						]}
+					>
 						<span
-							class="inline-block h-2 w-2 rounded-full"
-							style="background-color: {account.color}"
+							class="inline-block h-2 w-2 rounded-full transition-transform"
+							style="background-color: {account.color}; transform: scale({isActive ? 1 : 0.8})"
 						></span>
-						<span class="text-muted-foreground">{account.name}</span>
-					</div>
+						{account.name}
+					</button>
 				{/each}
+
+				{#if activeAccountIds.size < accounts.length}
+					<button
+						type="button"
+						onclick={resetAccounts}
+						class="ml-auto text-xs font-medium text-primary hover:underline"
+					>
+						Reset
+					</button>
+				{/if}
 			</div>
 		</div>
 	</Card.Content>
