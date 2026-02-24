@@ -6,6 +6,7 @@
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
 	import CreateTransactionForm from '$lib/components/transaction/create-transaction-form.svelte';
 	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
@@ -271,25 +272,32 @@
 <!-- Summary Grid -->
 <div class="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
 	<div class="flex items-center gap-3">
-		<div class="flex h-10 items-center gap-2 rounded-xl border bg-card px-3 shadow-sm">
-			<Calendar class="h-4 w-4 text-muted-foreground" />
-			<select
-				bind:value={selectedMonth}
-				class="bg-transparent text-sm font-bold focus:outline-none"
-			>
-				{#each months as month, i}
-					<option value={i}>{month}</option>
-				{/each}
-			</select>
-			<div class="h-4 w-px bg-border"></div>
-			<select
-				bind:value={selectedYear}
-				class="bg-transparent text-sm font-bold focus:outline-none"
-			>
-				{#each years as year}
-					<option value={year}>{year}</option>
-				{/each}
-			</select>
+		<div class="flex h-10 items-center gap-1 rounded-xl border px-2 shadow-sm">
+			<Calendar class="h-4 w-4 text-muted-foreground ml-1" />
+			
+			<Select.Root type="single" value={selectedMonth.toString()} onValueChange={(v) => selectedMonth = parseInt(v)}>
+				<Select.Trigger class="h-8 border-none bg-transparent text-sm font-bold focus:ring-0 focus:outline-none hover:bg-muted/50 transition-colors px-2 data-[placeholder]:text-foreground">
+					{months[selectedMonth]}
+				</Select.Trigger>
+				<Select.Content>
+					{#each months as month, i}
+						<Select.Item value={i.toString()} label={month}>{month}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+
+			<div class="h-4 w-px bg-border mx-0.5"></div>
+
+			<Select.Root type="single" value={selectedYear.toString()} onValueChange={(v) => selectedYear = parseInt(v)}>
+				<Select.Trigger class="h-8 border-none bg-transparent text-sm font-bold focus:ring-0 focus:outline-none hover:bg-muted/50 transition-colors px-2 data-[placeholder]:text-foreground">
+					{selectedYear}
+				</Select.Trigger>
+				<Select.Content>
+					{#each years as year}
+						<Select.Item value={year.toString()} label={year.toString()}>{year}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
 		</div>
 		
 		{#if selectedMonth !== dashboardNow.getUTCMonth() || selectedYear !== dashboardNow.getUTCFullYear()}
