@@ -1,7 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { listAccounts } from '$lib/application/account/list-accounts';
-import { listTransactions, listTransactionsForMonth } from '$lib/application/transaction/list-transactions';
+import {
+	listTransactions,
+	listTransactionsForMonth
+} from '$lib/application/transaction/list-transactions';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {

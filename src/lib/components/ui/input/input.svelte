@@ -5,7 +5,8 @@
 		base: 'selection:bg-primary selection:text-primary-foreground ring-offset-background placeholder:text-muted-foreground flex h-9 w-full min-w-0 rounded-md border transition-[color,box-shadow,background-color] outline-none disabled:cursor-not-allowed disabled:opacity-50 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border-input',
 		variants: {
 			variant: {
-				default: 'bg-linear-to-b from-muted/20 to-background shadow-[0_1px_2px_rgba(0,0,0,0.05)_inset] focus:from-background focus:to-background focus:shadow-none dark:from-muted/10 dark:to-background/5 dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)_inset]',
+				default:
+					'bg-linear-to-b from-muted/20 to-background shadow-[0_1px_2px_rgba(0,0,0,0.05)_inset] focus:from-background focus:to-background focus:shadow-none dark:from-muted/10 dark:to-background/5 dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)_inset]',
 				background: 'bg-background'
 			}
 		},

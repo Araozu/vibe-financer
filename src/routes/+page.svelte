@@ -100,7 +100,9 @@
 		],
 		queryFn: async () => {
 			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-			const res = await fetch(`/api/transactions?month=${selectedMonth}&year=${selectedYear}&tz=${tz}`);
+			const res = await fetch(
+				`/api/transactions?month=${selectedMonth}&year=${selectedYear}&tz=${tz}`
+			);
 			return res.json();
 		}
 	}));
@@ -126,8 +128,18 @@
 	let goalAccount = $state<SerializedAccount | null>(null);
 
 	const months = [
-		'January', 'February', 'March', 'April', 'May', 'June',
-		'July', 'August', 'September', 'October', 'November', 'December'
+		'January',
+		'February',
+		'March',
+		'April',
+		'May',
+		'June',
+		'July',
+		'August',
+		'September',
+		'October',
+		'November',
+		'December'
 	];
 
 	const years = Array.from({ length: 5 }, (_, i) => dashboardNow.getUTCFullYear() - 2 + i);
@@ -181,17 +193,29 @@
 
 	// Calculate real stats (filtered for selected month)
 	let firstDayOfSelectedMonth = $derived(new Date(Date.UTC(selectedYear, selectedMonth, 1)));
-	let lastDayOfSelectedMonth = $derived(new Date(Date.UTC(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999)));
+	let lastDayOfSelectedMonth = $derived(
+		new Date(Date.UTC(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999))
+	);
 
 	let monthlyIncome = $derived(
 		transactions
-			.filter((tx) => tx.type === 'income' && new Date(tx.createdAt) >= firstDayOfSelectedMonth && new Date(tx.createdAt) <= lastDayOfSelectedMonth)
+			.filter(
+				(tx) =>
+					tx.type === 'income' &&
+					new Date(tx.createdAt) >= firstDayOfSelectedMonth &&
+					new Date(tx.createdAt) <= lastDayOfSelectedMonth
+			)
 			.reduce((acc: number, curr) => acc + curr.amount, 0)
 	);
 
 	let monthlyExpenses = $derived(
 		transactions
-			.filter((tx) => tx.type === 'expense' && new Date(tx.createdAt) >= firstDayOfSelectedMonth && new Date(tx.createdAt) <= lastDayOfSelectedMonth)
+			.filter(
+				(tx) =>
+					tx.type === 'expense' &&
+					new Date(tx.createdAt) >= firstDayOfSelectedMonth &&
+					new Date(tx.createdAt) <= lastDayOfSelectedMonth
+			)
 			.reduce((acc: number, curr) => acc + curr.amount, 0)
 	);
 
@@ -273,10 +297,16 @@
 <div class="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
 	<div class="flex items-center gap-3">
 		<div class="flex h-10 items-center gap-1 rounded-xl border px-2 shadow-sm">
-			<Calendar class="h-4 w-4 text-muted-foreground ml-1" />
-			
-			<Select.Root type="single" value={selectedMonth.toString()} onValueChange={(v) => selectedMonth = parseInt(v)}>
-				<Select.Trigger class="h-8 border-none bg-transparent text-sm font-bold focus:ring-0 focus:outline-none hover:bg-muted/50 transition-colors px-2 data-[placeholder]:text-foreground">
+			<Calendar class="ml-1 h-4 w-4 text-muted-foreground" />
+
+			<Select.Root
+				type="single"
+				value={selectedMonth.toString()}
+				onValueChange={(v) => (selectedMonth = parseInt(v))}
+			>
+				<Select.Trigger
+					class="h-8 border-none bg-transparent px-2 text-sm font-bold transition-colors hover:bg-muted/50 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
+				>
 					{months[selectedMonth]}
 				</Select.Trigger>
 				<Select.Content>
@@ -286,10 +316,16 @@
 				</Select.Content>
 			</Select.Root>
 
-			<div class="h-4 w-px bg-border mx-0.5"></div>
+			<div class="mx-0.5 h-4 w-px bg-border"></div>
 
-			<Select.Root type="single" value={selectedYear.toString()} onValueChange={(v) => selectedYear = parseInt(v)}>
-				<Select.Trigger class="h-8 border-none bg-transparent text-sm font-bold focus:ring-0 focus:outline-none hover:bg-muted/50 transition-colors px-2 data-[placeholder]:text-foreground">
+			<Select.Root
+				type="single"
+				value={selectedYear.toString()}
+				onValueChange={(v) => (selectedYear = parseInt(v))}
+			>
+				<Select.Trigger
+					class="h-8 border-none bg-transparent px-2 text-sm font-bold transition-colors hover:bg-muted/50 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
+				>
 					{selectedYear}
 				</Select.Trigger>
 				<Select.Content>
@@ -299,7 +335,7 @@
 				</Select.Content>
 			</Select.Root>
 		</div>
-		
+
 		{#if selectedMonth !== dashboardNow.getUTCMonth() || selectedYear !== dashboardNow.getUTCFullYear()}
 			<Button
 				variant="ghost"
@@ -360,7 +396,9 @@
 	<div class="md:col-span-3">
 		<!-- Savings Goal -->
 		{#if goal && accountWithGoal}
-			<Card.Root class="relative overflow-hidden border-none bg-muted/40 shadow-sm transition-all hover:bg-muted/50">
+			<Card.Root
+				class="relative overflow-hidden border-none bg-muted/40 shadow-sm transition-all hover:bg-muted/50"
+			>
 				<div
 					class="absolute top-0 left-0 h-full w-1"
 					style="background-color: {accountWithGoal.color}"
@@ -387,7 +425,9 @@
 							</span>
 						</div>
 						<div class="space-y-2">
-							<div class="flex justify-between text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+							<div
+								class="flex justify-between text-[10px] font-medium tracking-wider text-muted-foreground uppercase"
+							>
 								<span>{goalProgress.toFixed(0)}% achieved</span>
 								<span>
 									Goal: {(goal.targetAmount / 100).toLocaleString('en-US', {
@@ -402,9 +442,9 @@
 					</div>
 				</Card.Content>
 				<Card.Footer class="pt-0">
-					<Button 
-						variant="ghost" 
-						size="sm" 
+					<Button
+						variant="ghost"
+						size="sm"
 						class="h-8 w-full text-xs text-muted-foreground hover:bg-background/50 hover:text-foreground"
 						onclick={() => openGoalDialog(accountWithGoal)}
 					>
@@ -420,7 +460,7 @@
 						<PiggyBank class="h-6 w-6 text-muted-foreground" />
 					</div>
 					<div class="max-w-[200px] space-y-1">
-						<h3 class="font-semibold text-sm">No savings goal</h3>
+						<h3 class="text-sm font-semibold">No savings goal</h3>
 						<p class="text-xs text-muted-foreground">
 							Set a goal for one of your accounts to track your progress here.
 						</p>
@@ -438,7 +478,10 @@
 							{#each accounts.filter((a) => a.type === 'savings') as account (account.id)}
 								<DropdownMenu.Item onclick={() => openGoalDialog(account)}>
 									<div class="flex items-center gap-2">
-										<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
+										<div
+											class="h-2 w-2 rounded-full"
+											style="background-color: {account.color}"
+										></div>
 										<span>{account.name}</span>
 									</div>
 								</DropdownMenu.Item>
@@ -550,7 +593,6 @@
 				</a>
 			</Card.Footer>
 		</Card.Root>
-
 	</div>
 </div>
 

@@ -4,25 +4,17 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { useQueryClient } from '@tanstack/svelte-query';
-	import {
-		PiggyBank,
-		Target,
-		Calendar,
-		ChevronRight,
-		Loader2,
-		Plus,
-		Trash2
-	} from '@lucide/svelte';
+	import { PiggyBank, Target, Calendar, ChevronRight, Loader2, Plus, Trash2 } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { cn } from '$lib/utils.js';
 
 	const queryClient = useQueryClient();
 
-	let { 
-		open = $bindable(false), 
-		accountId, 
+	let {
+		open = $bindable(false),
+		accountId,
 		accountName = '',
-		existingGoal = null 
+		existingGoal = null
 	} = $props<{
 		open: boolean;
 		accountId: string;
@@ -111,7 +103,9 @@
 	<Dialog.Content class="overflow-hidden p-0 shadow-2xl sm:max-w-md">
 		<form onsubmit={handleSubmit} class="flex h-full flex-col">
 			<!-- Header -->
-			<div class="flex items-center justify-between border-b border-border/40 bg-muted/30 px-4 py-3">
+			<div
+				class="flex items-center justify-between border-b border-border/40 bg-muted/30 px-4 py-3"
+			>
 				<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
 					<div class="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-primary">
 						<PiggyBank class="h-3 w-3" />
@@ -125,7 +119,11 @@
 			<!-- Main Content -->
 			<div class="space-y-6 px-6 py-8">
 				<div class="space-y-2">
-					<Label for="goalName" class="text-xs font-bold text-muted-foreground uppercase tracking-wider">Goal Name</Label>
+					<Label
+						for="goalName"
+						class="text-xs font-bold tracking-wider text-muted-foreground uppercase"
+						>Goal Name</Label
+					>
 					<Input
 						id="goalName"
 						placeholder="e.g., New Car Fund"
@@ -137,9 +135,15 @@
 
 				<div class="grid grid-cols-2 gap-4">
 					<div class="space-y-2">
-						<Label for="targetAmount" class="text-xs font-bold text-muted-foreground uppercase tracking-wider">Target Amount</Label>
+						<Label
+							for="targetAmount"
+							class="text-xs font-bold tracking-wider text-muted-foreground uppercase"
+							>Target Amount</Label
+						>
 						<div class="relative">
-							<span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+							<span class="absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground"
+								>$</span
+							>
 							<Input
 								id="targetAmount"
 								type="number"
@@ -152,7 +156,11 @@
 						</div>
 					</div>
 					<div class="space-y-2">
-						<Label for="targetDate" class="text-xs font-bold text-muted-foreground uppercase tracking-wider">Target Date (Optional)</Label>
+						<Label
+							for="targetDate"
+							class="text-xs font-bold tracking-wider text-muted-foreground uppercase"
+							>Target Date (Optional)</Label
+						>
 						<Input
 							id="targetDate"
 							type="date"
@@ -164,14 +172,16 @@
 			</div>
 
 			<!-- Footer -->
-			<div class="flex items-center justify-between border-t border-border/40 bg-muted/10 px-4 py-3">
+			<div
+				class="flex items-center justify-between border-t border-border/40 bg-muted/10 px-4 py-3"
+			>
 				<div>
 					{#if existingGoal}
-						<Button 
-							type="button" 
-							variant="ghost" 
-							size="sm" 
-							class="text-destructive hover:text-destructive hover:bg-destructive/10"
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							class="text-destructive hover:bg-destructive/10 hover:text-destructive"
 							onclick={handleDelete}
 							disabled={isDeleting}
 						>

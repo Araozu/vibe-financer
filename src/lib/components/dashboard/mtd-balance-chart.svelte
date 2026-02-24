@@ -180,7 +180,12 @@
 <Card.Root>
 	<Card.Header>
 		<Card.Title>Balance Overview</Card.Title>
-		<Card.Description>End-of-day balance for each account in {new Date(selectedYear, selectedMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Card.Description>
+		<Card.Description
+			>End-of-day balance for each account in {new Date(
+				selectedYear,
+				selectedMonth
+			).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Card.Description
+		>
 	</Card.Header>
 	<Card.Content>
 		<div class="space-y-4">

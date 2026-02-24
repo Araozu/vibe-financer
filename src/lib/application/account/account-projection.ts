@@ -88,33 +88,33 @@ export async function getAccountState(accountId: string): Promise<AccountState |
 			return snapshot.state;
 		}
 
-	// Project from snapshot + new events
-	const state = projectAccountStateFromSnapshot(snapshot.state, eventsAfterSnapshot);
+		// Project from snapshot + new events
+		const state = projectAccountStateFromSnapshot(snapshot.state, eventsAfterSnapshot);
+
+		// Fetch goal for the account
+		const goal = await eventStoreRepo.getGoalByAccount(accountId);
+
+		// Maybe create a new snapshot if many events have accumulated
+		await maybeCreateSnapshot(accountId, state, eventsAfterSnapshot.length);
+
+		return { ...state, goal };
+	}
+
+	// No snapshot, replay all events
+	const events = await eventStoreRepo.getStream(accountId);
+	const state = projectAccountState(events);
+
+	if (!state) return null;
 
 	// Fetch goal for the account
 	const goal = await eventStoreRepo.getGoalByAccount(accountId);
 
-	// Maybe create a new snapshot if many events have accumulated
-	await maybeCreateSnapshot(accountId, state, eventsAfterSnapshot.length);
+	// Create initial snapshot if we have enough events
+	if (events.length >= SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL) {
+		await createSnapshot(accountId, state);
+	}
 
 	return { ...state, goal };
-}
-
-// No snapshot, replay all events
-const events = await eventStoreRepo.getStream(accountId);
-const state = projectAccountState(events);
-
-if (!state) return null;
-
-// Fetch goal for the account
-const goal = await eventStoreRepo.getGoalByAccount(accountId);
-
-// Create initial snapshot if we have enough events
-if (events.length >= SNAPSHOT_CONFIG.SNAPSHOT_INTERVAL) {
-	await createSnapshot(accountId, state);
-}
-
-return { ...state, goal };
 }
 
 /**

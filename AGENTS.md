@@ -215,3 +215,11 @@ await eventStoreRepo.updateAccountProjection(accountId, {
 ❌ **Don't use projections** as source of truth (events are truth)  
 ❌ **Don't forget to update projections** after appending events  
 ❌ **Don't create events** without using factory functions
+
+## UI
+
+When working on UI:
+
+- Use colors/variables/values from the shadcn theme at ~/src/routes/layout.css
+- Add new variables only if needed
+- Avoid inlining css, use the shadcn components & values

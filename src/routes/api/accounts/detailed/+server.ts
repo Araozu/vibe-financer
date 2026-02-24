@@ -23,10 +23,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const accountsWithData = await Promise.all(
 		accounts.map(async (account) => {
 			const transactions = await listTransactionsByAccount(account.id);
-			
+
 			// Target month range
 			const firstDayOfMonth = toUTC(new Date(Date.UTC(targetYear, targetMonth, 1)));
-			const lastDayOfMonth = toUTC(new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59, 999)));
+			const lastDayOfMonth = toUTC(
+				new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59, 999))
+			);
 
 			// Filter transactions up to the end of the target month
 			const transactionsUpToTarget = transactions.filter((t) => t.createdAt <= lastDayOfMonth);
@@ -42,11 +44,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			// Calculate balance at the end of the target month
 			// We can't just use account.currentBalance if we are looking at a past month
 			// But if we are looking at a future month, we need to include future transactions
-			
+
 			// Let's get all transactions to calculate the balance at the end of the target month
 			let balanceAtEndOfMonth = account.initialBalance;
-			const allTransactionsSorted = [...transactions].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-			
+			const allTransactionsSorted = [...transactions].sort(
+				(a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+			);
+
 			for (const tx of allTransactionsSorted) {
 				if (tx.createdAt <= lastDayOfMonth) {
 					if (tx.type === 'income') {
@@ -69,7 +73,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			);
 
 			let txIndex = 0;
-			for (let d = new Date(lastDayOfMonth); d >= firstDayOfMonth; d.setUTCDate(d.getUTCDate() - 1)) {
+			for (
+				let d = new Date(lastDayOfMonth);
+				d >= firstDayOfMonth;
+				d.setUTCDate(d.getUTCDate() - 1)
+			) {
 				const dayStart = toUTC(new Date(d));
 				dayStart.setUTCHours(0, 0, 0, 0);
 				const dayEnd = toUTC(new Date(d));

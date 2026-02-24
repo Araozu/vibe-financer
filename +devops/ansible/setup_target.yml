@@ -40,9 +40,9 @@
 
           # DATABASE_URL connection string
           DATABASE_URL="postgresql://{{ db_username }}:{{ db_password }}@{{ db_host_name }}:5432/{{ db_name }}"
-        dest: "{{ remote_folder }}/.env.database"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        dest: '{{ remote_folder }}/.env.database'
+        owner: '{{ ansible_user }}'
+        group: '{{ ansible_user }}'
         mode: '0600'
         force: false
 
@@ -51,7 +51,7 @@
     - name: Setup base docker compose file
       template:
         src: ../docker/docker-compose.base.yml.j2
-        dest: "{{ remote_folder }}/docker-compose.base.yml"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        dest: '{{ remote_folder }}/docker-compose.base.yml'
+        owner: '{{ ansible_user }}'
+        group: '{{ ansible_user }}'
         mode: '0644'

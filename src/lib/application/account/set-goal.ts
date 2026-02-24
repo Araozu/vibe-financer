@@ -1,7 +1,11 @@
 import { error } from '@sveltejs/kit';
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { getAccountState, getAccountVersion } from './account-projection';
-import { createGoalSetEvent, createGoalUpdatedEvent, createGoalRemovedEvent } from '$lib/domain/events';
+import {
+	createGoalSetEvent,
+	createGoalUpdatedEvent,
+	createGoalRemovedEvent
+} from '$lib/domain/events';
 import { toUTC } from '$lib/domain/date-formatter';
 
 export interface SetGoalDTO {
@@ -32,18 +36,23 @@ export async function setGoal(userId: string, data: SetGoalDTO) {
 
 	if (existingGoal) {
 		// Update existing goal
-		const event = createGoalUpdatedEvent(existingGoal.id, userId, {
-			changes: {
-				name: data.name,
-				targetAmount: data.targetAmount,
-				targetDate: data.targetDate ? toUTC(data.targetDate) : null
+		const event = createGoalUpdatedEvent(
+			existingGoal.id,
+			userId,
+			{
+				changes: {
+					name: data.name,
+					targetAmount: data.targetAmount,
+					targetDate: data.targetDate ? toUTC(data.targetDate) : null
+				},
+				previousValues: {
+					name: existingGoal.name,
+					targetAmount: existingGoal.targetAmount,
+					targetDate: existingGoal.targetDate
+				}
 			},
-			previousValues: {
-				name: existingGoal.name,
-				targetAmount: existingGoal.targetAmount,
-				targetDate: existingGoal.targetDate
-			}
-		}, currentVersion + 1);
+			currentVersion + 1
+		);
 
 		await eventStoreRepo.append(event, { expectedVersion: currentVersion });
 		await eventStoreRepo.updateGoalProjection(existingGoal.id, {

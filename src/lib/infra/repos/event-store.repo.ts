@@ -6,7 +6,15 @@
  */
 
 import { db } from '../db';
-import { eventStore, account, goal, transaction, accountSnapshot, budget, currency } from '../db/schema';
+import {
+	eventStore,
+	account,
+	goal,
+	transaction,
+	accountSnapshot,
+	budget,
+	currency
+} from '../db/schema';
 import { eq, and, asc, desc, lte, gt, sql } from 'drizzle-orm';
 import type { DomainEvent, StreamType, EventType } from '$lib/domain/events';
 import type { PgTransaction } from 'drizzle-orm/pg-core';

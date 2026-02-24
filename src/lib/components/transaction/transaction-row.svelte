@@ -4,16 +4,21 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { Info, MoreVertical, Pencil, Trash2, Tag, Utensils, Car, Home, ShoppingBag, TrendingUp } from '@lucide/svelte';
+	import {
+		Info,
+		MoreVertical,
+		Pencil,
+		Trash2,
+		Tag,
+		Utensils,
+		Car,
+		Home,
+		ShoppingBag,
+		TrendingUp
+	} from '@lucide/svelte';
 	import { formatLocalDate, formatLocalDateTime } from '$lib/domain/date-formatter';
 
-	let { 
-		tx, 
-		account, 
-		deletingTransactionId, 
-		onEdit, 
-		onDelete 
-	} = $props<{
+	let { tx, account, deletingTransactionId, onEdit, onDelete } = $props<{
 		tx: any;
 		account: any;
 		deletingTransactionId: string | null;
@@ -76,21 +81,18 @@
 	<Table.Cell class="hidden md:table-cell">
 		{#if account}
 			<div class="flex items-center gap-2">
-				<div
-					class="h-2 w-2 rounded-full"
-					style="background-color: {account.color}"
-				></div>
+				<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
 				<span class="text-xs">{account.name}</span>
 			</div>
 		{/if}
 	</Table.Cell>
 	<Table.Cell class="hidden md:table-cell">
-		<Badge variant="secondary">{tx.category && tx.category.trim() !== '' ? tx.category : 'None'}</Badge>
+		<Badge variant="secondary"
+			>{tx.category && tx.category.trim() !== '' ? tx.category : 'None'}</Badge
+		>
 	</Table.Cell>
 	<Table.Cell
-		class="text-right font-medium {tx.type === 'income'
-			? 'text-income'
-			: 'text-expense'}"
+		class="text-right font-medium {tx.type === 'income' ? 'text-income' : 'text-expense'}"
 	>
 		{tx.type === 'income' ? '+' : '-'}{(tx.amount / 100).toLocaleString('en-US', {
 			style: 'currency',
