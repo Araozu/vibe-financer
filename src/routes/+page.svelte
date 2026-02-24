@@ -5,6 +5,7 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
 	import CreateTransactionForm from '$lib/components/transaction/create-transaction-form.svelte';
 	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';

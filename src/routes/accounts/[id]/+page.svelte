@@ -20,15 +20,17 @@
 	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
 	import type { AccountType } from '$lib/domain/account';
 
-	import type { Transaction } from '$lib/domain/transaction';
+	// import type { Transaction } from '$lib/domain/transaction';
 
 	const queryClient = useQueryClient();
 
-	let editingTransaction = $state<Transaction | null>(null);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let editingTransaction = $state<any | null>(null);
 	let editDialogOpen = $state(false);
 	let deletingTransactionId = $state<string | null>(null);
 
-	function openEditDialog(tx: Transaction) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	function openEditDialog(tx: any) {
 		editingTransaction = tx;
 		editDialogOpen = true;
 	}
@@ -235,7 +237,17 @@
 						{:else}
 							{#each transactions as tx (tx.id)}
 								<TransactionRow
-									{tx}
+									tx={{
+										...tx,
+										createdAt:
+											tx.createdAt instanceof Date ? tx.createdAt.toISOString() : tx.createdAt,
+										updatedAt:
+											tx.updatedAt instanceof Date ? tx.updatedAt.toISOString() : tx.updatedAt,
+										deletedAt:
+											tx.deletedAt instanceof Date
+												? tx.deletedAt.toISOString()
+												: (tx.deletedAt ?? null)
+									}}
 									{account}
 									{deletingTransactionId}
 									onEdit={openEditDialog}

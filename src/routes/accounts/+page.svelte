@@ -22,7 +22,48 @@
 	import type { Account, AccountType } from '$lib/domain/account';
 	import type { TransactionType } from '$lib/domain/transaction';
 
+	import { useQueryClient } from '@tanstack/svelte-query';
+	const queryClient = useQueryClient();
+
 	let editingTransaction = $state<DetailedTransaction | null>(null);
+	let editDialogOpen = $state(false);
+	let deletingTransactionId = $state<string | null>(null);
+
+	function openEditDialog(tx: DetailedTransaction) {
+		editingTransaction = tx;
+		editDialogOpen = true;
+	}
+
+	async function handleDeleteTransaction(transactionId: string) {
+		if (
+			!confirm(
+				'Are you sure you want to delete this transaction? This will adjust the account balance accordingly.'
+			)
+		) {
+			return;
+		}
+
+		deletingTransactionId = transactionId;
+
+		try {
+			const response = await fetch(`/api/transactions/${transactionId}`, {
+				method: 'DELETE'
+			});
+
+			if (!response.ok) {
+				const error = await response.json();
+				throw new Error(error.error ?? 'Failed to delete transaction');
+			}
+
+			// Invalidate queries to refresh the UI
+			await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+		} catch (error) {
+			console.error('Error deleting transaction:', error);
+			alert(error instanceof Error ? error.message : 'Failed to delete transaction');
+		} finally {
+			deletingTransactionId = null;
+		}
+	}
 
 	// Serialized types from API
 	interface SerializedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
@@ -261,8 +302,8 @@
 							<BalanceChart
 								data={account.chartData}
 								color={account.color}
-								currencySymbol={account.currencySymbol ?? '$'}
-								currencyCode={account.currencyCode ?? 'USD'}
+								currencyCode={(account as unknown as { currencyCode: string }).currencyCode ??
+									'USD'}
 							/>
 						</div>
 
@@ -302,7 +343,10 @@
 										{:else}
 											{#each account.last10Transactions as tx (tx.id)}
 												<TransactionRow
-													{tx}
+													tx={{
+														...tx,
+														deletedAt: null
+													}}
 													{account}
 													{deletingTransactionId}
 													onEdit={openEditDialog}
