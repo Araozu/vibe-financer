@@ -328,13 +328,14 @@ async function handleAccountChange(
 
 	// E. Update transaction projection (including the new accountId)
 	const updatedData: Partial<Transaction> = { accountId: newAccountId };
-	if (changes.type) updatedData.type = changes.type;
-	if (changes.amount) updatedData.amount = changes.amount;
+	if (changes.type !== undefined) updatedData.type = changes.type;
+	if (changes.amount !== undefined) updatedData.amount = changes.amount;
 	if (changes.name !== undefined) updatedData.name = changes.name;
 	if (changes.description !== undefined) updatedData.description = changes.description;
 	if (changes.category !== undefined) updatedData.category = changes.category;
 	if (changes.payee !== undefined) updatedData.payee = changes.payee;
 	if (changes.toAccountId !== undefined) updatedData.toAccountId = changes.toAccountId;
+	if (changes.transactionDate !== undefined) updatedData.createdAt = changes.transactionDate;
 
 	const updated = await transactionRepo.update(transactionId, updatedData);
 	if (!updated) {
@@ -353,13 +354,14 @@ async function updateTransactionProjection(
 	changes: UpdateTransactionDTO
 ): Promise<Transaction> {
 	const updatedData: Partial<Transaction> = {};
-	if (changes.type) updatedData.type = changes.type;
-	if (changes.amount) updatedData.amount = changes.amount;
+	if (changes.type !== undefined) updatedData.type = changes.type;
+	if (changes.amount !== undefined) updatedData.amount = changes.amount;
 	if (changes.name !== undefined) updatedData.name = changes.name;
 	if (changes.description !== undefined) updatedData.description = changes.description;
 	if (changes.category !== undefined) updatedData.category = changes.category;
 	if (changes.payee !== undefined) updatedData.payee = changes.payee;
 	if (changes.toAccountId !== undefined) updatedData.toAccountId = changes.toAccountId;
+	if (changes.transactionDate !== undefined) updatedData.createdAt = changes.transactionDate;
 
 	const updated = await transactionRepo.update(transactionId, updatedData);
 	if (!updated) {
