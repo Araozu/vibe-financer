@@ -53,7 +53,10 @@ export const actions: Actions = {
 		}
 
 		const formData = await request.formData();
-		const transactionId = formData.get('transactionId') as string;
+		const transactionId = formData.get('transactionId') as string | null;
+		if (!transactionId) {
+			return fail(400, { error: 'Transaction ID is required' });
+		}
 		const type = formData.get('type') as TransactionType | null;
 		const amountStr = formData.get('amount') as string | null;
 		const name = formData.get('name') as string | null;
@@ -76,7 +79,13 @@ export const actions: Actions = {
 
 		if (accountId) updates.accountId = accountId;
 		if (type) updates.type = type;
-		if (amountStr) updates.amount = Math.round(parseFloat(amountStr) * 100);
+		if (amountStr !== null) {
+			const parsedAmount = parseFloat(amountStr);
+			if (Number.isNaN(parsedAmount)) {
+				return fail(400, { error: 'Invalid amount' });
+			}
+			updates.amount = Math.round(parsedAmount * 100);
+		}
 		if (name !== null) updates.name = name || null;
 		if (description !== null) updates.description = description || null;
 		if (category !== null) updates.category = category || null;

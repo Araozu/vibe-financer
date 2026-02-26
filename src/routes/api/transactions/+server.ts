@@ -25,6 +25,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const year = parseInt(yearParam);
 		const limit = limitParam ? parseInt(limitParam) : undefined;
 
+		if (!Number.isFinite(month) || !Number.isFinite(year)) {
+			return json({ error: 'Invalid month or year' }, { status: 400 });
+		}
+		if (limit !== undefined && !Number.isFinite(limit)) {
+			return json({ error: 'Invalid limit' }, { status: 400 });
+		}
+
 		const { transactions, initialBalances } = await listTransactionsForMonthForAccounts(
 			accountIds,
 			month,

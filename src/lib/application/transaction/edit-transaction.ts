@@ -163,6 +163,9 @@ async function handleSameAccountEdit(
 	if (!account || !canAcceptTransaction(account)) {
 		throw error(404, 'Account not found or deleted');
 	}
+	if (account.userId !== userId) {
+		throw error(403, 'Forbidden');
+	}
 	const accountVersion = await getAccountVersion(currentTransaction.accountId);
 
 	// Reverse old transaction impact, then apply new
@@ -234,11 +237,11 @@ async function handleAccountChange(
 		getAccountState(newAccountId)
 	]);
 
-	if (!oldAccount || !canAcceptTransaction(oldAccount)) {
-		throw error(404, 'Current account not found or deleted');
+	if (!oldAccount || !canAcceptTransaction(oldAccount) || oldAccount.userId !== userId) {
+		throw error(404, 'Current account not found, deleted, or access denied');
 	}
-	if (!newAccount || !canAcceptTransaction(newAccount)) {
-		throw error(404, 'Target account not found or deleted');
+	if (!newAccount || !canAcceptTransaction(newAccount) || newAccount.userId !== userId) {
+		throw error(404, 'Target account not found, deleted, or access denied');
 	}
 
 	const [oldAccountVersion, newAccountVersion] = await Promise.all([
@@ -335,7 +338,9 @@ async function handleAccountChange(
 	if (changes.category !== undefined) updatedData.category = changes.category;
 	if (changes.payee !== undefined) updatedData.payee = changes.payee;
 	if (changes.toAccountId !== undefined) updatedData.toAccountId = changes.toAccountId;
-	if (changes.transactionDate !== undefined) updatedData.createdAt = changes.transactionDate;
+	if (changes.transactionDate !== undefined) {
+		updatedData.createdAt = toUTC(changes.transactionDate);
+	}
 
 	const updated = await transactionRepo.update(transactionId, updatedData);
 	if (!updated) {
@@ -361,7 +366,9 @@ async function updateTransactionProjection(
 	if (changes.category !== undefined) updatedData.category = changes.category;
 	if (changes.payee !== undefined) updatedData.payee = changes.payee;
 	if (changes.toAccountId !== undefined) updatedData.toAccountId = changes.toAccountId;
-	if (changes.transactionDate !== undefined) updatedData.createdAt = changes.transactionDate;
+	if (changes.transactionDate !== undefined) {
+		updatedData.createdAt = toUTC(changes.transactionDate);
+	}
 
 	const updated = await transactionRepo.update(transactionId, updatedData);
 	if (!updated) {
