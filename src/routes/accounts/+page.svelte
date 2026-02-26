@@ -285,7 +285,7 @@
 						<div
 							class="mt-1 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/60 uppercase"
 						>
-							{account.currencyCode ?? 'USD'} • {account.currencySymbol ?? '$'}
+							{account.currencySymbol ?? '$'}
 						</div>
 					</div>
 
@@ -302,8 +302,7 @@
 							<BalanceChart
 								data={account.chartData}
 								color={account.color}
-								currencyCode={(account as unknown as { currencyCode: string }).currencyCode ??
-									'USD'}
+								currencySymbol={account.currencySymbol ?? '$'}
 							/>
 						</div>
 

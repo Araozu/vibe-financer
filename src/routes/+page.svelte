@@ -429,9 +429,9 @@
 					<div class="space-y-4">
 						<div class="flex items-baseline gap-1">
 							<span class="text-3xl font-bold tracking-tight">
-								{(currentBalanceForGoalAccount / 100).toLocaleString('en-US', {
-									style: 'currency',
-									currency: accountWithGoal.currencyCode ?? 'USD'
+								{accountWithGoal.currencySymbol ?? '$'}{(currentBalanceForGoalAccount / 100).toLocaleString('en-US', {
+									minimumFractionDigits: 2,
+									maximumFractionDigits: 2
 								})}
 							</span>
 						</div>
@@ -441,9 +441,7 @@
 							>
 								<span>{goalProgress.toFixed(0)}% achieved</span>
 								<span>
-									Goal: {(goal.targetAmount / 100).toLocaleString('en-US', {
-										style: 'currency',
-										currency: accountWithGoal.currencyCode ?? 'USD',
+									Goal: {accountWithGoal.currencySymbol ?? '$'}{(goal.targetAmount / 100).toLocaleString('en-US', {
 										maximumFractionDigits: 0
 									})}
 								</span>
