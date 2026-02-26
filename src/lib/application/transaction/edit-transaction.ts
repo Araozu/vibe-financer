@@ -163,6 +163,9 @@ async function handleSameAccountEdit(
 	if (!account || !canAcceptTransaction(account)) {
 		throw error(404, 'Account not found or deleted');
 	}
+	if (account.userId !== userId) {
+		throw error(403, 'Forbidden');
+	}
 	const accountVersion = await getAccountVersion(currentTransaction.accountId);
 
 	// Reverse old transaction impact, then apply new
@@ -234,11 +237,11 @@ async function handleAccountChange(
 		getAccountState(newAccountId)
 	]);
 
-	if (!oldAccount || !canAcceptTransaction(oldAccount)) {
-		throw error(404, 'Current account not found or deleted');
+	if (!oldAccount || !canAcceptTransaction(oldAccount) || oldAccount.userId !== userId) {
+		throw error(404, 'Current account not found, deleted, or access denied');
 	}
-	if (!newAccount || !canAcceptTransaction(newAccount)) {
-		throw error(404, 'Target account not found or deleted');
+	if (!newAccount || !canAcceptTransaction(newAccount) || newAccount.userId !== userId) {
+		throw error(404, 'Target account not found, deleted, or access denied');
 	}
 
 	const [oldAccountVersion, newAccountVersion] = await Promise.all([
@@ -328,13 +331,16 @@ async function handleAccountChange(
 
 	// E. Update transaction projection (including the new accountId)
 	const updatedData: Partial<Transaction> = { accountId: newAccountId };
-	if (changes.type) updatedData.type = changes.type;
-	if (changes.amount) updatedData.amount = changes.amount;
+	if (changes.type !== undefined) updatedData.type = changes.type;
+	if (changes.amount !== undefined) updatedData.amount = changes.amount;
 	if (changes.name !== undefined) updatedData.name = changes.name;
 	if (changes.description !== undefined) updatedData.description = changes.description;
 	if (changes.category !== undefined) updatedData.category = changes.category;
 	if (changes.payee !== undefined) updatedData.payee = changes.payee;
 	if (changes.toAccountId !== undefined) updatedData.toAccountId = changes.toAccountId;
+	if (changes.transactionDate !== undefined) {
+		updatedData.createdAt = toUTC(changes.transactionDate);
+	}
 
 	const updated = await transactionRepo.update(transactionId, updatedData);
 	if (!updated) {
@@ -353,13 +359,16 @@ async function updateTransactionProjection(
 	changes: UpdateTransactionDTO
 ): Promise<Transaction> {
 	const updatedData: Partial<Transaction> = {};
-	if (changes.type) updatedData.type = changes.type;
-	if (changes.amount) updatedData.amount = changes.amount;
+	if (changes.type !== undefined) updatedData.type = changes.type;
+	if (changes.amount !== undefined) updatedData.amount = changes.amount;
 	if (changes.name !== undefined) updatedData.name = changes.name;
 	if (changes.description !== undefined) updatedData.description = changes.description;
 	if (changes.category !== undefined) updatedData.category = changes.category;
 	if (changes.payee !== undefined) updatedData.payee = changes.payee;
 	if (changes.toAccountId !== undefined) updatedData.toAccountId = changes.toAccountId;
+	if (changes.transactionDate !== undefined) {
+		updatedData.createdAt = toUTC(changes.transactionDate);
+	}
 
 	const updated = await transactionRepo.update(transactionId, updatedData);
 	if (!updated) {
