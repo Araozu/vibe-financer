@@ -146,7 +146,7 @@ export async function getNetWorthOverTime(
 
 		// Compute net worth from the pre-loaded event set
 		let netWorth = 0;
-		for (const [_streamId, streamEvents] of eventsByStream) {
+		for (const streamEvents of eventsByStream.values()) {
 			// Filter events up to the current date
 			const eventsAsOf = streamEvents.filter((e) => e.occurredAt <= asOf);
 			if (eventsAsOf.length === 0) continue;

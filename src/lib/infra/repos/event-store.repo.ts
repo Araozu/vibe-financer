@@ -220,7 +220,7 @@ export const eventStoreRepo = {
 	 */
 	async getEventsByUserFiltered(
 		userId: string,
-		options?: { eventType?: string; limit?: number }
+		options?: { eventType?: EventType | string; limit?: number }
 	): Promise<DomainEvent[]> {
 		const conditions = [eq(eventStore.userId, userId)];
 

@@ -266,14 +266,8 @@ export async function rebuildBudgetProjections(): Promise<number> {
 			// May not exist
 		}
 
-		// Recalculate currentSpent by looking at expense transactions in the budget's category
-		const activeBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
-			budgetState.category,
-			new Date()
-		);
-		const existingBudget = activeBudgets.find((b) => b.id === budgetState!.id);
-		const currentSpent = existingBudget?.currentSpent ?? 0;
-
+		// During a rebuild, currentSpent is reset to 0.
+		// It will be recalculated as transaction events are replayed by rebuildAccountProjection.
 		await eventStoreRepo.createBudgetProjection({
 			id: budgetState.id,
 			userId: budgetState.userId,
@@ -282,7 +276,7 @@ export async function rebuildBudgetProjections(): Promise<number> {
 			currencyId: budgetState.currencyId,
 			period: budgetState.period,
 			startDate: budgetState.startDate,
-			currentSpent
+			currentSpent: 0
 		});
 		rebuilt++;
 	}
