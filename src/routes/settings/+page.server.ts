@@ -3,6 +3,7 @@ import { fail } from '@sveltejs/kit';
 import { updateUser } from '$lib/application/user/update-user';
 import { changePassword } from '$lib/application/user/change-password';
 import { changeEmail } from '$lib/application/user/change-email';
+import { accountRepo } from '$lib/infra/repos/account.repo';
 import type { UpdateUserDTO } from '$lib/domain/user';
 
 export const actions: Actions = {
@@ -34,7 +35,15 @@ export const actions: Actions = {
 				const age = parseInt(ageStr);
 				updateData.age = isNaN(age) ? null : age;
 			}
-			if (defaultAccountId !== undefined) updateData.defaultAccountId = defaultAccountId || null;
+			if (defaultAccountId !== undefined) {
+				if (defaultAccountId) {
+					const account = await accountRepo.findById(defaultAccountId);
+					if (!account || account.userId !== locals.user.id) {
+						return fail(400, { error: 'Invalid account selected' });
+					}
+				}
+				updateData.defaultAccountId = defaultAccountId || null;
+			}
 
 			await updateUser(locals.user.id, updateData);
 
