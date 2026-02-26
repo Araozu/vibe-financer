@@ -14,6 +14,9 @@ import {
 	getAccountWithHistory
 } from '../account/account-projection';
 import type { BalanceSnapshot } from '$lib/domain/account-aggregate';
+import { projectAccountState, getBalanceAtTime } from '$lib/domain/account-aggregate';
+import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
+import type { DomainEvent } from '$lib/domain/events';
 
 export interface BalanceAtTime {
 	accountId: string;
@@ -126,13 +129,38 @@ export async function getNetWorthOverTime(
 
 	const snapshots: Array<{ date: Date; netWorth: number }> = [];
 
+	// Fetch all events for user's accounts once (up to endDate) to avoid N+1 queries
+	const allEvents = await eventStoreRepo.getEventsByUserAndTypeAsOf(userId, 'account', endDate);
+
+	// Group events by stream ID
+	const eventsByStream = new Map<string, DomainEvent[]>();
+	for (const event of allEvents) {
+		const streamEvents = eventsByStream.get(event.streamId) ?? [];
+		streamEvents.push(event);
+		eventsByStream.set(event.streamId, streamEvents);
+	}
+
 	const current = new Date(startDate);
 	while (current <= endDate) {
-		const netWorth = await getNetWorthAsOf(userId, current);
-		snapshots.push({
-			date: new Date(current),
-			netWorth
-		});
+		const asOf = new Date(current);
+
+		// Compute net worth from the pre-loaded event set
+		let netWorth = 0;
+		for (const [_streamId, streamEvents] of eventsByStream) {
+			// Filter events up to the current date
+			const eventsAsOf = streamEvents.filter((e) => e.occurredAt <= asOf);
+			if (eventsAsOf.length === 0) continue;
+
+			const state = projectAccountState(eventsAsOf);
+			if (state && !state.isDeleted) {
+				const balance = getBalanceAtTime(eventsAsOf, asOf);
+				if (balance !== null) {
+					netWorth += balance;
+				}
+			}
+		}
+
+		snapshots.push({ date: asOf, netWorth });
 		current.setDate(current.getDate() + intervalDays);
 	}
 

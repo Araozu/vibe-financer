@@ -15,8 +15,7 @@ export async function listAccounts(): Promise<Array<Account & { goal: Goal | nul
 export async function listAccountsByUser(
 	userId: string
 ): Promise<Array<Account & { goal: Goal | null }>> {
-	const allAccounts = await accountRepo.findAll();
-	return allAccounts.filter((acc) => acc.userId === userId);
+	return await accountRepo.findByUserId(userId);
 }
 
 // Re-export projection queries for event-sourced access

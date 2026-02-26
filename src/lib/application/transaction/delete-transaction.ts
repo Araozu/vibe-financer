@@ -67,49 +67,12 @@ export async function deleteTransaction(
 	const event = createTransactionDeletedEvent(tx.accountId, userId, payload, accountVersion + 1);
 
 	// 5. Append event with optimistic concurrency
-	try {
-		await eventStoreRepo.append(event, { expectedVersion: accountVersion });
-	} catch (err: unknown) {
-		const e = err as { name?: string };
-		if (e?.name === 'ConcurrencyError') {
-			throw error(409, 'Concurrent update detected while deleting transaction. Please retry.');
-		}
-		throw err;
-	}
-
-	// 6. Update account projection with new balance
-	const newBalance = account.currentBalance + balanceAdjustment;
-	await eventStoreRepo.updateAccountProjection(tx.accountId, {
-		currentBalance: newBalance
-	});
-
-	// 7. Update transaction projection to mark as deleted
-	await eventStoreRepo.updateTransactionProjection(transactionId, {
-		deletedAt: new Date()
-	});
-
-	// 8. Update budget projections
-	// If the transaction was an expense and had a category, we need to reverse its impact
-	if (tx.category && tx.type === 'expense') {
-		const activeBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
-			tx.category,
-			tx.createdAt
-		);
-		for (const b of activeBudgets) {
-			await eventStoreRepo.updateBudgetProjection(b.id, {
-				currentSpent: b.currentSpent - tx.amount
-			});
-		}
-	}
-
-	// 9. Handle transfers (reverse impact on destination account)
+	// For transfers, we need to wrap source + destination appends atomically
 	if (tx.type === 'transfer' && tx.toAccountId) {
 		const destAccount = await getAccountState(tx.toAccountId);
 		if (destAccount && canAcceptTransaction(destAccount)) {
 			const destVersion = await getAccountVersion(tx.toAccountId);
 
-			// For destination account, the transfer was an income.
-			// To delete it, we need to subtract the amount.
 			const destBalanceAdjustment = -tx.amount;
 			const destPayload: TransactionDeletedPayload = {
 				transactionId: tx.id,
@@ -124,31 +87,89 @@ export async function deleteTransaction(
 				destVersion + 1
 			);
 
-			// Append event to destination stream
+			// Append both events atomically in a single transaction
 			try {
-				await eventStoreRepo.append(destEvent, { expectedVersion: destVersion });
-
-				// Update destination account read model
-				await eventStoreRepo.updateAccountProjection(tx.toAccountId, {
-					currentBalance: destAccount.currentBalance + destBalanceAdjustment
-				});
-
-				// Update transaction projection for the destination account side
-				// Note: Transfers have a single transaction ID but may appear in multiple account views
-				// We need to ensure the projection reflects the deletion for any view
-				await eventStoreRepo.updateTransactionProjection(transactionId, {
-					deletedAt: new Date()
+				await eventStoreRepo.runInTransaction(async (dbTx) => {
+					await eventStoreRepo.append(event, { expectedVersion: accountVersion }, dbTx);
+					await eventStoreRepo.append(destEvent, { expectedVersion: destVersion }, dbTx);
 				});
 			} catch (err: unknown) {
 				const e = err as { name?: string };
 				if (e?.name === 'ConcurrencyError') {
-					throw error(
-						409,
-						'Concurrent update detected while reversing transfer on destination account. Please retry.'
-					);
+					throw error(409, 'Concurrent update detected while deleting transfer. Please retry.');
 				}
 				throw err;
 			}
+
+			// Update both account projections
+			const newBalance = account.currentBalance + balanceAdjustment;
+			await eventStoreRepo.updateAccountProjection(tx.accountId, {
+				currentBalance: newBalance
+			});
+			await eventStoreRepo.updateAccountProjection(tx.toAccountId, {
+				currentBalance: destAccount.currentBalance + destBalanceAdjustment
+			});
+
+			// Update transaction projection to mark as deleted
+			await eventStoreRepo.updateTransactionProjection(transactionId, {
+				deletedAt: new Date()
+			});
+		} else {
+			// Destination account not found/deleted - only append source event
+			try {
+				await eventStoreRepo.append(event, { expectedVersion: accountVersion });
+			} catch (err: unknown) {
+				const e = err as { name?: string };
+				if (e?.name === 'ConcurrencyError') {
+					throw error(409, 'Concurrent update detected while deleting transaction. Please retry.');
+				}
+				throw err;
+			}
+
+			const newBalance = account.currentBalance + balanceAdjustment;
+			await eventStoreRepo.updateAccountProjection(tx.accountId, {
+				currentBalance: newBalance
+			});
+
+			await eventStoreRepo.updateTransactionProjection(transactionId, {
+				deletedAt: new Date()
+			});
+		}
+	} else {
+		// Non-transfer transaction
+		try {
+			await eventStoreRepo.append(event, { expectedVersion: accountVersion });
+		} catch (err: unknown) {
+			const e = err as { name?: string };
+			if (e?.name === 'ConcurrencyError') {
+				throw error(409, 'Concurrent update detected while deleting transaction. Please retry.');
+			}
+			throw err;
+		}
+
+		// 6. Update account projection with new balance
+		const newBalance = account.currentBalance + balanceAdjustment;
+		await eventStoreRepo.updateAccountProjection(tx.accountId, {
+			currentBalance: newBalance
+		});
+
+		// 7. Update transaction projection to mark as deleted
+		await eventStoreRepo.updateTransactionProjection(transactionId, {
+			deletedAt: new Date()
+		});
+	}
+
+	// 8. Update budget projections
+	// If the transaction was an expense and had a category, we need to reverse its impact
+	if (tx.category && tx.type === 'expense') {
+		const activeBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
+			tx.category,
+			tx.createdAt
+		);
+		for (const b of activeBudgets) {
+			await eventStoreRepo.updateBudgetProjection(b.id, {
+				currentSpent: b.currentSpent - tx.amount
+			});
 		}
 	}
 }

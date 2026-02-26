@@ -105,22 +105,11 @@ export async function createTransaction(
 			destVersion + 1
 		);
 
-		// TODO: Implement proper atomic multi-stream event append
-		// Current limitation: The two appends below are not wrapped in a single
-		// database transaction because:
-		// 1. Each append() creates its own transaction for concurrency control
-		// 2. appendMany() only supports checking version for a single stream
-		// 3. Nested transactions are not fully supported in SQLite
-		//
-		// If the second append fails after the first succeeds, the system will be
-		// in an inconsistent state. This is mitigated by:
-		// - Optimistic concurrency checks on each append (will fail fast if version mismatch)
-		// - Projection rebuild capability to recover from inconsistent states
-		//
-		// A proper fix requires refactoring the event store to support
-		// multi-stream transactional append with concurrency checks on all streams.
-		await eventStoreRepo.append(sourceEvent, { expectedVersion: sourceVersion });
-		await eventStoreRepo.append(destEvent, { expectedVersion: destVersion });
+		// Append both events and update projections atomically in a single transaction
+		await eventStoreRepo.runInTransaction(async (tx) => {
+			await eventStoreRepo.append(sourceEvent, { expectedVersion: sourceVersion }, tx);
+			await eventStoreRepo.append(destEvent, { expectedVersion: destVersion }, tx);
+		});
 
 		// Update read models
 		await eventStoreRepo.updateAccountProjection(data.accountId, {

@@ -69,10 +69,32 @@ function toDomainEvent(stored: StoredEvent): DomainEvent {
 
 export const eventStoreRepo = {
 	/**
-	 * Append a single event to a stream
+	 * Run a callback inside a single PostgreSQL transaction.
+	 * Use this to wrap multi-stream appends and projection updates atomically.
 	 */
-	async append(event: DomainEvent, options?: AppendEventOptions): Promise<DomainEvent> {
-		return db.transaction(async (tx) => {
+
+	async runInTransaction<T>(
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		callback: (tx: PgTransaction<NodePgQueryResultHKT, any, any>) => Promise<T>
+	): Promise<T> {
+		return db.transaction(callback);
+	},
+
+	/**
+	 * Append a single event to a stream.
+	 * Optionally accepts an external transaction (`tx`) so multiple appends
+	 * and projection updates can be wrapped in a single PostgreSQL transaction.
+	 */
+	async append(
+		event: DomainEvent,
+		options?: AppendEventOptions,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
+	): Promise<DomainEvent> {
+		const execute = async (
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			tx: PgTransaction<NodePgQueryResultHKT, any, any>
+		): Promise<DomainEvent> => {
 			// Check for optimistic concurrency if expected version provided
 			if (options?.expectedVersion !== undefined) {
 				const currentVersion = await eventStoreRepo.getStreamVersion(event.streamId, tx);
@@ -97,7 +119,12 @@ export const eventStoreRepo = {
 				.returning();
 
 			return toDomainEvent(result as StoredEvent);
-		});
+		};
+
+		if (externalTx) {
+			return execute(externalTx);
+		}
+		return db.transaction(execute);
 	},
 
 	/**
@@ -185,6 +212,33 @@ export const eventStoreRepo = {
 			.where(eq(eventStore.userId, userId))
 			.orderBy(asc(eventStore.occurredAt));
 
+		return results.map((r) => toDomainEvent(r as StoredEvent));
+	},
+
+	/**
+	 * Get all events for a user's streams with optional filtering at the database level
+	 */
+	async getEventsByUserFiltered(
+		userId: string,
+		options?: { eventType?: string; limit?: number }
+	): Promise<DomainEvent[]> {
+		const conditions = [eq(eventStore.userId, userId)];
+
+		if (options?.eventType) {
+			conditions.push(eq(eventStore.eventType, options.eventType as EventType));
+		}
+
+		let query = db
+			.select()
+			.from(eventStore)
+			.where(and(...conditions))
+			.orderBy(asc(eventStore.occurredAt));
+
+		if (options?.limit) {
+			query = query.limit(options.limit) as typeof query;
+		}
+
+		const results = await query;
 		return results.map((r) => toDomainEvent(r as StoredEvent));
 	},
 
@@ -433,13 +487,24 @@ export const eventStoreRepo = {
 
 		const state = result.state as unknown as AccountState;
 
-		// Hydrate dates from JSONB
+		// Hydrate dates from JSONB (including nested objects like goal)
+		const hydrated: AccountState = {
+			...state,
+			createdAt: new Date(state.createdAt),
+			updatedAt: new Date(state.updatedAt)
+		};
+
+		if (hydrated.goal) {
+			hydrated.goal = {
+				...hydrated.goal,
+				createdAt: new Date(hydrated.goal.createdAt),
+				updatedAt: new Date(hydrated.goal.updatedAt),
+				targetDate: hydrated.goal.targetDate ? new Date(hydrated.goal.targetDate) : null
+			};
+		}
+
 		return {
-			state: {
-				...state,
-				createdAt: new Date(state.createdAt),
-				updatedAt: new Date(state.updatedAt)
-			},
+			state: hydrated,
 			version: result.version
 		};
 	},

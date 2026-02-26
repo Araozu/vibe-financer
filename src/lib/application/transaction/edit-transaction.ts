@@ -7,6 +7,8 @@ import { createTransactionUpdatedEvent, type TransactionUpdatedPayload } from '$
 import { error } from '@sveltejs/kit';
 import { toUTC } from '$lib/domain/date-formatter';
 
+const VALID_TRANSACTION_TYPES: ReadonlySet<string> = new Set(['expense', 'income', 'transfer']);
+
 export interface UpdateTransactionDTO {
 	accountId?: string;
 	type?: 'expense' | 'income' | 'transfer';
@@ -40,6 +42,15 @@ export async function editTransaction(
 
 	if (!currentTransaction) {
 		throw error(404, 'Transaction not found');
+	}
+
+	// 1b. Validate inputs
+	if (updates.amount !== undefined && updates.amount <= 0) {
+		throw error(400, 'Transaction amount must be greater than zero');
+	}
+
+	if (updates.type !== undefined && !VALID_TRANSACTION_TYPES.has(updates.type)) {
+		throw error(400, `Invalid transaction type: ${updates.type}`);
 	}
 
 	// 2. Block financial edits on transfers (multi-account coordination is complex)

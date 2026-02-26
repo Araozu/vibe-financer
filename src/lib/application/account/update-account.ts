@@ -2,6 +2,7 @@ import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { getAccountState, getAccountVersion } from './account-projection';
 import { validateAccountName, type UpdateAccountDTO, type Account } from '$lib/domain/account';
 import { createAccountUpdatedEvent, type AccountUpdatedPayload } from '$lib/domain/events';
+import { error } from '@sveltejs/kit';
 
 /**
  * Update an account's details and persist changes as an AccountUpdated event.
@@ -96,7 +97,15 @@ export async function updateAccount(
 	const event = createAccountUpdatedEvent(id, userId, payload, newVersion);
 
 	// Append to event store with optimistic concurrency check
-	await eventStoreRepo.append(event, { expectedVersion: currentVersion });
+	try {
+		await eventStoreRepo.append(event, { expectedVersion: currentVersion });
+	} catch (err: unknown) {
+		const e = err as { name?: string };
+		if (e?.name === 'ConcurrencyError') {
+			throw error(409, 'Concurrent update detected while updating account. Please retry.');
+		}
+		throw err;
+	}
 
 	// Calculate new balance if initial balance changed
 	let newBalance = currentState.currentBalance;
