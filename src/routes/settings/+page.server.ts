@@ -19,6 +19,7 @@ export const actions: Actions = {
 		const preferredCurrency = formData.get('preferredCurrency') as string | null;
 		const timezone = formData.get('timezone') as string | null;
 		const ageStr = formData.get('age') as string | null;
+		const defaultAccountId = formData.get('defaultAccountId') as string | null;
 
 		try {
 			const updateData: Partial<UpdateUserDTO> = {};
@@ -33,6 +34,7 @@ export const actions: Actions = {
 				const age = parseInt(ageStr);
 				updateData.age = isNaN(age) ? null : age;
 			}
+			if (defaultAccountId !== undefined) updateData.defaultAccountId = defaultAccountId || null;
 
 			await updateUser(locals.user.id, updateData);
 
