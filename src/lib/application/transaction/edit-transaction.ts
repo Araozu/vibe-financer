@@ -8,6 +8,7 @@ import { error } from '@sveltejs/kit';
 import { toUTC } from '$lib/domain/date-formatter';
 
 export interface UpdateTransactionDTO {
+	accountId?: string;
 	type?: 'expense' | 'income' | 'transfer';
 	amount?: number;
 	name?: string | null;
@@ -19,15 +20,15 @@ export interface UpdateTransactionDTO {
 }
 
 /**
- * Edit an existing transaction and persist as a TransactionUpdated event.
+ * Edit an existing transaction and persist as TransactionUpdated event(s).
  *
- * @param transactionId - The ID of the transaction to edit
- * @param updates - The fields to update
- * @param userId - The ID of the user making the edit (for audit trail)
- * @returns The updated transaction
+ * Supports:
+ * - Changing type (expense <-> income) with correct balance recalculation
+ * - Changing the account (moves transaction between accounts, emits events on both streams)
+ * - Changing category (updates related budget projections)
+ * - Changing amount, name, description, payee, date
  *
- * Note: This implementation handles simple transactions (income/expense).
- * Transfer transaction edits are not yet supported due to multi-account complexity.
+ * Transfer edits remain restricted to non-financial fields.
  */
 export async function editTransaction(
 	transactionId: string,
@@ -41,36 +42,35 @@ export async function editTransaction(
 		throw error(404, 'Transaction not found');
 	}
 
-	// 2. Handle transfers
+	// 2. Block financial edits on transfers (multi-account coordination is complex)
 	if (currentTransaction.type === 'transfer' || updates.type === 'transfer') {
-		// If it's a transfer, we need to coordinate updates across two accounts
-		// For now, we only support editing transfer details (name, description, category, payee)
-		// and not the core financial data (amount, from/to accounts) to avoid complex coordination.
-		const isFinancialChange = 
+		const isFinancialChange =
 			(updates.amount !== undefined && updates.amount !== currentTransaction.amount) ||
 			(updates.type !== undefined && updates.type !== currentTransaction.type) ||
-			(updates.toAccountId !== undefined && updates.toAccountId !== currentTransaction.toAccountId);
+			(updates.toAccountId !== undefined &&
+				updates.toAccountId !== currentTransaction.toAccountId) ||
+			(updates.accountId !== undefined && updates.accountId !== currentTransaction.accountId);
 
 		if (isFinancialChange) {
-			throw error(400, 'Editing transfer amounts or accounts is not yet supported. Please delete and recreate the transfer.');
+			throw error(
+				400,
+				'Editing transfer amounts or accounts is not yet supported. Please delete and recreate the transfer.'
+			);
 		}
-
-		// Continue with non-financial updates for transfers
 	}
 
-	// 3. Get the account state to validate and calculate balance changes
-	const account = await getAccountState(currentTransaction.accountId);
-
-	if (!account || !canAcceptTransaction(account)) {
-		throw error(404, 'Account not found or deleted');
-	}
-
-	const accountVersion = await getAccountVersion(currentTransaction.accountId);
+	// 3. Detect account change
+	const isAccountChange =
+		updates.accountId !== undefined && updates.accountId !== currentTransaction.accountId;
 
 	// 4. Build the changes and previous values objects
 	const changes: UpdateTransactionDTO = {};
 	const previousValues: UpdateTransactionDTO = {};
 
+	if (isAccountChange) {
+		changes.accountId = updates.accountId;
+		previousValues.accountId = currentTransaction.accountId;
+	}
 	if (updates.type !== undefined && updates.type !== currentTransaction.type) {
 		changes.type = updates.type;
 		previousValues.type = currentTransaction.type;
@@ -113,12 +113,62 @@ export async function editTransaction(
 		return currentTransaction;
 	}
 
-	// 6. Calculate the balance adjustment
-	// We need to reverse the old transaction and apply the new one
 	const finalType = changes.type ?? currentTransaction.type;
 	const finalAmount = changes.amount ?? currentTransaction.amount;
 
-	// Reverse the old transaction's impact
+	let updated: Transaction;
+
+	if (isAccountChange) {
+		updated = await handleAccountChange(
+			transactionId,
+			currentTransaction,
+			updates,
+			changes,
+			previousValues,
+			finalType,
+			finalAmount,
+			userId
+		);
+	} else {
+		updated = await handleSameAccountEdit(
+			transactionId,
+			currentTransaction,
+			changes,
+			previousValues,
+			finalType,
+			finalAmount,
+			userId
+		);
+	}
+
+	// Update budget projections
+	await updateBudgetProjections(currentTransaction, updates);
+
+	return updated;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Same-account edit: one event on the existing account stream
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleSameAccountEdit(
+	transactionId: string,
+	currentTransaction: Transaction,
+	changes: UpdateTransactionDTO,
+	previousValues: UpdateTransactionDTO,
+	finalType: string,
+	finalAmount: number,
+	userId: string
+): Promise<Transaction> {
+	const account = await getAccountState(currentTransaction.accountId);
+	if (!account || !canAcceptTransaction(account)) {
+		throw error(404, 'Account not found or deleted');
+	}
+	if (account.userId !== userId) {
+		throw error(403, 'Forbidden');
+	}
+	const accountVersion = await getAccountVersion(currentTransaction.accountId);
+
+	// Reverse old transaction impact, then apply new
 	let balanceAfterReverse = account.currentBalance;
 	if (currentTransaction.type === 'income') {
 		balanceAfterReverse -= currentTransaction.amount;
@@ -126,11 +176,13 @@ export async function editTransaction(
 		balanceAfterReverse += currentTransaction.amount;
 	}
 
-	// Apply the new transaction
-	const balanceAfter = calculateNewBalance(balanceAfterReverse, finalAmount, finalType);
+	const balanceAfter = calculateNewBalance(
+		balanceAfterReverse,
+		finalAmount,
+		finalType as 'expense' | 'income' | 'transfer'
+	);
 	const balanceAdjustment = balanceAfter - account.currentBalance;
 
-	// 7. Create the TransactionUpdated event
 	const payload: TransactionUpdatedPayload = {
 		transactionId,
 		changes,
@@ -147,7 +199,6 @@ export async function editTransaction(
 		accountVersion + 1
 	);
 
-	// 8. Append event with optimistic concurrency
 	try {
 		await eventStoreRepo.append(event, { expectedVersion: accountVersion });
 	} catch (err: unknown) {
@@ -158,47 +209,200 @@ export async function editTransaction(
 		throw err;
 	}
 
-	// 9. Update account read model
 	await eventStoreRepo.updateAccountProjection(currentTransaction.accountId, {
 		currentBalance: balanceAfter
 	});
 
-	// 10. Update transaction read model
-	const updatedData: Partial<Transaction> = {};
-	if (changes.type) updatedData.type = changes.type;
-	if (changes.amount) updatedData.amount = changes.amount;
+	return await updateTransactionProjection(transactionId, changes);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Account change: two events on two account streams
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleAccountChange(
+	transactionId: string,
+	currentTransaction: Transaction,
+	updates: UpdateTransactionDTO,
+	changes: UpdateTransactionDTO,
+	previousValues: UpdateTransactionDTO,
+	finalType: string,
+	finalAmount: number,
+	userId: string
+): Promise<Transaction> {
+	const newAccountId = updates.accountId!;
+
+	// Validate both accounts
+	const [oldAccount, newAccount] = await Promise.all([
+		getAccountState(currentTransaction.accountId),
+		getAccountState(newAccountId)
+	]);
+
+	if (!oldAccount || !canAcceptTransaction(oldAccount) || oldAccount.userId !== userId) {
+		throw error(404, 'Current account not found, deleted, or access denied');
+	}
+	if (!newAccount || !canAcceptTransaction(newAccount) || newAccount.userId !== userId) {
+		throw error(404, 'Target account not found, deleted, or access denied');
+	}
+
+	const [oldAccountVersion, newAccountVersion] = await Promise.all([
+		getAccountVersion(currentTransaction.accountId),
+		getAccountVersion(newAccountId)
+	]);
+
+	// A. Reverse the transaction's impact on the OLD account
+	let oldBalanceAdjustment: number;
+	if (currentTransaction.type === 'income') {
+		oldBalanceAdjustment = -currentTransaction.amount;
+	} else {
+		// expense or transfer
+		oldBalanceAdjustment = currentTransaction.amount;
+	}
+	const oldBalanceAfter = oldAccount.currentBalance + oldBalanceAdjustment;
+
+	const oldPayload: TransactionUpdatedPayload = {
+		transactionId,
+		changes: { accountId: newAccountId },
+		previousValues: { accountId: currentTransaction.accountId },
+		balanceAdjustment: oldBalanceAdjustment,
+		balanceBefore: oldAccount.currentBalance,
+		balanceAfter: oldBalanceAfter
+	};
+
+	const oldEvent = createTransactionUpdatedEvent(
+		currentTransaction.accountId,
+		userId,
+		oldPayload,
+		oldAccountVersion + 1
+	);
+
+	// B. Apply the (potentially modified) transaction to the NEW account
+	const newBalanceBefore = newAccount.currentBalance;
+	const newBalanceAfter = calculateNewBalance(
+		newBalanceBefore,
+		finalAmount,
+		finalType as 'expense' | 'income' | 'transfer'
+	);
+	const newBalanceAdjustment = newBalanceAfter - newBalanceBefore;
+
+	const newPayload: TransactionUpdatedPayload = {
+		transactionId,
+		changes,
+		previousValues,
+		balanceAdjustment: newBalanceAdjustment,
+		balanceBefore: newBalanceBefore,
+		balanceAfter: newBalanceAfter
+	};
+
+	const newEvent = createTransactionUpdatedEvent(
+		newAccountId,
+		userId,
+		newPayload,
+		newAccountVersion + 1
+	);
+
+	// C. Append events to both streams with optimistic concurrency
+	try {
+		await eventStoreRepo.append(oldEvent, { expectedVersion: oldAccountVersion });
+	} catch (err: unknown) {
+		const e = err as { name?: string };
+		if (e?.name === 'ConcurrencyError') {
+			throw error(409, 'Concurrent update on source account. Please retry.');
+		}
+		throw err;
+	}
+
+	try {
+		await eventStoreRepo.append(newEvent, { expectedVersion: newAccountVersion });
+	} catch (err: unknown) {
+		const e = err as { name?: string };
+		if (e?.name === 'ConcurrencyError') {
+			throw error(409, 'Concurrent update on target account. Please retry.');
+		}
+		throw err;
+	}
+
+	// D. Update both account projections
+	await eventStoreRepo.updateAccountProjection(currentTransaction.accountId, {
+		currentBalance: oldBalanceAfter
+	});
+	await eventStoreRepo.updateAccountProjection(newAccountId, {
+		currentBalance: newBalanceAfter
+	});
+
+	// E. Update transaction projection (including the new accountId)
+	const updatedData: Partial<Transaction> = { accountId: newAccountId };
+	if (changes.type !== undefined) updatedData.type = changes.type;
+	if (changes.amount !== undefined) updatedData.amount = changes.amount;
 	if (changes.name !== undefined) updatedData.name = changes.name;
 	if (changes.description !== undefined) updatedData.description = changes.description;
 	if (changes.category !== undefined) updatedData.category = changes.category;
 	if (changes.payee !== undefined) updatedData.payee = changes.payee;
 	if (changes.toAccountId !== undefined) updatedData.toAccountId = changes.toAccountId;
+	if (changes.transactionDate !== undefined) {
+		updatedData.createdAt = toUTC(changes.transactionDate);
+	}
 
 	const updated = await transactionRepo.update(transactionId, updatedData);
-
 	if (!updated) {
 		throw error(500, 'Failed to update transaction projection');
 	}
 
-	// 10.5. If it's a transfer, we might need to update the destination account's view
-	// (Though currently transfers share a single projection, we ensure it's updated)
-	if (currentTransaction.type === 'transfer' && currentTransaction.toAccountId) {
-		// In our current projection model, transfers are a single record, 
-		// but if we ever split them, we'd update the destination side here.
-		// For now, the update above already covered the shared projection.
+	return updated;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function updateTransactionProjection(
+	transactionId: string,
+	changes: UpdateTransactionDTO
+): Promise<Transaction> {
+	const updatedData: Partial<Transaction> = {};
+	if (changes.type !== undefined) updatedData.type = changes.type;
+	if (changes.amount !== undefined) updatedData.amount = changes.amount;
+	if (changes.name !== undefined) updatedData.name = changes.name;
+	if (changes.description !== undefined) updatedData.description = changes.description;
+	if (changes.category !== undefined) updatedData.category = changes.category;
+	if (changes.payee !== undefined) updatedData.payee = changes.payee;
+	if (changes.toAccountId !== undefined) updatedData.toAccountId = changes.toAccountId;
+	if (changes.transactionDate !== undefined) {
+		updatedData.createdAt = toUTC(changes.transactionDate);
 	}
 
-	// 11. Update budget projections
-	// If the amount or category changed, we need to adjust the budgets
+	const updated = await transactionRepo.update(transactionId, updatedData);
+	if (!updated) {
+		throw error(500, 'Failed to update transaction projection');
+	}
+	return updated;
+}
+
+/**
+ * Update budget projections when a transaction is edited.
+ *
+ * Strategy: reverse the old impact (if it was an expense with a category),
+ * then apply the new impact (if it is an expense with a category).
+ * This correctly handles:
+ * - Category changes (old budget loses spend, new budget gains spend)
+ * - Type changes (expense→income removes from budget; income→expense adds to budget)
+ * - Amount changes
+ * - Combined changes (type + category + amount all at once)
+ */
+async function updateBudgetProjections(
+	currentTransaction: Transaction,
+	updates: UpdateTransactionDTO
+): Promise<void> {
 	const oldCategory = currentTransaction.category;
-	const newCategory = updates.category !== undefined ? updates.category : currentTransaction.category;
+	const newCategory =
+		updates.category !== undefined ? updates.category : currentTransaction.category;
 	const oldAmount = currentTransaction.amount;
 	const newAmount = updates.amount !== undefined ? updates.amount : currentTransaction.amount;
 	const oldType = currentTransaction.type;
 	const newType = updates.type !== undefined ? updates.type : currentTransaction.type;
 
-	// Only adjust budgets if it's an expense or was an expense
+	// Only touch budgets if the transaction is/was an expense with a category
 	if ((oldCategory && oldType === 'expense') || (newCategory && newType === 'expense')) {
-		// 1. Reverse the old impact if it was an expense
+		// 1. Reverse the old impact if it was an expense with a category
 		if (oldCategory && oldType === 'expense') {
 			const oldActiveBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
 				oldCategory,
@@ -211,12 +415,12 @@ export async function editTransaction(
 			}
 		}
 
-		// 2. Apply the new impact if it is an expense
+		// 2. Apply the new impact if it is an expense with a category
 		if (newCategory && newType === 'expense') {
-			const newActiveBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
-				newCategory,
-				updates.transactionDate ? toUTC(updates.transactionDate) : currentTransaction.createdAt
-			);
+			const txDate = updates.transactionDate
+				? toUTC(updates.transactionDate)
+				: currentTransaction.createdAt;
+			const newActiveBudgets = await eventStoreRepo.getActiveBudgetsByCategory(newCategory, txDate);
 			for (const b of newActiveBudgets) {
 				await eventStoreRepo.updateBudgetProjection(b.id, {
 					currentSpent: b.currentSpent + newAmount
@@ -224,6 +428,4 @@ export async function editTransaction(
 			}
 		}
 	}
-
-	return updated;
 }

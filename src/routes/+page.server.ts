@@ -74,8 +74,10 @@ export const actions: Actions = {
 		const category = formData.get('category') as string | null;
 		const payee = formData.get('payee') as string | null;
 		const dateStr = formData.get('date') as string | null;
+		const accountId = formData.get('accountId') as string | null;
 
 		const updates: {
+			accountId?: string;
 			type?: TransactionType;
 			amount?: number;
 			name?: string | null;
@@ -85,8 +87,15 @@ export const actions: Actions = {
 			transactionDate?: Date;
 		} = {};
 
+		if (accountId) updates.accountId = accountId;
 		if (type) updates.type = type;
-		if (amountStr) updates.amount = Math.round(parseFloat(amountStr) * 100);
+		if (amountStr !== null) {
+			const parsedAmount = parseFloat(amountStr);
+			if (Number.isNaN(parsedAmount)) {
+				return fail(400, { error: 'Invalid amount' });
+			}
+			updates.amount = Math.round(parsedAmount * 100);
+		}
 		if (name !== null) updates.name = name || null;
 		if (description !== null) updates.description = description || null;
 		if (category !== null) updates.category = category || null;

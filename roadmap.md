@@ -2,6 +2,8 @@
 
 A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle ORM, and a layered DDD-lite architecture.
 
+_Last audited: 2026-02-26_
+
 ---
 
 ## ✅ What's Done
@@ -9,16 +11,17 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ### Core Infrastructure
 
 - [x] Layered architecture (Domain / Application / Infrastructure / Presentation)
-- [x] SQLite database with Drizzle ORM
+- [x] PostgreSQL database with Drizzle ORM
 - [x] Session-based authentication (login, signup, logout)
 - [x] Docker deployment support
 - [x] Modern UI with shadcn-svelte components
-- [x] **Event Sourcing Architecture** — All state changes stored as immutable events
+- [x] Event Sourcing Architecture — all state changes stored as immutable events
 
-### Event Sourcing (NEW)
+### Event Sourcing
 
 - [x] Event store with versioning and optimistic concurrency
-- [x] Domain events: AccountCreated, AccountUpdated, AccountDeleted, TransactionCreated, TransferCreated, TransactionDeleted
+- [x] Domain events: AccountCreated, AccountUpdated, AccountDeleted, TransactionCreated, TransactionUpdated, TransactionDeleted, TransferCreated
+- [x] Domain events: BudgetCreated, CurrencyCreated, GoalSet/Updated/Removed
 - [x] Aggregate projections to rebuild state from events
 - [x] Balance history with time-travel queries
 - [x] Full audit trail for compliance
@@ -37,36 +40,58 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 ### Accounts
 
 - [x] Create accounts with name, description, and color
-- [x] Account types: Asset, Expense, Revenue, Liability
+- [x] Account types: Asset, Expense, Revenue, Liability, Savings
 - [x] Multi-currency support (per-account currency)
 - [x] Initial and current balance tracking
 - [x] Account listing with detailed view
 - [x] Balance history chart (month-to-date)
-- [x] **Historical balance queries** — Get balance at any point in time
+- [x] Historical balance queries — get balance at any point in time
 
 ### Transactions
 
 - [x] Create transactions (expense, income, transfer)
+- [x] Edit transactions (with event-sourced balance recalculation)
+- [x] Delete transactions with balance rollback (soft delete + audit trail)
 - [x] Transaction name, description, category, and payee
 - [x] Transfers between accounts (same currency only)
-- [x] Automatic balance updates on transaction creation
+- [x] Automatic balance updates on create/edit/delete
 - [x] Recent transactions list with pagination
 - [x] Transaction filtering by account
-- [x] **Balance snapshots** — Track balance before/after each transaction
+- [x] Balance snapshots — track balance before/after each transaction
+
+### Budgets
+
+- [x] Create and manage budgets (create + list)
+- [x] Budget periods (monthly, weekly, yearly)
+- [x] Budget limit tracking with progress indicators
+- [x] Budget spend tracking from expense transactions
+- [ ] Budget rollover to next period
+
+### Savings Goals (Piggy Banks Lite)
+
+- [x] Create savings goals with target amounts
+- [x] Link savings goals to accounts
+- [x] Track progress toward goals
+- [x] Set optional goal target date
+- [ ] Goal completion projections / forecasting
 
 ### Dashboard
 
 - [x] Summary cards (total balance, monthly income, monthly expenses, savings rate)
 - [x] Recent transactions table
-- [x] Spending overview chart (mock data)
+- [x] Month-to-date balance chart (real data)
 - [x] Quick transaction creation form
 - [x] Account creation when none exist
 
-### APIs (Event Sourced)
+### APIs
 
-- [x] `GET /api/accounts/[id]/history` — Account balance history and audit trail
-- [x] `GET /api/accounts/net-worth` — Net worth with time-travel and comparisons
-- [x] `GET /api/accounts/audit` — Global audit trail for all events
+- [x] `GET /api/accounts/[id]/history` — account balance history and audit trail
+- [x] `GET /api/accounts/net-worth` — net worth with time-travel and comparisons
+- [x] `GET /api/accounts/audit` — global audit trail for all events
+- [x] `GET /api/budgets` — list budgets
+- [x] `POST|DELETE /api/goals` — set/remove savings goals
+- [x] `GET /api/currencies` — list currencies
+- [x] `DELETE /api/transactions/[id]` — delete transaction with rollback
 
 ---
 
@@ -76,10 +101,10 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 
 #### Budgets
 
-- [ ] Create and manage budgets
-- [ ] Budget periods (monthly, weekly, yearly, custom)
-- [ ] Budget limit tracking with progress indicators
-- [ ] Budget vs. actual spending reports
+- [x] Create and manage budgets
+- [x] Budget periods (monthly, weekly, yearly)
+- [x] Budget limit tracking with progress indicators
+- [x] Budget vs. actual spending (basic)
 - [ ] Rollover unused budget to next period
 
 #### Categories
@@ -92,10 +117,10 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 
 #### Piggy Banks / Savings Goals
 
-- [ ] Create savings goals with target amounts
-- [ ] Link savings goals to accounts
-- [ ] Track progress toward goals
-- [ ] Add/remove money from piggy banks
+- [x] Create savings goals with target amounts
+- [x] Link savings goals to accounts
+- [x] Track progress toward goals
+- [ ] Add/remove money from piggy banks (dedicated operation)
 - [ ] Goal completion dates and projections
 
 ### Priority 2: Automation & Organization
@@ -127,8 +152,8 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 
 #### Transaction Editing & Details
 
-- [ ] Edit existing transactions
-- [ ] Delete transactions with balance rollback
+- [x] Edit existing transactions
+- [x] Delete transactions with balance rollback
 - [ ] Transaction detail view
 - [ ] Duplicate transactions
 - [ ] Transaction notes and internal notes
@@ -157,7 +182,8 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 
 #### Liabilities & Debt Tracking
 
-- [ ] Track loans, credit cards, mortgages
+- [x] Liability account type support
+- [ ] Track loans, credit cards, mortgages (bill/debt workflows)
 - [ ] Interest rate and payment schedules
 - [ ] Debt payoff projections
 - [ ] Minimum payment tracking
@@ -166,22 +192,23 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 
 #### Reports
 
-- [ ] Income vs. expense report
+- [x] Income vs. expense monthly summary (dashboard)
 - [ ] Category breakdown report
-- [ ] Account balance over time
-- [ ] Budget performance report
+- [x] Account balance over time
+- [x] Budget performance summary (basic)
 - [ ] Cash flow analysis
-- [ ] Custom date range selection
+- [ ] Custom date range selection (report UI)
 
 #### Net Worth Tracking
 
-- [ ] Historical net worth chart
+- [x] Historical net worth queries (API)
+- [ ] Historical net worth chart (UI)
 - [ ] Asset vs. liability breakdown
 - [ ] Net worth milestones
 
 #### Data Visualization
 
-- [ ] Interactive charts and graphs
+- [x] Interactive balance chart (dashboard)
 - [ ] Drill-down capabilities
 - [ ] Export charts as images
 
@@ -189,9 +216,9 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 
 #### Currency Management
 
+- [x] Manual currency management (create/list)
 - [ ] Currency exchange rate tracking
 - [ ] Automatic exchange rate fetching (API integration)
-- [ ] Manual exchange rate entry
 - [ ] Transfers between different currencies with conversion
 - [ ] Native currency reporting
 
@@ -255,7 +282,7 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 #### Mobile Experience
 
 - [ ] Responsive mobile-first design improvements
-- [ ] PWA support for mobile installation
+- [x] PWA support for mobile installation
 - [ ] Quick-add transaction widget
 
 #### Onboarding
@@ -266,9 +293,25 @@ A personal finance app inspired by Firefly III, built with SvelteKit, Drizzle OR
 
 ---
 
+## 🎯 Recommended Next (Near-Term)
+
+1. **Categories CRUD + report foundation**
+   - Add dedicated categories (not just free-text fields), then build category breakdown reporting.
+2. **Recurring transactions**
+   - Biggest user-value jump after current transaction/edit/delete flow.
+3. **Budget completion**
+   - Add rollover logic and budget period boundary handling.
+4. **Historical net worth chart UI**
+   - API exists; convert it into a first-class dashboard/report page.
+5. **Import/Export baseline**
+   - Start with CSV export + CSV import (mapped fields) for practical data portability.
+
+---
+
 ## 📝 Notes
 
-- Amounts are stored as integers (cents) to avoid floating-point issues
-- Current architecture follows a simplified layered DDD approach without dependency injection
-- The app uses shadcn-svelte for UI components with Tailwind CSS
-- Data is stored in SQLite via Drizzle ORM
+- Amounts are stored as integers (cents) to avoid floating-point issues.
+- Current architecture follows a simplified layered DDD approach without dependency injection.
+- The app uses shadcn-svelte for UI components with Tailwind CSS.
+- Data is stored in PostgreSQL via Drizzle ORM.
+- Event store remains the source of truth; projections are optimized read models.

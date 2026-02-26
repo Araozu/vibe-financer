@@ -48,8 +48,8 @@
 	let isLoading = $state(false);
 
 	const transactionTypes = [
-		{ value: 'expense', label: 'Expense', icon: ArrowDownRight, color: 'text-rose-500' },
-		{ value: 'income', label: 'Income', icon: ArrowUpRight, color: 'text-emerald-500' }
+		{ value: 'expense', label: 'Expense', icon: ArrowUpRight, color: 'text-rose-500' },
+		{ value: 'income', label: 'Income', icon: ArrowDownRight, color: 'text-emerald-500' }
 	];
 
 	function resetForm() {

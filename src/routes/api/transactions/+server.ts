@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { listAccounts } from '$lib/application/account/list-accounts';
 import {
 	listTransactions,
-	listTransactionsForMonth
+	listTransactionsForMonthForAccounts
 } from '$lib/application/transaction/list-transactions';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
@@ -13,40 +13,35 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const monthParam = url.searchParams.get('month');
 	const yearParam = url.searchParams.get('year');
+	const limitParam = url.searchParams.get('limit');
 	const timezone = url.searchParams.get('tz') ?? 'UTC';
 
 	const allAccounts = await listAccounts();
 	const accounts = allAccounts.filter((acc) => acc.userId === locals.user!.id);
-	const accountIds = new Set(accounts.map((acc) => acc.id));
+	const accountIds = accounts.map((acc) => acc.id);
 
 	if (monthParam !== null && yearParam !== null) {
 		const month = parseInt(monthParam);
 		const year = parseInt(yearParam);
+		const limit = limitParam ? parseInt(limitParam) : undefined;
 
-		const resultByAccount = await Promise.all(
-			Array.from(accountIds).map(async (accountId) => {
-				const { transactions, initialBalance } = await listTransactionsForMonth(
-					accountId,
-					month,
-					year,
-					timezone
-				);
-				return { accountId, transactions, initialBalance };
-			})
-		);
+		if (!Number.isFinite(month) || !Number.isFinite(year)) {
+			return json({ error: 'Invalid month or year' }, { status: 400 });
+		}
+		if (limit !== undefined && !Number.isFinite(limit)) {
+			return json({ error: 'Invalid limit' }, { status: 400 });
+		}
 
-		// Flatten transactions and keep initial balances
-		const allTransactions = resultByAccount.flatMap((r) => r.transactions);
-		const initialBalances = resultByAccount.reduce(
-			(acc, r) => {
-				acc[r.accountId] = r.initialBalance;
-				return acc;
-			},
-			{} as Record<string, number>
+		const { transactions, initialBalances } = await listTransactionsForMonthForAccounts(
+			accountIds,
+			month,
+			year,
+			timezone,
+			limit
 		);
 
 		return json({
-			transactions: allTransactions.map((tx) => ({
+			transactions: transactions.map((tx) => ({
 				...tx,
 				createdAt: tx.createdAt.toISOString(),
 				updatedAt: tx.updatedAt.toISOString()
@@ -56,7 +51,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	const allTransactions = await listTransactions();
-	const transactions = allTransactions.filter((tx) => accountIds.has(tx.accountId));
+	const accountIdSet = new Set(accountIds);
+	const transactions = allTransactions.filter((tx) => accountIdSet.has(tx.accountId));
 
 	const serializedTransactions = transactions.map((tx) => ({
 		...tx,
