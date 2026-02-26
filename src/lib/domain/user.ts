@@ -9,6 +9,7 @@ export interface User {
 	preferredCurrency: string | null;
 	timezone: string | null;
 	age: number | null;
+	defaultAccountId: string | null;
 	createdAt: Date;
 }
 

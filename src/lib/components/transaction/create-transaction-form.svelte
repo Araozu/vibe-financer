@@ -54,6 +54,14 @@
 		class?: string;
 	} = $props();
 
+	// Query for user data to get default account
+	const userQuery = createQuery(() => ({
+		queryKey: ['user'],
+		queryFn: async () => (await fetch('/api/user')).json()
+	}));
+
+	let defaultAccountId = $derived(userQuery.data?.defaultAccountId ?? '');
+
 	let selectedType = $state('expense');
 	let selectedAccountId = $state('');
 	let selectedToAccountId = $state('');
@@ -61,7 +69,8 @@
 
 	$effect(() => {
 		if (accounts.length > 0 && !selectedAccountId) {
-			selectedAccountId = accounts[0].id;
+			const preferred = defaultAccountId && accounts.find((a) => a.id === defaultAccountId);
+			selectedAccountId = preferred ? preferred.id : accounts[0].id;
 		}
 	});
 

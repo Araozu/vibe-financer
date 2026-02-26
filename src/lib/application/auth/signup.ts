@@ -43,7 +43,8 @@ export async function signup(
 		dateOfBirth: null,
 		preferredCurrency: null,
 		timezone: null,
-		age: null
+		age: null,
+		defaultAccountId: null
 	});
 
 	return { success: true, userId: user.id };

@@ -20,6 +20,7 @@ export const user = pgTable('user', {
 	preferredCurrency: text('preferred_currency').default('USD'),
 	timezone: text('timezone').default('UTC'),
 	age: integer('age'),
+	defaultAccountId: text('default_account_id'),
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
 		.notNull()
 		.$defaultFn(() => new Date())

@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { User, Lock, Mail } from '@lucide/svelte';
@@ -21,6 +22,13 @@
 		preferredCurrency: string | null;
 		timezone: string | null;
 		age: number | null;
+		defaultAccountId: string | null;
+	}
+
+	interface AccountData {
+		id: string;
+		name: string;
+		color: string;
 	}
 
 	// Query for user data
@@ -29,9 +37,24 @@
 		queryFn: async () => (await fetch('/api/user')).json()
 	}));
 
+	// Query for accounts
+	const accountsQuery = createQuery<AccountData[]>(() => ({
+		queryKey: ['accounts'],
+		queryFn: async () => (await fetch('/api/accounts')).json()
+	}));
+
 	const queryClient = useQueryClient();
 
 	let user = $derived(userQuery.data);
+	let accountsList = $derived(accountsQuery.data ?? []);
+
+	let selectedDefaultAccountId = $state('');
+
+	$effect(() => {
+		if (user?.defaultAccountId) {
+			selectedDefaultAccountId = user.defaultAccountId;
+		}
+	});
 
 	let loadingProfile = $state(false);
 	let loadingPassword = $state(false);
@@ -182,6 +205,46 @@
 								disabled={loadingProfile}
 							/>
 						</div>
+					</div>
+
+					<div class="space-y-2">
+						<Label for="defaultAccountId">Default Account</Label>
+						<Select.Root type="single" bind:value={selectedDefaultAccountId}>
+							<Select.Trigger
+								id="defaultAccountId"
+								disabled={loadingProfile}
+								class="w-full"
+							>
+								{#if selectedDefaultAccountId}
+									{@const selectedAccount = accountsList.find((a) => a.id === selectedDefaultAccountId)}
+									{#if selectedAccount}
+										<div class="flex items-center gap-2">
+											<div class="h-2 w-2 rounded-full" style="background-color: {selectedAccount.color}"></div>
+											{selectedAccount.name}
+										</div>
+									{:else}
+										Select an account
+									{/if}
+								{:else}
+									None (use first account)
+								{/if}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="" label="None">None (use first account)</Select.Item>
+								{#each accountsList as account (account.id)}
+									<Select.Item value={account.id} label={account.name}>
+										<div class="flex items-center gap-2">
+											<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
+											{account.name}
+										</div>
+									</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<input type="hidden" name="defaultAccountId" value={selectedDefaultAccountId} />
+						<p class="text-xs text-muted-foreground">
+							This account will be pre-selected when creating new transactions
+						</p>
 					</div>
 
 					<div class="flex justify-end pt-2">
