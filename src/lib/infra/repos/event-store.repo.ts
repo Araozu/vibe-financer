@@ -383,13 +383,16 @@ export const eventStoreRepo = {
 	async updateTransactionProjection(
 		transactionId: string,
 		data: {
+			accountId?: string;
 			name?: string | null;
 			description?: string | null;
 			category?: string | null;
 			payee?: string | null;
+			toAccountId?: string | null;
 			amount?: number;
 			type?: 'expense' | 'income' | 'transfer';
 			deletedAt?: Date;
+			createdAt?: Date;
 		}
 	): Promise<void> {
 		await db

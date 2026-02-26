@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, index, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, timestamp, index, uniqueIndex, jsonb } from 'drizzle-orm/pg-core';
 import type { AccountType } from '$lib/domain/account';
 import type { TransactionType } from '$lib/domain/transaction';
 import type { EventType, StreamType } from '$lib/domain/events';
@@ -57,7 +57,7 @@ export const eventStore = pgTable(
 			.$defaultFn(() => new Date())
 	},
 	(table) => [
-		index('idx_event_store_stream').on(table.streamId, table.version),
+		uniqueIndex('idx_event_store_stream').on(table.streamId, table.version),
 		index('idx_event_store_stream_type').on(table.streamType),
 		index('idx_event_store_event_type').on(table.eventType),
 		index('idx_event_store_user').on(table.userId),

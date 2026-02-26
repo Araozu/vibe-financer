@@ -10,7 +10,12 @@
 
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { projectAccountState } from '$lib/domain/account-aggregate';
-import type { TransactionCreatedEvent, TransferCreatedEvent } from '$lib/domain/events';
+import type {
+	TransactionCreatedEvent,
+	TransactionUpdatedEvent,
+	TransactionDeletedEvent,
+	TransferCreatedEvent
+} from '$lib/domain/events';
 import { invalidateSnapshots, forceCreateSnapshot } from './account-projection';
 
 export interface RebuildResult {
@@ -130,6 +135,37 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 					});
 					transactionsRebuilt++;
 				}
+			} else if (event.eventType === 'TransactionUpdated') {
+				const e = event as TransactionUpdatedEvent;
+				const changes = e.payload.changes;
+				const updateData: {
+					accountId?: string;
+					type?: 'expense' | 'income' | 'transfer';
+					amount?: number;
+					name?: string | null;
+					description?: string | null;
+					category?: string | null;
+					payee?: string | null;
+					toAccountId?: string | null;
+					createdAt?: Date;
+				} = {};
+				if (changes.type !== undefined) updateData.type = changes.type;
+				if (changes.amount !== undefined) updateData.amount = changes.amount;
+				if (changes.name !== undefined) updateData.name = changes.name;
+				if (changes.description !== undefined) updateData.description = changes.description;
+				if (changes.category !== undefined) updateData.category = changes.category;
+				if (changes.payee !== undefined) updateData.payee = changes.payee;
+				if (changes.toAccountId !== undefined) updateData.toAccountId = changes.toAccountId;
+				if (changes.transactionDate !== undefined) updateData.createdAt = changes.transactionDate;
+				if (changes.accountId !== undefined) updateData.accountId = changes.accountId;
+				if (Object.keys(updateData).length > 0) {
+					await eventStoreRepo.updateTransactionProjection(e.payload.transactionId, updateData);
+				}
+			} else if (event.eventType === 'TransactionDeleted') {
+				const e = event as TransactionDeletedEvent;
+				await eventStoreRepo.updateTransactionProjection(e.payload.transactionId, {
+					deletedAt: e.occurredAt
+				});
 			}
 		}
 
