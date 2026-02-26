@@ -581,8 +581,8 @@
 							<div class="flex items-center justify-between text-sm">
 								<span class="font-medium">{budget.category}</span>
 								<span class="text-muted-foreground">
-									${(budget.currentSpent / 100).toFixed(0)} /
-									<span class="font-semibold">${(budget.limit / 100).toFixed(0)}</span>
+									{budget.currencySymbol ?? "$"}{(budget.currentSpent / 100).toFixed(0)} /
+									<span class="font-semibold">{budget.currencySymbol ?? "$"}{(budget.limit / 100).toFixed(0)}</span>
 								</span>
 							</div>
 							<Progress
@@ -591,7 +591,7 @@
 							/>
 							{#if budget.currentSpent > budget.limit}
 								<p class="text-[10px] font-medium text-rose-500">
-									Over budget by ${((budget.currentSpent - budget.limit) / 100).toFixed(2)}
+									Over budget by {budget.currencySymbol ?? '$'}{((budget.currentSpent - budget.limit) / 100).toFixed(2)}
 								</p>
 							{/if}
 						</div>

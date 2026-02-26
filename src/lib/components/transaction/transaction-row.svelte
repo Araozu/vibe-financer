@@ -37,7 +37,8 @@
 		id: string;
 		name: string;
 		color: string;
-		// ... other fields if needed
+		currencyCode?: string | null;
+		currencySymbol?: string | null;
 	}
 
 	let { tx, account, deletingTransactionId, onEdit, onDelete } = $props<{
@@ -118,7 +119,7 @@
 	>
 		{tx.type === 'income' ? '+' : '-'}{(tx.amount / 100).toLocaleString('en-US', {
 			style: 'currency',
-			currency: 'USD'
+			currency: account?.currencyCode ?? 'USD'
 		})}
 	</Table.Cell>
 	<Table.Cell>
