@@ -110,6 +110,7 @@ export interface TransactionDeletedPayload {
 export interface TransactionUpdatedPayload {
 	transactionId: string;
 	changes: {
+		accountId?: string; // When the transaction moves to a different account
 		type?: 'expense' | 'income' | 'transfer';
 		amount?: number;
 		name?: string | null;
@@ -120,6 +121,7 @@ export interface TransactionUpdatedPayload {
 		transactionDate?: Date;
 	};
 	previousValues: {
+		accountId?: string;
 		type?: 'expense' | 'income' | 'transfer';
 		amount?: number;
 		name?: string | null;

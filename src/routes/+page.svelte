@@ -174,15 +174,29 @@
 		}
 	}
 
-	let totalBalance = $derived(accounts.reduce((acc: number, curr) => acc + curr.currentBalance, 0));
-	let formattedTotalBalance = $derived(
-		(totalBalance / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-	);
-
-	// Calculate real stats (filtered for selected month)
+	// Calculate real stats (filtered for selected month and capped at today)
 	let firstDayOfSelectedMonth = $derived(new Date(Date.UTC(selectedYear, selectedMonth, 1)));
 	let lastDayOfSelectedMonth = $derived(
 		new Date(Date.UTC(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999))
+	);
+
+	let effectiveEndDate = $derived(
+		dashboardNow < lastDayOfSelectedMonth ? dashboardNow : lastDayOfSelectedMonth
+	);
+
+	let totalBalance = $derived(
+		Object.values(initialBalances).reduce((acc: number, curr) => acc + curr, 0) +
+			transactions
+				.filter((tx) => new Date(tx.createdAt) <= effectiveEndDate)
+				.reduce((acc: number, tx) => {
+					if (tx.type === 'income') return acc + tx.amount;
+					if (tx.type === 'expense') return acc - tx.amount;
+					return acc;
+				}, 0)
+	);
+
+	let formattedTotalBalance = $derived(
+		(totalBalance / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 	);
 
 	let monthlyIncome = $derived(
@@ -191,7 +205,7 @@
 				(tx) =>
 					tx.type === 'income' &&
 					new Date(tx.createdAt) >= firstDayOfSelectedMonth &&
-					new Date(tx.createdAt) <= lastDayOfSelectedMonth
+					new Date(tx.createdAt) <= effectiveEndDate
 			)
 			.reduce((acc: number, curr) => acc + curr.amount, 0)
 	);
@@ -202,7 +216,7 @@
 				(tx) =>
 					tx.type === 'expense' &&
 					new Date(tx.createdAt) >= firstDayOfSelectedMonth &&
-					new Date(tx.createdAt) <= lastDayOfSelectedMonth
+					new Date(tx.createdAt) <= effectiveEndDate
 			)
 			.reduce((acc: number, curr) => acc + curr.amount, 0)
 	);
@@ -221,9 +235,27 @@
 	// Find the first account with a goal to show in the dashboard
 	let accountWithGoal = $derived(accounts.find((a) => a.goal !== null));
 	let goal = $derived(accountWithGoal?.goal);
+
+	let currentBalanceForGoalAccount = $derived.by(() => {
+		if (!accountWithGoal) return 0;
+
+		const initialBalance = initialBalances[accountWithGoal.id] || 0;
+		const netChange = transactions
+			.filter(
+				(tx) => tx.accountId === accountWithGoal.id && new Date(tx.createdAt) <= effectiveEndDate
+			)
+			.reduce((acc, tx) => {
+				if (tx.type === 'income') return acc + tx.amount;
+				if (tx.type === 'expense') return acc - tx.amount;
+				return acc;
+			}, 0);
+
+		return initialBalance + netChange;
+	});
+
 	let goalProgress = $derived(
 		goal && accountWithGoal
-			? Math.min((accountWithGoal.currentBalance / goal.targetAmount) * 100, 100)
+			? Math.min((currentBalanceForGoalAccount / goal.targetAmount) * 100, 100)
 			: 0
 	);
 
@@ -397,7 +429,7 @@
 					<div class="space-y-4">
 						<div class="flex items-baseline gap-1">
 							<span class="text-3xl font-bold tracking-tight">
-								{(accountWithGoal.currentBalance / 100).toLocaleString('en-US', {
+								{(currentBalanceForGoalAccount / 100).toLocaleString('en-US', {
 									style: 'currency',
 									currency: accountWithGoal.currencyCode ?? 'USD'
 								})}

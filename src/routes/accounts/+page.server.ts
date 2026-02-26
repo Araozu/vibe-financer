@@ -1,6 +1,7 @@
 import { createAccount } from '$lib/application/account/create-account';
 import { updateAccount } from '$lib/application/account/update-account';
 import { createTransaction } from '$lib/application/transaction/create-transaction';
+import { editTransaction } from '$lib/application/transaction/edit-transaction';
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import type { AccountType } from '$lib/domain/account';
@@ -143,6 +144,52 @@ export const actions: Actions = {
 				},
 				locals.user.id
 			);
+			return { success: true };
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : 'Unknown error';
+			return fail(400, { error: message });
+		}
+	},
+	editTransaction: async ({ request, locals }) => {
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
+		const formData = await request.formData();
+		const transactionId = formData.get('transactionId') as string;
+		const type = formData.get('type') as TransactionType | null;
+		const amountStr = formData.get('amount') as string | null;
+		const name = formData.get('name') as string | null;
+		const description = formData.get('description') as string | null;
+		const category = formData.get('category') as string | null;
+		const payee = formData.get('payee') as string | null;
+		const dateStr = formData.get('date') as string | null;
+		const accountId = formData.get('accountId') as string | null;
+
+		const updates: {
+			accountId?: string;
+			type?: TransactionType;
+			amount?: number;
+			name?: string | null;
+			description?: string | null;
+			category?: string | null;
+			payee?: string | null;
+			transactionDate?: Date;
+		} = {};
+
+		if (accountId) updates.accountId = accountId;
+		if (type) updates.type = type;
+		if (amountStr) updates.amount = Math.round(parseFloat(amountStr) * 100);
+		if (name !== null) updates.name = name || null;
+		if (description !== null) updates.description = description || null;
+		if (category !== null) updates.category = category || null;
+		if (payee !== null) updates.payee = payee || null;
+		if (dateStr) {
+			updates.transactionDate = parseDateLocal(dateStr);
+		}
+
+		try {
+			await editTransaction(transactionId, updates, locals.user.id);
 			return { success: true };
 		} catch (error: unknown) {
 			const message = error instanceof Error ? error.message : 'Unknown error';

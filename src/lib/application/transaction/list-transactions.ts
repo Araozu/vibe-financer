@@ -38,6 +38,52 @@ export async function listTransactionsForMonth(
 	};
 }
 
+export async function listTransactionsForMonthForAccounts(
+	accountIds: string[],
+	month: number,
+	year: number,
+	timezone: string,
+	limit?: number
+): Promise<{ transactions: Transaction[]; initialBalances: Record<string, number> }> {
+	// 1. Calculate the start and end of the month in the target timezone
+	const dateInTz = new Date(year, month, 1);
+	const monthStartLocal = startOfMonth(dateInTz);
+	const monthEndLocal = endOfMonth(dateInTz);
+
+	// 2. Convert these local times to UTC for the database query
+	const monthStartUtc = fromZonedTime(monthStartLocal, timezone);
+	const monthEndUtc = fromZonedTime(monthEndLocal, timezone);
+
+	// 3. Fetch transactions within this UTC range for all accounts
+	const transactions = await transactionRepo.findByAccountIdsAndDateRange(
+		accountIds,
+		monthStartUtc,
+		monthEndUtc,
+		limit
+	);
+
+	// 4. Calculate initial balances for each account
+	const balances = await Promise.all(
+		accountIds.map(async (accountId) => {
+			const balance = await transactionRepo.getSumBeforeDate(accountId, monthStartUtc);
+			return { accountId, balance };
+		})
+	);
+
+	const initialBalances = balances.reduce(
+		(acc, { accountId, balance }) => {
+			acc[accountId] = balance;
+			return acc;
+		},
+		{} as Record<string, number>
+	);
+
+	return {
+		transactions,
+		initialBalances
+	};
+}
+
 export async function listTransactionsByAccountPaginated(
 	accountId: string,
 	limit: number,

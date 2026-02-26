@@ -107,7 +107,7 @@ export async function deleteTransaction(
 		const destAccount = await getAccountState(tx.toAccountId);
 		if (destAccount && canAcceptTransaction(destAccount)) {
 			const destVersion = await getAccountVersion(tx.toAccountId);
-			
+
 			// For destination account, the transfer was an income.
 			// To delete it, we need to subtract the amount.
 			const destBalanceAdjustment = -tx.amount;
@@ -127,7 +127,7 @@ export async function deleteTransaction(
 			// Append event to destination stream
 			try {
 				await eventStoreRepo.append(destEvent, { expectedVersion: destVersion });
-				
+
 				// Update destination account read model
 				await eventStoreRepo.updateAccountProjection(tx.toAccountId, {
 					currentBalance: destAccount.currentBalance + destBalanceAdjustment
@@ -142,7 +142,10 @@ export async function deleteTransaction(
 			} catch (err: unknown) {
 				const e = err as { name?: string };
 				if (e?.name === 'ConcurrencyError') {
-					throw error(409, 'Concurrent update detected while reversing transfer on destination account. Please retry.');
+					throw error(
+						409,
+						'Concurrent update detected while reversing transfer on destination account. Please retry.'
+					);
 				}
 				throw err;
 			}

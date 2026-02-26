@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { transaction } from '../db/schema';
-import { eq, desc, isNull, and, between, lt } from 'drizzle-orm';
+import { eq, desc, isNull, and, between, lt, inArray } from 'drizzle-orm';
 import type { Transaction, CreateTransactionDTO } from '../../domain/transaction';
 
 export const transactionRepo = {
@@ -20,6 +20,33 @@ export const transactionRepo = {
 			.from(transaction)
 			.where(and(eq(transaction.accountId, accountId), isNull(transaction.deletedAt)))
 			.orderBy(desc(transaction.createdAt));
+	},
+
+	async findByAccountIdsAndDateRange(
+		accountIds: string[],
+		start: Date,
+		end: Date,
+		limit?: number
+	): Promise<Transaction[]> {
+		if (accountIds.length === 0) return [];
+
+		const query = db
+			.select()
+			.from(transaction)
+			.where(
+				and(
+					inArray(transaction.accountId, accountIds),
+					isNull(transaction.deletedAt),
+					between(transaction.createdAt, start, end)
+				)
+			)
+			.orderBy(desc(transaction.createdAt));
+
+		if (limit !== undefined) {
+			query.limit(limit);
+		}
+
+		return await query;
 	},
 
 	async findByDateRange(accountId: string, start: Date, end: Date): Promise<Transaction[]> {
