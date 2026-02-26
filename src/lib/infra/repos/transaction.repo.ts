@@ -30,7 +30,7 @@ export const transactionRepo = {
 	): Promise<Transaction[]> {
 		if (accountIds.length === 0) return [];
 
-		const query = db
+		const baseQuery = db
 			.select()
 			.from(transaction)
 			.where(
@@ -42,11 +42,7 @@ export const transactionRepo = {
 			)
 			.orderBy(desc(transaction.createdAt));
 
-		if (limit !== undefined) {
-			query.limit(limit);
-		}
-
-		return await query;
+		return await (limit !== undefined ? baseQuery.limit(limit) : baseQuery);
 	},
 
 	async findByDateRange(accountId: string, start: Date, end: Date): Promise<Transaction[]> {
