@@ -138,7 +138,17 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 			} else if (event.eventType === 'TransactionUpdated') {
 				const e = event as TransactionUpdatedEvent;
 				const changes = e.payload.changes;
-				const updateData: Record<string, unknown> = {};
+				const updateData: {
+					accountId?: string;
+					type?: 'expense' | 'income' | 'transfer';
+					amount?: number;
+					name?: string | null;
+					description?: string | null;
+					category?: string | null;
+					payee?: string | null;
+					toAccountId?: string | null;
+					createdAt?: Date;
+				} = {};
 				if (changes.type !== undefined) updateData.type = changes.type;
 				if (changes.amount !== undefined) updateData.amount = changes.amount;
 				if (changes.name !== undefined) updateData.name = changes.name;
