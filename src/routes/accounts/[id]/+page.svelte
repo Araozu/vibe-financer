@@ -167,7 +167,7 @@
 					{formatAmount(account.currentBalance, account.currencySymbol ?? '$')}
 				</p>
 				<p class="text-[10px] font-bold tracking-[0.1em] text-muted-foreground/60 uppercase">
-					{account.currencyCode ?? 'USD'} • {account.currencySymbol ?? '$'}
+					{account.currencySymbol ?? '$'}
 				</p>
 			</div>
 		</div>

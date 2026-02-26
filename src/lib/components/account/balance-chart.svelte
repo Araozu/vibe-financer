@@ -7,11 +7,11 @@
 	let {
 		data,
 		color = '#3b82f6',
-		currencyCode = 'USD'
+		currencySymbol = '$'
 	}: {
 		data: ChartDataPoint[];
 		color?: string;
-		currencyCode?: string;
+		currencySymbol?: string;
 	} = $props();
 
 	const CHART_WIDTH = 920;
@@ -24,10 +24,10 @@
 	};
 
 	function formatCurrency(amountInCents: number): string {
-		return (amountInCents / 100).toLocaleString('en-US', {
-			style: 'currency',
-			currency: currencyCode
-		});
+		return `${currencySymbol}${(amountInCents / 100).toLocaleString('en-US', {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2
+		})}`;
 	}
 
 	let parsedData = $derived(

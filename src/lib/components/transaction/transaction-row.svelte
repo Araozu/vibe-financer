@@ -117,9 +117,9 @@
 	<Table.Cell
 		class="text-right font-medium {tx.type === 'income' ? 'text-income' : 'text-expense'}"
 	>
-		{tx.type === 'income' ? '+' : '-'}{(tx.amount / 100).toLocaleString('en-US', {
-			style: 'currency',
-			currency: account?.currencyCode ?? 'USD'
+		{tx.type === 'income' ? '+' : '-'}{account?.currencySymbol ?? '$'}{(tx.amount / 100).toLocaleString('en-US', {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2
 		})}
 	</Table.Cell>
 	<Table.Cell>
