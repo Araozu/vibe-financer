@@ -19,6 +19,7 @@
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
+	import { format } from 'date-fns';
 	import type { Transaction } from '$lib/domain/transaction';
 	import TimePicker from '$lib/components/ui/time-picker/time-picker.svelte';
 
@@ -48,7 +49,7 @@
 	let amount = $state('');
 	let category = $state('');
 	let transactionDate = $state('');
-	let transactionTime = $state('12:00');
+	let transactionTime = $state('00:00');
 	let userTimezone = $state('');
 	let isLoading = $state(false);
 
@@ -69,8 +70,8 @@
 		amount = String(transaction.amount / 100);
 		category = transaction.category ?? '';
 		const d = new Date(transaction.createdAt);
-		transactionDate = d.toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
-		transactionTime = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+		transactionDate = format(d, 'yyyy-MM-dd');
+		transactionTime = format(d, 'HH:mm');
 	}
 
 	// Initialize form when transaction changes
