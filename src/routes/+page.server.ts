@@ -74,6 +74,8 @@ export const actions: Actions = {
 		const category = formData.get('category') as string | null;
 		const payee = formData.get('payee') as string | null;
 		const dateStr = formData.get('date') as string | null;
+		const timeStr = formData.get('time') as string | null;
+		const timezone = formData.get('timezone') as string | null;
 		const accountId = formData.get('accountId') as string | null;
 
 		const updates: {
@@ -101,7 +103,11 @@ export const actions: Actions = {
 		if (category !== null) updates.category = category || null;
 		if (payee !== null) updates.payee = payee || null;
 		if (dateStr) {
-			updates.transactionDate = parseDateLocal(dateStr);
+			const timePart = timeStr ?? '00:00';
+			const localDateTimeStr = `${dateStr}T${timePart}:00`;
+			updates.transactionDate = timezone
+				? fromZonedTime(localDateTimeStr, timezone)
+				: parseDateLocal(localDateTimeStr);
 		}
 
 		try {
