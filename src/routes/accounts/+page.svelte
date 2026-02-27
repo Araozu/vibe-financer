@@ -1,90 +1,19 @@
 <script lang="ts">
 	import { createQuery } from '@tanstack/svelte-query';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
-	import EditAccountDialog from '$lib/components/account/edit-account-dialog.svelte';
-	import CurrencyManagerDialog from '$lib/components/currency/currency-manager-dialog.svelte';
-	import BalanceChart from '$lib/components/account/balance-chart.svelte';
-	import TransactionRow from '$lib/components/transaction/transaction-row.svelte';
 	import {
 		CreditCard,
 		TrendingUp,
 		TrendingDown,
 		Coins,
 		Wallet,
-		ArrowRight,
-		Calendar
+		Landmark,
+		CircleDollarSign,
+		Plus
 	} from '@lucide/svelte';
-	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
 	import type { Account, AccountType } from '$lib/domain/account';
-	import type { TransactionType } from '$lib/domain/transaction';
-
-	import { useQueryClient } from '@tanstack/svelte-query';
-	const queryClient = useQueryClient();
-
-	let editingTransaction = $state<DetailedTransaction | null>(null);
-	let editDialogOpen = $state(false);
-	let deletingTransactionId = $state<string | null>(null);
-
-	function openEditDialog(tx: DetailedTransaction) {
-		editingTransaction = tx;
-		editDialogOpen = true;
-	}
-
-	async function handleDeleteTransaction(transactionId: string) {
-		if (
-			!confirm(
-				'Are you sure you want to delete this transaction? This will adjust the account balance accordingly.'
-			)
-		) {
-			return;
-		}
-
-		deletingTransactionId = transactionId;
-
-		try {
-			const response = await fetch(`/api/transactions/${transactionId}`, {
-				method: 'DELETE'
-			});
-
-			if (!response.ok) {
-				const error = await response.json();
-				throw new Error(error.error ?? 'Failed to delete transaction');
-			}
-
-			// Invalidate queries to refresh the UI
-			await queryClient.invalidateQueries({ queryKey: ['accounts'] });
-		} catch (error) {
-			console.error('Error deleting transaction:', error);
-			alert(error instanceof Error ? error.message : 'Failed to delete transaction');
-		} finally {
-			deletingTransactionId = null;
-		}
-	}
-
-	// Serialized types from API
-	interface SerializedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
-		createdAt: string;
-		updatedAt: string;
-	}
-
-	// Detailed account type with transactions and chart data
-	interface DetailedTransaction {
-		id: string;
-		accountId: string;
-		type: TransactionType;
-		amount: number;
-		name: string | null;
-		description: string | null;
-		category: string | null;
-		payee: string | null;
-		toAccountId: string | null;
-		createdAt: string;
-		updatedAt: string;
-	}
 
 	interface ChartDataPoint {
 		date: string;
@@ -94,33 +23,14 @@
 	interface DetailedAccount extends Omit<Account, 'createdAt' | 'updatedAt'> {
 		createdAt: string;
 		updatedAt: string;
-		last10Transactions: DetailedTransaction[];
+		last10Transactions: unknown[];
 		chartData: ChartDataPoint[];
 	}
 
-	// Month/Year selection
 	const now = new Date();
 	let selectedMonth = $state(now.getUTCMonth());
 	let selectedYear = $state(now.getUTCFullYear());
 
-	const months = [
-		'January',
-		'February',
-		'March',
-		'April',
-		'May',
-		'June',
-		'July',
-		'August',
-		'September',
-		'October',
-		'November',
-		'December'
-	];
-
-	const years = Array.from({ length: 5 }, (_, i) => now.getUTCFullYear() - 2 + i);
-
-	// Query for detailed accounts
 	const accountsQuery = createQuery<DetailedAccount[]>(() => ({
 		queryKey: ['accounts', 'detailed', selectedMonth, selectedYear],
 		queryFn: async () => {
@@ -131,28 +41,20 @@
 
 	let accounts = $derived(accountsQuery.data ?? []);
 
-	// Also get basic accounts for the transaction dialog
-	const basicAccountsQuery = createQuery<SerializedAccount[]>(() => ({
-		queryKey: ['accounts'],
-		queryFn: async () => (await fetch('/api/accounts')).json()
-	}));
-
-	let _basicAccounts = $derived(basicAccountsQuery.data ?? []);
-
 	const typeIcons: Record<AccountType, typeof CreditCard> = {
 		asset: CreditCard,
 		expense: TrendingDown,
 		revenue: TrendingUp,
 		liability: Coins,
-		savings: Wallet
+		savings: Landmark
 	};
 
 	const typeLabels: Record<AccountType, string> = {
-		asset: 'Asset',
-		expense: 'Expense',
-		revenue: 'Revenue',
-		liability: 'Liability',
-		savings: 'Savings'
+		asset: 'Checking Account',
+		expense: 'Expense Account',
+		revenue: 'Revenue Account',
+		liability: 'Liability Account',
+		savings: 'Savings Account'
 	};
 
 	function formatAmount(amount: number, currencySymbol: string) {
@@ -162,49 +64,111 @@
 		});
 		return `${currencySymbol}${formatted}`;
 	}
+
+	// Compute summary stats
+	let totalBalance = $derived(
+		accounts.reduce((sum, acc) => sum + acc.currentBalance, 0)
+	);
+
+	let activeAccountCount = $derived(accounts.length);
+
+	// Monthly change: difference between end-of-month balance and start-of-month balance across all accounts
+	let monthlyChange = $derived(
+		accounts.reduce((sum, acc) => {
+			if (acc.chartData.length >= 2) {
+				const startBalance = acc.chartData[0].balance;
+				const endBalance = acc.chartData[acc.chartData.length - 1].balance;
+				return sum + (endBalance - startBalance) * 100; // convert back to cents
+			}
+			return sum;
+		}, 0)
+	);
+
+	// Monthly change per account as percentage
+	function getMonthlyChangePercent(account: DetailedAccount): number | null {
+		if (account.chartData.length < 2) return null;
+		const startBalance = account.chartData[0].balance;
+		const endBalance = account.chartData[account.chartData.length - 1].balance;
+		if (startBalance === 0) return null;
+		return ((endBalance - startBalance) / Math.abs(startBalance)) * 100;
+	}
+
+	// Pick a representative currency symbol for the total (use the most common one)
+	let primaryCurrencySymbol = $derived.by(() => {
+		if (accounts.length === 0) return '$';
+		const symbolCounts = new Map<string, number>();
+		for (const acc of accounts) {
+			const sym = acc.currencySymbol ?? '$';
+			symbolCounts.set(sym, (symbolCounts.get(sym) ?? 0) + 1);
+		}
+		let maxSym = '$';
+		let maxCount = 0;
+		for (const [sym, count] of symbolCounts) {
+			if (count > maxCount) {
+				maxSym = sym;
+				maxCount = count;
+			}
+		}
+		return maxSym;
+	});
 </script>
 
-<div class="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
-	<div class="flex items-center gap-3">
-		<div class="flex h-10 items-center gap-2 rounded-xl border bg-card px-3 shadow-sm">
-			<Calendar class="h-4 w-4 text-muted-foreground" />
-			<select
-				bind:value={selectedMonth}
-				class="bg-transparent text-sm font-bold focus:outline-none"
-			>
-				{#each months as month, i (i)}
-					<option value={i}>{month}</option>
-				{/each}
-			</select>
-			<div class="h-4 w-px bg-border"></div>
-			<select bind:value={selectedYear} class="bg-transparent text-sm font-bold focus:outline-none">
-				{#each years as year (year)}
-					<option value={year}>{year}</option>
-				{/each}
-			</select>
-		</div>
-
-		{#if selectedMonth !== now.getUTCMonth() || selectedYear !== now.getUTCFullYear()}
-			<Button
-				variant="ghost"
-				size="sm"
-				onclick={() => {
-					selectedMonth = now.getUTCMonth();
-					selectedYear = now.getUTCFullYear();
-				}}
-				class="text-[10px] font-bold tracking-widest uppercase"
-			>
-				Reset to Today
+<!-- Header -->
+<div class="mb-8 flex items-center justify-between">
+	<h1 class="text-2xl font-bold">My Accounts</h1>
+	<CreateAccountDialog>
+		{#snippet trigger()}
+			<Button class="gap-2 rounded-full font-semibold">
+				<Plus class="h-4 w-4" />
+				Add Account
 			</Button>
-		{/if}
-	</div>
-
-	<div class="flex items-center gap-2">
-		<CurrencyManagerDialog />
-		<CreateAccountDialog />
-	</div>
+		{/snippet}
+	</CreateAccountDialog>
 </div>
 
+<!-- Summary Cards -->
+{#if accounts.length > 0}
+	<div class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+		<!-- Total Balance -->
+		<Card.Root class="overflow-hidden border-0 bg-primary text-primary-foreground shadow-lg">
+			<Card.Content class="p-6">
+				<p class="text-sm font-medium opacity-90">Total Balance</p>
+				<p class="mt-2 text-3xl font-bold tracking-tight">
+					{formatAmount(totalBalance, primaryCurrencySymbol)}
+				</p>
+				<p class="mt-1 text-sm opacity-75">
+					Across {activeAccountCount} account{activeAccountCount !== 1 ? 's' : ''}
+				</p>
+			</Card.Content>
+		</Card.Root>
+
+		<!-- Active Accounts -->
+		<Card.Root class="shadow-sm">
+			<Card.Content class="p-6">
+				<p class="text-sm font-medium text-muted-foreground">Active Accounts</p>
+				<p class="mt-2 text-3xl font-bold tracking-tight">{activeAccountCount}</p>
+				<p class="mt-1 text-sm font-medium text-emerald-500">All in good standing</p>
+			</Card.Content>
+		</Card.Root>
+
+		<!-- Monthly Change -->
+		<Card.Root class="shadow-sm">
+			<Card.Content class="p-6">
+				<p class="text-sm font-medium text-muted-foreground">Monthly Change</p>
+				<p
+					class="mt-2 text-3xl font-bold tracking-tight {monthlyChange >= 0
+						? 'text-emerald-500'
+						: 'text-destructive'}"
+				>
+					{monthlyChange >= 0 ? '+' : '-'}{formatAmount(Math.abs(monthlyChange), primaryCurrencySymbol)}
+				</p>
+				<p class="mt-1 text-sm text-muted-foreground">vs. last month</p>
+			</Card.Content>
+		</Card.Root>
+	</div>
+{/if}
+
+<!-- Account List -->
 {#if accounts.length === 0}
 	<Card.Root class="flex flex-col items-center justify-center border-dashed p-12 text-center">
 		<div class="mb-4 rounded-full bg-muted p-4">
@@ -219,172 +183,52 @@
 		</div>
 	</Card.Root>
 {:else}
-	<div class="grid grid-cols-1 gap-8">
+	<div class="flex flex-col gap-4">
 		{#each accounts as account (account.id)}
 			{@const Icon = typeIcons[account.type] ?? Wallet}
-			<Card.Root class="group overflow-hidden border-2 transition-all hover:border-primary/30">
-				<Card.Header class="border-b bg-muted/10 pb-6">
-					<div class="flex items-start justify-between">
-						<div class="flex items-center gap-4">
-							<div
-								class="rounded-xl p-2.5"
-								style="background-color: {account.color}20; color: {account.color}"
-							>
-								<Icon class="h-6 w-6" />
-							</div>
-							<div>
-								<Card.Title class="text-2xl transition-colors group-hover:text-primary"
-									>{account.name}</Card.Title
-								>
-								<Card.Description class="line-clamp-1"
-									>{account.description ?? 'No description'}</Card.Description
-								>
-							</div>
+			{@const changePercent = getMonthlyChangePercent(account)}
+			<a
+				href="/accounts/{account.id}"
+				class="block rounded-xl border bg-card p-5 shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
+			>
+				<div class="flex items-center justify-between">
+					<!-- Left: Icon + Info -->
+					<div class="flex items-center gap-4">
+						<div
+							class="flex h-12 w-12 items-center justify-center rounded-full"
+							style="background-color: {account.color}15; color: {account.color}"
+						>
+							<Icon class="h-5 w-5" />
 						</div>
-						<div class="flex items-center gap-2">
-							<EditAccountDialog {account} />
-							<Badge
-								variant="secondary"
-								class="px-3 py-1 text-xs font-bold tracking-wider uppercase"
-							>
-								{typeLabels[account.type]}
-							</Badge>
-						</div>
-					</div>
-				</Card.Header>
-				<Card.Content class="pt-8">
-					<div class="mb-8 flex flex-col gap-1">
-						<div class="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
-							Current Balance
-						</div>
-						<div class="flex items-baseline gap-3">
-							<div class="text-6xl font-black tracking-tighter">
-								{formatAmount(account.currentBalance, account.currencySymbol ?? '$')}
-							</div>
-							<p class="mt-1 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold">
-								{#if account.currentBalance >= account.initialBalance}
-									<TrendingUp class="h-3.5 w-3.5 text-emerald-500" />
-									<span class="text-emerald-500">
-										+{formatAmount(
-											account.currentBalance - account.initialBalance,
-											account.currencySymbol ?? '$'
-										)}
-									</span>
-								{:else}
-									<TrendingDown class="h-3.5 w-3.5 text-rose-500" />
-									<span class="text-rose-500">
-										-{formatAmount(
-											account.initialBalance - account.currentBalance,
-											account.currencySymbol ?? '$'
-										)}
-									</span>
-								{/if}
-								<span class="ml-1 font-medium text-muted-foreground/60 lowercase">vs initial</span>
+						<div>
+							<p class="font-semibold">{account.name}</p>
+							<p class="text-sm text-muted-foreground">
+								{typeLabels[account.type] ?? 'Account'} &bull; {account.currencyCode ?? 'USD'}
 							</p>
 						</div>
-						<div
-							class="mt-1 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/60 uppercase"
-						>
-							{account.currencySymbol ?? '$'}
-						</div>
 					</div>
 
-					<div class="grid grid-cols-1 gap-12">
-						<!-- Top: Chart -->
-						<div class="w-full">
-							<h3
-								class="mb-6 flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase"
+					<!-- Right: Balance + Change -->
+					<div class="text-right">
+						<p class="text-lg font-bold">
+							{formatAmount(account.currentBalance, account.currencySymbol ?? '$')}
+						</p>
+						{#if changePercent !== null}
+							<p
+								class="text-sm {changePercent >= 0
+									? 'text-emerald-500'
+									: 'text-destructive'}"
 							>
-								<div class="h-1 w-3 rounded-full" style="background-color: {account.color}"></div>
-								Balance History ({months[selectedMonth]}
-								{selectedYear})
-							</h3>
-							<BalanceChart
-								data={account.chartData}
-								color={account.color}
-								currencySymbol={account.currencySymbol ?? '$'}
-							/>
-						</div>
-
-						<!-- Bottom: Transactions -->
-						<div class="flex flex-col">
-							<div class="mb-6 flex items-center justify-between">
-								<h3
-									class="flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase"
-								>
-									<TrendingUp class="h-3.5 w-3.5" />
-									Recent Transactions
-								</h3>
-							</div>
-
-							<div class="overflow-hidden rounded-xl border-none bg-card/50">
-								<Table.Root>
-									<Table.Header class="bg-transparent">
-										<Table.Row class="hover:bg-transparent">
-											<Table.Head class="h-8 text-[9px] font-bold tracking-widest uppercase"
-												>Date</Table.Head
-											>
-											<Table.Head class="h-8 text-[9px] font-bold tracking-widest uppercase"
-												>Name</Table.Head
-											>
-											<Table.Head
-												class="h-8 text-right text-[9px] font-bold tracking-widest uppercase"
-											></Table.Head>
-										</Table.Row>
-									</Table.Header>
-									<Table.Body>
-										{#if account.last10Transactions.length === 0}
-											<Table.Row>
-												<Table.Cell colspan={3} class="py-12 text-center text-muted-foreground">
-													No transactions yet.
-												</Table.Cell>
-											</Table.Row>
-										{:else}
-											{#each account.last10Transactions as tx (tx.id)}
-												<TransactionRow
-													tx={{
-														...tx,
-														deletedAt: null
-													}}
-													{account}
-													{deletingTransactionId}
-													onEdit={openEditDialog}
-													onDelete={handleDeleteTransaction}
-												/>
-											{/each}
-										{/if}
-									</Table.Body>
-								</Table.Root>
-							</div>
-							<div class="mt-4 flex justify-end">
-								<Button
-									variant="ghost"
-									size="sm"
-									href="/accounts/{account.id}"
-									class="gap-1 text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase hover:bg-transparent hover:text-primary"
-								>
-									View all transactions
-									<ArrowRight class="h-3 w-3" />
-								</Button>
-							</div>
-						</div>
+								{#if changePercent >= 0}
+									<span>&#9650; {changePercent.toFixed(1)}% this month</span>
+								{:else}
+									<span>&#9660; {Math.abs(changePercent).toFixed(1)}% this month</span>
+								{/if}
+							</p>
+						{/if}
 					</div>
-				</Card.Content>
-			</Card.Root>
+				</div>
+			</a>
 		{/each}
 	</div>
-{/if}
-
-<!-- Edit Transaction Dialog -->
-{#if editingTransaction}
-	<EditTransactionDialog
-		transaction={{
-			...editingTransaction,
-			createdAt: new Date(editingTransaction.createdAt),
-			updatedAt: new Date(editingTransaction.updatedAt),
-			deletedAt: null
-		}}
-		_accounts={_basicAccounts}
-		bind:open={editDialogOpen}
-	/>
 {/if}

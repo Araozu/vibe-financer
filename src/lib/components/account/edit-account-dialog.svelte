@@ -19,11 +19,12 @@
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { cn } from '$lib/utils.js';
+	import type { Snippet } from 'svelte';
 
 	const queryClient = useQueryClient();
 
 	// We use any here because the account might come from a serialized API response (dates as strings)
-	let { open = $bindable(false), account } = $props<{
+	let { open = $bindable(false), account, trigger: triggerSnippet } = $props<{
 		open?: boolean;
 		account: {
 			id: string;
@@ -34,6 +35,7 @@
 			currencyId: string;
 			color: string;
 		};
+		trigger?: Snippet;
 	}>();
 
 	const currenciesQuery = createQuery(() => ({
@@ -76,15 +78,21 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger
-		class={cn(
-			buttonVariants({ variant: 'ghost', size: 'icon' }),
-			'h-8 w-8 text-muted-foreground hover:text-primary'
-		)}
-	>
-		<Pencil class="h-4 w-4" />
-		<span class="sr-only">Edit account</span>
-	</Dialog.Trigger>
+	{#if triggerSnippet}
+		<Dialog.Trigger>
+			{@render triggerSnippet()}
+		</Dialog.Trigger>
+	{:else}
+		<Dialog.Trigger
+			class={cn(
+				buttonVariants({ variant: 'ghost', size: 'icon' }),
+				'h-8 w-8 text-muted-foreground hover:text-primary'
+			)}
+		>
+			<Pencil class="h-4 w-4" />
+			<span class="sr-only">Edit account</span>
+		</Dialog.Trigger>
+	{/if}
 	<Dialog.Content class="overflow-hidden p-0 shadow-2xl sm:max-w-2xl">
 		<form
 			method="POST"

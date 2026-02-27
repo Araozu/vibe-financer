@@ -10,17 +10,22 @@
 		TrendingDown,
 		Coins,
 		Wallet,
+		Landmark,
 		ArrowLeft,
 		ChevronLeft,
 		ChevronRight,
-		Loader2
+		Loader2,
+		Pencil,
+		Trash2,
+		LayoutGrid
 	} from '@lucide/svelte';
 	import { useQueryClient } from '@tanstack/svelte-query';
 	import TransactionRow from '$lib/components/transaction/transaction-row.svelte';
 	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
+	import EditAccountDialog from '$lib/components/account/edit-account-dialog.svelte';
+	import BalanceChart from '$lib/components/account/balance-chart.svelte';
 	import type { AccountType } from '$lib/domain/account';
-
-	// import type { Transaction } from '$lib/domain/transaction';
+	import { goto } from '$app/navigation';
 
 	const queryClient = useQueryClient();
 
@@ -28,6 +33,7 @@
 	let editingTransaction = $state<any | null>(null);
 	let editDialogOpen = $state(false);
 	let deletingTransactionId = $state<string | null>(null);
+	let isDeleting = $state(false);
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	function openEditDialog(tx: any) {
@@ -56,7 +62,6 @@
 				throw new Error(error.error ?? 'Failed to delete transaction');
 			}
 
-			// Invalidate queries to refresh the UI
 			await queryClient.invalidateQueries({ queryKey: ['accounts', account.id] });
 		} catch (error) {
 			console.error('Error deleting transaction:', error);
@@ -66,11 +71,48 @@
 		}
 	}
 
+	async function handleDeleteAccount() {
+		if (
+			!confirm(
+				'Are you sure you want to delete this account? This action cannot be undone.'
+			)
+		) {
+			return;
+		}
+
+		isDeleting = true;
+		try {
+			const response = await fetch(`/api/accounts/${account.id}`, {
+				method: 'DELETE'
+			});
+
+			if (!response.ok) {
+				const error = await response.json();
+				throw new Error(error.error ?? 'Failed to delete account');
+			}
+
+			await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+			goto('/accounts');
+		} catch (error) {
+			console.error('Error deleting account:', error);
+			alert(error instanceof Error ? error.message : 'Failed to delete account');
+		} finally {
+			isDeleting = false;
+		}
+	}
+
 	let { data } = $props();
 	const account = $derived(data.account);
 
 	let offset = $state(0);
 	const limit = 50;
+
+	// Transaction filter: 'all' | 'income' | 'expense'
+	let txFilter = $state<'all' | 'income' | 'expense'>('all');
+
+	// Chart time range
+	type TimeRange = '7D' | '1M' | '3M' | '1Y' | 'All';
+	let chartRange = $state<TimeRange>('1M');
 
 	const transactionsQuery = createQuery(() => ({
 		queryKey: ['accounts', account.id, 'transactions', offset],
@@ -80,28 +122,97 @@
 			);
 			return res.json();
 		},
-		placeholderData: (previousData) => previousData
+		placeholderData: (previousData: unknown) => previousData
 	}));
 
-	let transactions = $derived(
+	let allTransactions = $derived(
 		transactionsQuery.data?.transactions ?? (offset === 0 ? data.initialTransactions : [])
 	);
 	let hasMore = $derived(transactionsQuery.data?.hasMore ?? true);
+
+	// Filtered transactions based on the selected tab
+	let transactions = $derived(
+		txFilter === 'all'
+			? allTransactions
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			: allTransactions.filter((tx: any) => tx.type === txFilter)
+	);
+
+	// Chart data query
+	const now = new Date();
+	let chartMonth = $derived.by(() => {
+		// For 1M, use current month
+		return now.getUTCMonth();
+	});
+	let chartYear = $derived.by(() => {
+		return now.getUTCFullYear();
+	});
+
+	const chartQuery = createQuery(() => ({
+		queryKey: ['accounts', 'detailed', chartMonth, chartYear],
+		queryFn: async () => {
+			const res = await fetch(
+				`/api/accounts/detailed?month=${chartMonth}&year=${chartYear}`
+			);
+			return res.json();
+		}
+	}));
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let chartData = $derived.by(() => {
+		const accounts = chartQuery.data ?? [];
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const thisAccount = accounts.find((a: any) => a.id === account.id);
+		if (!thisAccount?.chartData) return [];
+
+		const data = thisAccount.chartData;
+
+		// Filter chart data based on selected time range
+		if (chartRange === 'All' || chartRange === '1Y' || chartRange === '3M') {
+			return data; // For now return full month data — these ranges need multi-month data
+		}
+		if (chartRange === '7D') {
+			return data.slice(-7);
+		}
+		return data; // 1M = full month
+	});
+
+	// Compute monthly income/expenses from transaction data
+	let monthlyIncome = $derived(
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		allTransactions
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			.filter((tx: any) => tx.type === 'income')
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			.reduce((sum: number, tx: any) => sum + tx.amount, 0)
+	);
+
+	let monthlyExpenses = $derived(
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		allTransactions
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			.filter((tx: any) => tx.type === 'expense')
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			.reduce((sum: number, tx: any) => sum + tx.amount, 0)
+	);
+
+	let monthlyNet = $derived(monthlyIncome - monthlyExpenses);
+	let totalTransactionCount = $derived(allTransactions.length);
 
 	const typeIcons: Record<AccountType, typeof CreditCard> = {
 		asset: CreditCard,
 		expense: TrendingDown,
 		revenue: TrendingUp,
 		liability: Coins,
-		savings: Wallet
+		savings: Landmark
 	};
 
 	const typeLabels: Record<AccountType, string> = {
-		asset: 'Asset',
-		expense: 'Expense',
-		revenue: 'Revenue',
-		liability: 'Liability',
-		savings: 'Savings'
+		asset: 'Checking Account',
+		expense: 'Expense Account',
+		revenue: 'Revenue Account',
+		liability: 'Liability Account',
+		savings: 'Savings Account'
 	};
 
 	function formatAmount(amount: number, currencySymbol: string = '$') {
@@ -119,148 +230,292 @@
 	function prevPage() {
 		if (offset >= limit) offset -= limit;
 	}
+
+	const Icon = $derived(typeIcons[account.type as AccountType] ?? Wallet);
+
+	const months = [
+		'January', 'February', 'March', 'April', 'May', 'June',
+		'July', 'August', 'September', 'October', 'November', 'December'
+	];
+
+	const skeuBtn = 'rounded-md border border-border/40 bg-linear-to-b from-background to-accent/10 shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset,0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:to-accent/20 active:translate-y-px active:shadow-inner dark:from-muted/15 dark:to-muted/5 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_1.5px_3px_rgba(0,0,0,0.3)] dark:hover:to-muted/10';
 </script>
 
-<div class="container mx-auto max-w-5xl py-8">
-	<div class="mb-8">
-		<Button
-			variant="ghost"
-			href="/accounts"
-			class="mb-4 gap-2 text-muted-foreground hover:text-primary"
+<!-- Breadcrumb -->
+<div class="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
+	<a href="/accounts" class="flex items-center gap-1 transition-colors hover:text-foreground">
+		<ArrowLeft class="h-3.5 w-3.5" />
+		Accounts
+	</a>
+	<span class="text-muted-foreground/40">/</span>
+	<span class="font-medium text-foreground">{account.name}</span>
+</div>
+
+<!-- Account Header -->
+<div class="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+	<div class="flex items-center gap-4">
+		<div
+			class="flex h-14 w-14 items-center justify-center rounded-2xl shadow-md"
+			style="background-color: {account.color}15; color: {account.color}"
 		>
-			<ArrowLeft class="h-4 w-4" />
-			Back to Accounts
-		</Button>
-
-		<div class="flex items-center justify-between">
-			<div class="flex items-center gap-6">
-				<div
-					class="rounded-2xl p-4 shadow-lg"
-					style="background-color: {account.color}20; color: {account.color}"
-				>
-					{#if typeIcons[account.type as AccountType]}
-						{@const Icon = typeIcons[account.type as AccountType]}
-						<Icon class="h-10 w-10" />
-					{:else}
-						<Wallet class="h-10 w-10" />
-					{/if}
-				</div>
-				<div>
-					<div class="flex items-center gap-3">
-						<h1 class="text-4xl font-black tracking-tighter">{account.name}</h1>
-						<Badge
-							variant="secondary"
-							class="px-3 py-1 text-xs font-bold tracking-widest uppercase"
-						>
-							{typeLabels[account.type as AccountType]}
-						</Badge>
-					</div>
-					<p class="mt-1 text-muted-foreground">{account.description ?? 'No description'}</p>
-				</div>
-			</div>
-
-			<div class="text-right">
-				<p class="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
-					Current Balance
-				</p>
-				<p class="text-5xl font-black tracking-tighter">
-					{formatAmount(account.currentBalance, account.currencySymbol ?? '$')}
-				</p>
-				<p class="text-[10px] font-bold tracking-[0.1em] text-muted-foreground/60 uppercase">
-					{account.currencySymbol ?? '$'}
-				</p>
+			<Icon class="h-7 w-7" />
+		</div>
+		<div>
+			<h1 class="text-2xl font-bold">{account.name}</h1>
+			<div class="flex items-center gap-2 text-sm">
+				<span class="font-medium text-primary">{typeLabels[account.type as AccountType] ?? 'Account'}</span>
+				<span class="text-muted-foreground">{account.currencyCode ?? 'USD'}</span>
 			</div>
 		</div>
 	</div>
+	<div class="flex items-center gap-4">
+		<div class="text-right">
+			<p class="text-xs text-muted-foreground">Current Balance</p>
+			<p class="text-3xl font-bold tracking-tight">
+				{formatAmount(account.currentBalance, account.currencySymbol ?? '$')}
+			</p>
+		</div>
+		<div class="flex items-center gap-2">
+			<EditAccountDialog {account}>
+				{#snippet trigger()}
+					<button
+						class="{skeuBtn} flex h-9 items-center gap-2 px-3 text-sm font-medium"
+					>
+						<Pencil class="h-3.5 w-3.5" />
+						Edit
+					</button>
+				{/snippet}
+			</EditAccountDialog>
+			<button
+				class="{skeuBtn} flex h-9 items-center gap-2 px-3 text-sm font-medium text-destructive"
+				onclick={handleDeleteAccount}
+				disabled={isDeleting}
+			>
+				<Trash2 class="h-3.5 w-3.5" />
+				{isDeleting ? 'Deleting...' : 'Delete'}
+			</button>
+		</div>
+	</div>
+</div>
 
-	<Card.Root class="border-none bg-card/50 shadow-xl">
-		<Card.Header class="flex flex-row items-center justify-between border-b border-border/40 pb-6">
-			<div>
-				<Card.Title class="text-xl font-bold tracking-tight">Transactions</Card.Title>
-				<Card.Description>All historical records for this account</Card.Description>
+<!-- Summary Cards -->
+<div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+	<!-- Income this month -->
+	<Card.Root class="{skeuBtn} border-border/30">
+		<Card.Content class="p-4">
+			<div class="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+				<TrendingUp class="h-3.5 w-3.5 text-emerald-500" />
+				Income this month
 			</div>
-			<div class="flex items-center gap-2">
-				<Button
-					variant="outline"
-					size="sm"
-					onclick={prevPage}
-					disabled={offset === 0 || transactionsQuery.isPending}
-					class="h-8 w-8 p-0"
-				>
-					<ChevronLeft class="h-4 w-4" />
-				</Button>
-				<div class="text-xs font-bold tracking-widest text-muted-foreground uppercase">
-					Page {offset / limit + 1}
-				</div>
-				<Button
-					variant="outline"
-					size="sm"
-					onclick={nextPage}
-					disabled={!hasMore || transactionsQuery.isPending}
-					class="h-8 w-8 p-0"
-				>
-					<ChevronRight class="h-4 w-4" />
-				</Button>
+			<p class="text-xl font-bold">
+				{formatAmount(monthlyIncome, account.currencySymbol ?? '$')}
+			</p>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- Expenses this month -->
+	<Card.Root class="{skeuBtn} border-border/30">
+		<Card.Content class="p-4">
+			<div class="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+				<TrendingDown class="h-3.5 w-3.5 text-destructive" />
+				Expenses this month
 			</div>
-		</Card.Header>
-		<Card.Content class="p-0">
-			{#if transactionsQuery.isPending && transactions.length === 0}
-				<div class="flex h-64 items-center justify-center">
-					<Loader2 class="h-8 w-8 animate-spin text-muted-foreground/40" />
-				</div>
-			{:else}
-				<Table.Root>
-					<Table.Header class="bg-muted/30">
-						<Table.Row class="hover:bg-transparent">
-							<Table.Head class="h-10 pl-6 text-[10px] font-bold tracking-widest uppercase"
-								>Date</Table.Head
-							>
-							<Table.Head class="h-10 text-[10px] font-bold tracking-widest uppercase"
-								>Name</Table.Head
-							>
-							<Table.Head class="h-10 text-[10px] font-bold tracking-widest uppercase"
-								>Category</Table.Head
-							>
-							<Table.Head
-								class="h-10 pr-6 text-right text-[10px] font-bold tracking-widest uppercase"
-								>Amount</Table.Head
-							>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#if transactions.length === 0}
-							<Table.Row>
-								<Table.Cell colspan={4} class="py-24 text-center text-muted-foreground">
-									No transactions found for this period.
-								</Table.Cell>
-							</Table.Row>
-						{:else}
-							{#each transactions as tx (tx.id)}
-								<TransactionRow
-									tx={{
-										...tx,
-										createdAt:
-											tx.createdAt instanceof Date ? tx.createdAt.toISOString() : tx.createdAt,
-										updatedAt:
-											tx.updatedAt instanceof Date ? tx.updatedAt.toISOString() : tx.updatedAt,
-										deletedAt:
-											tx.deletedAt instanceof Date
-												? tx.deletedAt.toISOString()
-												: (tx.deletedAt ?? null)
-									}}
-									{account}
-									{deletingTransactionId}
-									onEdit={openEditDialog}
-									onDelete={handleDeleteTransaction}
-								/>
-							{/each}
-						{/if}
-					</Table.Body>
-				</Table.Root>
-			{/if}
+			<p class="text-xl font-bold">
+				{formatAmount(monthlyExpenses, account.currencySymbol ?? '$')}
+			</p>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- Net this month -->
+	<Card.Root class="{skeuBtn} border-border/30">
+		<Card.Content class="p-4">
+			<div class="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+				<TrendingUp class="h-3.5 w-3.5 {monthlyNet >= 0 ? 'text-emerald-500' : 'text-destructive'}" />
+				Net this month
+			</div>
+			<p class="text-xl font-bold {monthlyNet >= 0 ? '' : 'text-destructive'}">
+				{monthlyNet >= 0 ? '' : '-'}{formatAmount(Math.abs(monthlyNet), account.currencySymbol ?? '$')}
+			</p>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- Transaction count -->
+	<Card.Root class="{skeuBtn} border-border/30">
+		<Card.Content class="p-4">
+			<div class="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+				<LayoutGrid class="h-3.5 w-3.5 text-primary" />
+				Transactions
+			</div>
+			<p class="text-xl font-bold">
+				{totalTransactionCount}
+			</p>
 		</Card.Content>
 	</Card.Root>
 </div>
+
+<!-- Balance History Chart -->
+<Card.Root class="mb-8 shadow-sm">
+	<Card.Content class="p-6">
+		<div class="mb-4 flex items-center justify-between">
+			<div>
+				<h2 class="text-lg font-bold">Balance History</h2>
+				<p class="text-sm text-muted-foreground">
+					Daily end-of-day balance for {months[now.getUTCMonth()]} {now.getUTCFullYear()}
+				</p>
+			</div>
+			<div class="flex items-center overflow-hidden rounded-lg border border-border/40 bg-muted/30">
+				{#each (['7D', '1M', '3M', '1Y', 'All'] as const) as range (range)}
+					<button
+						class="px-3 py-1.5 text-xs font-medium transition-all
+							{chartRange === range
+								? 'bg-foreground text-background shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'}"
+						onclick={() => (chartRange = range)}
+					>
+						{range}
+					</button>
+				{/each}
+			</div>
+		</div>
+		{#if chartData.length > 0}
+			<BalanceChart
+				data={chartData}
+				color={account.color}
+				currencySymbol={account.currencySymbol ?? '$'}
+			/>
+		{:else}
+			<div class="flex h-[280px] items-center justify-center text-muted-foreground">
+				<p>No chart data available</p>
+			</div>
+		{/if}
+	</Card.Content>
+</Card.Root>
+
+<!-- Transactions Section -->
+<Card.Root class="shadow-sm">
+	<Card.Header class="flex flex-row items-center justify-between border-b border-border/40 pb-4">
+		<div class="flex items-center gap-3">
+			<h2 class="text-lg font-bold">Transactions</h2>
+			<Badge variant="secondary" class="rounded-full px-2.5 py-0.5 text-xs font-semibold">
+				{totalTransactionCount}
+			</Badge>
+		</div>
+		<div class="flex items-center gap-1 overflow-hidden rounded-lg border border-border/40 bg-muted/30">
+			<button
+				class="px-3 py-1.5 text-xs font-medium transition-all
+					{txFilter === 'all'
+						? 'bg-foreground text-background shadow-sm'
+						: 'text-muted-foreground hover:text-foreground'}"
+				onclick={() => { txFilter = 'all'; }}
+			>
+				All
+			</button>
+			<button
+				class="px-3 py-1.5 text-xs font-medium transition-all
+					{txFilter === 'income'
+						? 'bg-foreground text-background shadow-sm'
+						: 'text-muted-foreground hover:text-foreground'}"
+				onclick={() => { txFilter = 'income'; }}
+			>
+				Income
+			</button>
+			<button
+				class="px-3 py-1.5 text-xs font-medium transition-all
+					{txFilter === 'expense'
+						? 'bg-foreground text-background shadow-sm'
+						: 'text-muted-foreground hover:text-foreground'}"
+				onclick={() => { txFilter = 'expense'; }}
+			>
+				Expenses
+			</button>
+		</div>
+	</Card.Header>
+	<Card.Content class="p-0">
+		{#if transactionsQuery.isPending && transactions.length === 0}
+			<div class="flex h-64 items-center justify-center">
+				<Loader2 class="h-8 w-8 animate-spin text-muted-foreground/40" />
+			</div>
+		{:else}
+			<Table.Root>
+				<Table.Header class="bg-muted/30">
+					<Table.Row class="hover:bg-transparent">
+						<Table.Head class="h-10 pl-6 text-[10px] font-bold tracking-widest uppercase"
+							>Transaction</Table.Head
+						>
+						<Table.Head class="hidden h-10 text-[10px] font-bold tracking-widest uppercase md:table-cell"
+							>Account</Table.Head
+						>
+						<Table.Head class="hidden h-10 text-[10px] font-bold tracking-widest uppercase md:table-cell"
+							>Category</Table.Head
+						>
+						<Table.Head
+							class="h-10 pr-6 text-right text-[10px] font-bold tracking-widest uppercase"
+							>Amount</Table.Head
+						>
+						<Table.Head class="h-10 w-12"></Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#if transactions.length === 0}
+						<Table.Row>
+							<Table.Cell colspan={5} class="py-24 text-center text-muted-foreground">
+								No transactions found.
+							</Table.Cell>
+						</Table.Row>
+					{:else}
+						{#each transactions as tx (tx.id)}
+							<TransactionRow
+								tx={{
+									...tx,
+									createdAt:
+										tx.createdAt instanceof Date ? tx.createdAt.toISOString() : tx.createdAt,
+									updatedAt:
+										tx.updatedAt instanceof Date ? tx.updatedAt.toISOString() : tx.updatedAt,
+									deletedAt:
+										tx.deletedAt instanceof Date
+											? tx.deletedAt.toISOString()
+											: (tx.deletedAt ?? null)
+								}}
+								{account}
+								{deletingTransactionId}
+								onEdit={openEditDialog}
+								onDelete={handleDeleteTransaction}
+							/>
+						{/each}
+					{/if}
+				</Table.Body>
+			</Table.Root>
+		{/if}
+	</Card.Content>
+
+	<!-- Pagination -->
+	{#if allTransactions.length > 0}
+		<div class="flex items-center justify-between border-t border-border/40 px-6 py-3">
+			<p class="text-xs text-muted-foreground">
+				Showing {offset + 1}–{offset + allTransactions.length} transactions
+			</p>
+			<div class="flex items-center gap-2">
+				<button
+					class="{skeuBtn} flex h-8 w-8 items-center justify-center disabled:opacity-40"
+					onclick={prevPage}
+					disabled={offset === 0 || transactionsQuery.isPending}
+				>
+					<ChevronLeft class="h-4 w-4" />
+				</button>
+				<span class="text-xs font-medium text-muted-foreground">
+					Page {offset / limit + 1}
+				</span>
+				<button
+					class="{skeuBtn} flex h-8 w-8 items-center justify-center disabled:opacity-40"
+					onclick={nextPage}
+					disabled={!hasMore || transactionsQuery.isPending}
+				>
+					<ChevronRight class="h-4 w-4" />
+				</button>
+			</div>
+		</div>
+	{/if}
+</Card.Root>
 
 <!-- Edit Transaction Dialog -->
 {#if editingTransaction}
