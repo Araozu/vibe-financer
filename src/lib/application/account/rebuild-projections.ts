@@ -282,11 +282,14 @@ export async function rebuildBudgetProjections(): Promise<number> {
 	}
 
 	// Now calculate currentSpent for each active budget by scanning account events
-	// for expense transactions matching the budget's category
-	for (const budgetState of activeBudgets) {
-		let currentSpent = 0;
+	// for expense transactions matching the budget's category.
+	// Build a cache of expense transactions by category to avoid repeated scans.
+	const expensesByCategory = new Map<string, number>();
 
-		// Get all account events to find expense transactions with matching category
+	if (activeBudgets.length > 0) {
+		const budgetCategories = new Set(activeBudgets.map((b) => b.category));
+		const budgetStartDates = new Map(activeBudgets.map((b) => [b.category, b.startDate]));
+
 		const accountStreamIds = await eventStoreRepo.getAllStreamIds('account');
 		for (const accountStreamId of accountStreamIds) {
 			const accountEvents = await eventStoreRepo.getStream(accountStreamId);
@@ -303,16 +306,23 @@ export async function rebuildBudgetProjections(): Promise<number> {
 					const e = event as TransactionCreatedEvent;
 					if (
 						e.payload.type === 'expense' &&
-						e.payload.category === budgetState.category &&
-						e.payload.transactionDate >= budgetState.startDate &&
+						e.payload.category &&
+						budgetCategories.has(e.payload.category) &&
 						!deletedTransactionIds.has(e.payload.transactionId)
 					) {
-						currentSpent += e.payload.amount;
+						const startDate = budgetStartDates.get(e.payload.category);
+						if (startDate && e.payload.transactionDate >= startDate) {
+							const current = expensesByCategory.get(e.payload.category) ?? 0;
+							expensesByCategory.set(e.payload.category, current + e.payload.amount);
+						}
 					}
 				}
 			}
 		}
+	}
 
+	for (const budgetState of activeBudgets) {
+		const currentSpent = expensesByCategory.get(budgetState.category) ?? 0;
 		await eventStoreRepo.createBudgetProjection({
 			id: budgetState.id,
 			userId: budgetState.userId,
