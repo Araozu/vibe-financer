@@ -49,6 +49,43 @@ export const accountRepo = {
 		};
 	},
 
+	async findByUserId(userId: string): Promise<Array<Account & { goal: Goal | null }>> {
+		const results = await db
+			.select({
+				id: account.id,
+				userId: account.userId,
+				name: account.name,
+				description: account.description,
+				type: account.type,
+				currentBalance: account.currentBalance,
+				initialBalance: account.initialBalance,
+				currencyId: account.currencyId,
+				color: account.color,
+				createdAt: account.createdAt,
+				updatedAt: account.updatedAt,
+				currencyCode: currency.code,
+				currencySymbol: currency.symbol,
+				goal: {
+					id: goal.id,
+					accountId: goal.accountId,
+					name: goal.name,
+					targetAmount: goal.targetAmount,
+					targetDate: goal.targetDate,
+					createdAt: goal.createdAt,
+					updatedAt: goal.updatedAt
+				}
+			})
+			.from(account)
+			.leftJoin(currency, eq(account.currencyId, currency.id))
+			.leftJoin(goal, eq(account.id, goal.accountId))
+			.where(eq(account.userId, userId));
+
+		return results.map((row) => ({
+			...row,
+			goal: row.goal?.id ? (row.goal as Goal) : null
+		}));
+	},
+
 	async findAll(): Promise<Array<Account & { goal: Goal | null }>> {
 		const results = await db
 			.select({

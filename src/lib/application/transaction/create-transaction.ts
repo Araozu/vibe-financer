@@ -105,43 +105,39 @@ export async function createTransaction(
 			destVersion + 1
 		);
 
-		// TODO: Implement proper atomic multi-stream event append
-		// Current limitation: The two appends below are not wrapped in a single
-		// database transaction because:
-		// 1. Each append() creates its own transaction for concurrency control
-		// 2. appendMany() only supports checking version for a single stream
-		// 3. Nested transactions are not fully supported in SQLite
-		//
-		// If the second append fails after the first succeeds, the system will be
-		// in an inconsistent state. This is mitigated by:
-		// - Optimistic concurrency checks on each append (will fail fast if version mismatch)
-		// - Projection rebuild capability to recover from inconsistent states
-		//
-		// A proper fix requires refactoring the event store to support
-		// multi-stream transactional append with concurrency checks on all streams.
-		await eventStoreRepo.append(sourceEvent, { expectedVersion: sourceVersion });
-		await eventStoreRepo.append(destEvent, { expectedVersion: destVersion });
+		// Append both events and update projections atomically in a single transaction
+		await eventStoreRepo.runInTransaction(async (tx) => {
+			await eventStoreRepo.append(sourceEvent, { expectedVersion: sourceVersion }, tx);
+			await eventStoreRepo.append(destEvent, { expectedVersion: destVersion }, tx);
 
-		// Update read models
-		await eventStoreRepo.updateAccountProjection(data.accountId, {
-			currentBalance: fromBalanceAfter
-		});
-		await eventStoreRepo.updateAccountProjection(data.toAccountId, {
-			currentBalance: toBalanceAfter
-		});
+			// Update read models within the same transaction
+			await eventStoreRepo.updateAccountProjection(
+				data.accountId,
+				{ currentBalance: fromBalanceAfter },
+				tx
+			);
+			await eventStoreRepo.updateAccountProjection(
+				data.toAccountId!,
+				{ currentBalance: toBalanceAfter },
+				tx
+			);
 
-		// Create transaction read model
-		await eventStoreRepo.createTransactionProjection({
-			id: transactionId,
-			accountId: data.accountId,
-			type: 'transfer',
-			amount: data.amount,
-			name: data.name ?? null,
-			description: data.description ?? null,
-			category: data.category ?? null,
-			payee: data.payee ?? null,
-			toAccountId: data.toAccountId,
-			createdAt: transactionDate
+			// Create transaction read model
+			await eventStoreRepo.createTransactionProjection(
+				{
+					id: transactionId,
+					accountId: data.accountId,
+					type: 'transfer',
+					amount: data.amount,
+					name: data.name ?? null,
+					description: data.description ?? null,
+					category: data.category ?? null,
+					payee: data.payee ?? null,
+					toAccountId: data.toAccountId,
+					createdAt: transactionDate
+				},
+				tx
+			);
 		});
 
 		// Update active budgets for this category (transfers are often treated as expenses for the source account)
@@ -194,9 +190,33 @@ export async function createTransaction(
 
 	const event = createTransactionCreatedEvent(data.accountId, userId, payload, sourceVersion + 1);
 
-	// Append event with optimistic concurrency
+	// Append event and update projections atomically with optimistic concurrency
 	try {
-		await eventStoreRepo.append(event, { expectedVersion: sourceVersion });
+		await eventStoreRepo.runInTransaction(async (tx) => {
+			await eventStoreRepo.append(event, { expectedVersion: sourceVersion }, tx);
+			await eventStoreRepo.updateAccountProjection(
+				data.accountId,
+				{
+					currentBalance: balanceAfter
+				},
+				tx
+			);
+			await eventStoreRepo.createTransactionProjection(
+				{
+					id: transactionId,
+					accountId: data.accountId,
+					type: data.type,
+					amount: data.amount,
+					name: data.name ?? null,
+					description: data.description ?? null,
+					category: data.category ?? null,
+					payee: data.payee ?? null,
+					toAccountId: null,
+					createdAt: transactionDate
+				},
+				tx
+			);
+		});
 	} catch (err: unknown) {
 		// Handle concurrent transaction creation gracefully
 		const e = err as { name?: string };
@@ -207,25 +227,6 @@ export async function createTransaction(
 
 		throw err;
 	}
-
-	// Update account read model
-	await eventStoreRepo.updateAccountProjection(data.accountId, {
-		currentBalance: balanceAfter
-	});
-
-	// Create transaction read model
-	await eventStoreRepo.createTransactionProjection({
-		id: transactionId,
-		accountId: data.accountId,
-		type: data.type,
-		amount: data.amount,
-		name: data.name ?? null,
-		description: data.description ?? null,
-		category: data.category ?? null,
-		payee: data.payee ?? null,
-		toAccountId: null,
-		createdAt: transactionDate
-	});
 
 	// Update active budgets for this category
 	if (data.category && data.type === 'expense') {

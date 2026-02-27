@@ -14,7 +14,13 @@ import type {
 	TransactionCreatedEvent,
 	TransactionUpdatedEvent,
 	TransactionDeletedEvent,
-	TransferCreatedEvent
+	TransferCreatedEvent,
+	BudgetCreatedEvent,
+	BudgetUpdatedEvent,
+	GoalSetEvent,
+	GoalUpdatedEvent,
+	CurrencyCreatedEvent,
+	CurrencyUpdatedEvent
 } from '$lib/domain/events';
 import { invalidateSnapshots, forceCreateSnapshot } from './account-projection';
 
@@ -22,6 +28,9 @@ export interface RebuildResult {
 	success: boolean;
 	accountsRebuilt: number;
 	transactionsRebuilt: number;
+	budgetsRebuilt: number;
+	goalsRebuilt: number;
+	currenciesRebuilt: number;
 	errors: string[];
 	durationMs: number;
 }
@@ -190,6 +199,300 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 }
 
 /**
+ * Rebuild budget projections from events.
+ * Replays BudgetCreated, BudgetUpdated, BudgetDeleted events and recalculates
+ * currentSpent from TransactionCreated/TransactionDeleted events.
+ */
+export async function rebuildBudgetProjections(userId?: string): Promise<number> {
+	let rebuilt = 0;
+
+	// Get budget stream IDs (all users or a single user)
+	const streamIds = userId
+		? await eventStoreRepo.getStreamIdsByUserAndType(userId, 'budget')
+		: await eventStoreRepo.getAllStreamIds('budget');
+
+	// Collect all active budgets first
+	const activeBudgets: Array<{
+		id: string;
+		streamId: string;
+		userId: string;
+		category: string;
+		limit: number;
+		currencyId: string;
+		period: 'monthly' | 'weekly' | 'yearly';
+		startDate: Date;
+	}> = [];
+
+	for (const streamId of streamIds) {
+		const events = await eventStoreRepo.getStream(streamId);
+		if (events.length === 0) continue;
+
+		let budgetState: {
+			id: string;
+			userId: string;
+			category: string;
+			limit: number;
+			currencyId: string;
+			period: 'monthly' | 'weekly' | 'yearly';
+			startDate: Date;
+			isDeleted: boolean;
+		} | null = null;
+
+		for (const event of events) {
+			if (event.eventType === 'BudgetCreated') {
+				const e = event as BudgetCreatedEvent;
+				budgetState = {
+					id: e.payload.budgetId,
+					userId: e.userId,
+					category: e.payload.category,
+					limit: e.payload.limit,
+					currencyId: e.payload.currencyId,
+					period: e.payload.period,
+					startDate: e.payload.startDate,
+					isDeleted: false
+				};
+			} else if (event.eventType === 'BudgetUpdated' && budgetState) {
+				const e = event as BudgetUpdatedEvent;
+				const changes = e.payload.changes;
+				if (changes.category !== undefined) budgetState.category = changes.category;
+				if (changes.limit !== undefined) budgetState.limit = changes.limit;
+				if (changes.period !== undefined) budgetState.period = changes.period;
+				if (changes.startDate !== undefined) budgetState.startDate = changes.startDate;
+			} else if (event.eventType === 'BudgetDeleted') {
+				if (budgetState) budgetState.isDeleted = true;
+			}
+		}
+
+		if (!budgetState || budgetState.isDeleted) {
+			// Delete projection if it exists
+			try {
+				await eventStoreRepo.deleteBudgetProjection(streamId);
+			} catch {
+				// May not exist
+			}
+			continue;
+		}
+
+		// Delete existing projection
+		try {
+			await eventStoreRepo.deleteBudgetProjection(budgetState.id);
+		} catch {
+			// May not exist
+		}
+
+		activeBudgets.push({ ...budgetState, streamId });
+	}
+
+	// Build a cache of expense transactions grouped by userId + currencyId + category.
+	const expensesByBudgetScope = new Map<string, Array<{ date: Date; amount: number }>>();
+
+	if (activeBudgets.length > 0) {
+		const budgetScopeKeys = new Set(
+			activeBudgets.map((b) => `${b.userId}::${b.currencyId}::${b.category}`)
+		);
+
+		const accountStreamIds = userId
+			? await eventStoreRepo.getStreamIdsByUserAndType(userId, 'account')
+			: await eventStoreRepo.getAllStreamIds('account');
+		for (const accountStreamId of accountStreamIds) {
+			const accountEvents = await eventStoreRepo.getStream(accountStreamId);
+			const accountState = projectAccountState(accountEvents);
+			if (!accountState) continue;
+
+			const accountScopePrefix = `${accountState.userId}::${accountState.currencyId}::`;
+			// Track which transactions have been deleted
+			const deletedTransactionIds = new Set<string>();
+			for (const event of accountEvents) {
+				if (event.eventType === 'TransactionDeleted') {
+					const e = event as TransactionDeletedEvent;
+					deletedTransactionIds.add(e.payload.transactionId);
+				}
+			}
+			for (const event of accountEvents) {
+				if (event.eventType === 'TransactionCreated') {
+					const e = event as TransactionCreatedEvent;
+					if (
+						e.payload.type === 'expense' &&
+						e.payload.category &&
+						budgetScopeKeys.has(`${accountScopePrefix}${e.payload.category}`) &&
+						!deletedTransactionIds.has(e.payload.transactionId)
+					) {
+						const scopeKey = `${accountScopePrefix}${e.payload.category}`;
+						const scopeExpenses = expensesByBudgetScope.get(scopeKey) ?? [];
+						scopeExpenses.push({ date: e.payload.transactionDate, amount: e.payload.amount });
+						expensesByBudgetScope.set(scopeKey, scopeExpenses);
+					}
+				}
+			}
+		}
+	}
+
+	for (const budgetState of activeBudgets) {
+		const budgetScopeKey = `${budgetState.userId}::${budgetState.currencyId}::${budgetState.category}`;
+		const scopeExpenses = expensesByBudgetScope.get(budgetScopeKey) ?? [];
+		const currentSpent = scopeExpenses
+			.filter((expense) => expense.date >= budgetState.startDate)
+			.reduce((sum, expense) => sum + expense.amount, 0);
+		await eventStoreRepo.createBudgetProjection({
+			id: budgetState.id,
+			userId: budgetState.userId,
+			category: budgetState.category,
+			limit: budgetState.limit,
+			currencyId: budgetState.currencyId,
+			period: budgetState.period,
+			startDate: budgetState.startDate,
+			currentSpent
+		});
+		rebuilt++;
+	}
+
+	return rebuilt;
+}
+
+/**
+ * Rebuild goal projections from events.
+ * Replays GoalSet, GoalUpdated, GoalRemoved events.
+ */
+export async function rebuildGoalProjections(): Promise<number> {
+	let rebuilt = 0;
+
+	const streamIds = await eventStoreRepo.getAllStreamIds('goal');
+
+	for (const streamId of streamIds) {
+		const events = await eventStoreRepo.getStream(streamId);
+		if (events.length === 0) continue;
+
+		let goalState: {
+			id: string;
+			accountId: string;
+			name: string;
+			targetAmount: number;
+			targetDate: Date | null;
+			isRemoved: boolean;
+		} | null = null;
+
+		for (const event of events) {
+			if (event.eventType === 'GoalSet') {
+				const e = event as GoalSetEvent;
+				goalState = {
+					id: e.payload.goalId,
+					accountId: e.payload.accountId,
+					name: e.payload.name,
+					targetAmount: e.payload.targetAmount,
+					targetDate: e.payload.targetDate,
+					isRemoved: false
+				};
+			} else if (event.eventType === 'GoalUpdated' && goalState) {
+				const e = event as GoalUpdatedEvent;
+				const changes = e.payload.changes;
+				if (changes.name !== undefined) goalState.name = changes.name;
+				if (changes.targetAmount !== undefined) goalState.targetAmount = changes.targetAmount;
+				if (changes.targetDate !== undefined) goalState.targetDate = changes.targetDate;
+			} else if (event.eventType === 'GoalRemoved') {
+				if (goalState) goalState.isRemoved = true;
+			}
+		}
+
+		if (!goalState || goalState.isRemoved) {
+			try {
+				await eventStoreRepo.deleteGoalProjection(streamId);
+			} catch {
+				// May not exist
+			}
+			continue;
+		}
+
+		// Delete existing projection and recreate
+		try {
+			await eventStoreRepo.deleteGoalProjection(goalState.id);
+		} catch {
+			// May not exist
+		}
+
+		await eventStoreRepo.createGoalProjection({
+			id: goalState.id,
+			accountId: goalState.accountId,
+			name: goalState.name,
+			targetAmount: goalState.targetAmount,
+			targetDate: goalState.targetDate
+		});
+		rebuilt++;
+	}
+
+	return rebuilt;
+}
+
+/**
+ * Rebuild currency projections from events.
+ * Replays CurrencyCreated, CurrencyUpdated, CurrencyDeleted events.
+ */
+export async function rebuildCurrencyProjections(): Promise<number> {
+	let rebuilt = 0;
+
+	const streamIds = await eventStoreRepo.getAllStreamIds('currency');
+
+	for (const streamId of streamIds) {
+		const events = await eventStoreRepo.getStream(streamId);
+		if (events.length === 0) continue;
+
+		let currencyState: {
+			id: string;
+			code: string;
+			symbol: string;
+			name: string;
+			isDeleted: boolean;
+		} | null = null;
+
+		for (const event of events) {
+			if (event.eventType === 'CurrencyCreated') {
+				const e = event as CurrencyCreatedEvent;
+				currencyState = {
+					id: e.payload.currencyId,
+					code: e.payload.code,
+					symbol: e.payload.symbol,
+					name: e.payload.name,
+					isDeleted: false
+				};
+			} else if (event.eventType === 'CurrencyUpdated' && currencyState) {
+				const e = event as CurrencyUpdatedEvent;
+				const changes = e.payload.changes;
+				if (changes.code !== undefined) currencyState.code = changes.code;
+				if (changes.symbol !== undefined) currencyState.symbol = changes.symbol;
+				if (changes.name !== undefined) currencyState.name = changes.name;
+			} else if (event.eventType === 'CurrencyDeleted') {
+				if (currencyState) currencyState.isDeleted = true;
+			}
+		}
+
+		if (!currencyState || currencyState.isDeleted) {
+			try {
+				await eventStoreRepo.deleteCurrencyProjection(streamId);
+			} catch {
+				// May not exist
+			}
+			continue;
+		}
+
+		// Delete existing projection and recreate
+		try {
+			await eventStoreRepo.deleteCurrencyProjection(currencyState.id);
+		} catch {
+			// May not exist
+		}
+
+		await eventStoreRepo.createCurrencyProjection({
+			id: currencyState.id,
+			code: currencyState.code,
+			symbol: currencyState.symbol,
+			name: currencyState.name
+		});
+		rebuilt++;
+	}
+
+	return rebuilt;
+}
+
+/**
  * Rebuild all account projections for a user
  */
 export async function rebuildUserProjections(userId: string): Promise<RebuildResult> {
@@ -212,10 +515,36 @@ export async function rebuildUserProjections(userId: string): Promise<RebuildRes
 		}
 	}
 
+	// Rebuild budget, goal, and currency projections
+	let budgetsRebuilt = 0;
+	let goalsRebuilt = 0;
+	let currenciesRebuilt = 0;
+
+	try {
+		budgetsRebuilt = await rebuildBudgetProjections(userId);
+	} catch (err) {
+		errors.push(`Budgets: ${err instanceof Error ? err.message : 'Unknown error'}`);
+	}
+
+	try {
+		goalsRebuilt = await rebuildGoalProjections();
+	} catch (err) {
+		errors.push(`Goals: ${err instanceof Error ? err.message : 'Unknown error'}`);
+	}
+
+	try {
+		currenciesRebuilt = await rebuildCurrencyProjections();
+	} catch (err) {
+		errors.push(`Currencies: ${err instanceof Error ? err.message : 'Unknown error'}`);
+	}
+
 	return {
 		success: errors.length === 0,
 		accountsRebuilt,
 		transactionsRebuilt,
+		budgetsRebuilt,
+		goalsRebuilt,
+		currenciesRebuilt,
 		errors,
 		durationMs: Date.now() - startTime
 	};
@@ -245,10 +574,36 @@ export async function rebuildAllProjections(): Promise<RebuildResult> {
 		}
 	}
 
+	// Rebuild budget, goal, and currency projections
+	let budgetsRebuilt = 0;
+	let goalsRebuilt = 0;
+	let currenciesRebuilt = 0;
+
+	try {
+		budgetsRebuilt = await rebuildBudgetProjections();
+	} catch (err) {
+		errors.push(`Budgets: ${err instanceof Error ? err.message : 'Unknown error'}`);
+	}
+
+	try {
+		goalsRebuilt = await rebuildGoalProjections();
+	} catch (err) {
+		errors.push(`Goals: ${err instanceof Error ? err.message : 'Unknown error'}`);
+	}
+
+	try {
+		currenciesRebuilt = await rebuildCurrencyProjections();
+	} catch (err) {
+		errors.push(`Currencies: ${err instanceof Error ? err.message : 'Unknown error'}`);
+	}
+
 	return {
 		success: errors.length === 0,
 		accountsRebuilt,
 		transactionsRebuilt,
+		budgetsRebuilt,
+		goalsRebuilt,
+		currenciesRebuilt,
 		errors,
 		durationMs: Date.now() - startTime
 	};

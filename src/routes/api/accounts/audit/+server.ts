@@ -30,16 +30,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	}
 
 	try {
-		// Get all events for this user
-		let events = await eventStoreRepo.getEventsByUser(locals.user.id);
-
-		// Filter by event type if specified
-		if (eventType) {
-			events = events.filter((e) => e.eventType === eventType);
-		}
-
-		// Apply limit
-		events = events.slice(0, limit);
+		// Get filtered events for this user directly from the database
+		const events = await eventStoreRepo.getEventsByUserFiltered(locals.user.id, {
+			eventType: eventType ?? undefined,
+			limit
+		});
 
 		// Format for response
 		const auditTrail = events.map((event) => ({
