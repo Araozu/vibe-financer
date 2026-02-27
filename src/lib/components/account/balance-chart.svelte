@@ -149,7 +149,7 @@
 						text-anchor="middle"
 						class="fill-muted-foreground text-[10px]"
 					>
-						{point.date.getDate()}
+						{point.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
 					</text>
 				{/if}
 			{/each}
@@ -175,17 +175,17 @@
 
 		{#if hoveredIndex !== null && parsedData[hoveredIndex]}
 			{@const hoveredPoint = parsedData[hoveredIndex]}
+			{@const tooltipX = getChartX(hoveredIndex, parsedData.length)}
+			{@const tooltipY = getChartY(hoveredPoint.balance, chartBounds.min, chartBounds.max)}
 			<div
-				class="pointer-events-none absolute top-2 right-2 w-56 rounded-md border bg-popover p-3 text-xs shadow-md"
+				class="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-lg bg-foreground px-3 py-2 text-center text-xs shadow-lg"
+				style="left: {(tooltipX / CHART_WIDTH) * 100}%; top: {(tooltipY / CHART_HEIGHT) * 100 - 4}%"
 			>
-				<div class="mb-2 font-semibold text-popover-foreground">
-					{hoveredPoint.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+				<div class="text-[10px] text-background/70">
+					{hoveredPoint.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
 				</div>
-				<div class="flex items-center justify-between gap-2">
-					<span class="text-muted-foreground">Balance</span>
-					<span class="font-medium text-popover-foreground">
-						{formatCurrency(hoveredPoint.balance)}
-					</span>
+				<div class="font-bold text-background">
+					{formatCurrency(hoveredPoint.balance)}
 				</div>
 			</div>
 		{/if}

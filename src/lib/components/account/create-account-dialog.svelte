@@ -20,10 +20,11 @@
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { cn } from '$lib/utils.js';
+	import type { Snippet } from 'svelte';
 
 	const queryClient = useQueryClient();
 
-	let { open = $bindable(false) } = $props();
+	let { open = $bindable(false), trigger }: { open?: boolean; trigger?: Snippet } = $props();
 
 	const currenciesQuery = createQuery(() => ({
 		queryKey: ['currencies'],
@@ -67,10 +68,16 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger class={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
-		<CreditCard class="mr-2 h-4 w-4" />
-		Create Account
-	</Dialog.Trigger>
+	{#if trigger}
+		<Dialog.Trigger>
+			{@render trigger()}
+		</Dialog.Trigger>
+	{:else}
+		<Dialog.Trigger class={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+			<CreditCard class="mr-2 h-4 w-4" />
+			Create Account
+		</Dialog.Trigger>
+	{/if}
 	<Dialog.Content class="overflow-hidden p-0 shadow-2xl sm:max-w-2xl">
 		<form
 			method="POST"
