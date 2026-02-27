@@ -203,11 +203,13 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
  * Replays BudgetCreated, BudgetUpdated, BudgetDeleted events and recalculates
  * currentSpent from TransactionCreated/TransactionDeleted events.
  */
-export async function rebuildBudgetProjections(): Promise<number> {
+export async function rebuildBudgetProjections(userId?: string): Promise<number> {
 	let rebuilt = 0;
 
-	// Get all budget stream IDs
-	const streamIds = await eventStoreRepo.getAllStreamIds('budget');
+	// Get budget stream IDs (all users or a single user)
+	const streamIds = userId
+		? await eventStoreRepo.getStreamIdsByUserAndType(userId, 'budget')
+		: await eventStoreRepo.getAllStreamIds('budget');
 
 	// Collect all active budgets first
 	const activeBudgets: Array<{
@@ -281,18 +283,23 @@ export async function rebuildBudgetProjections(): Promise<number> {
 		activeBudgets.push({ ...budgetState, streamId });
 	}
 
-	// Now calculate currentSpent for each active budget by scanning account events
-	// for expense transactions matching the budget's category.
-	// Build a cache of expense transactions by category to avoid repeated scans.
-	const expensesByCategory = new Map<string, number>();
+	// Build a cache of expense transactions grouped by userId + currencyId + category.
+	const expensesByBudgetScope = new Map<string, Array<{ date: Date; amount: number }>>();
 
 	if (activeBudgets.length > 0) {
-		const budgetCategories = new Set(activeBudgets.map((b) => b.category));
-		const budgetStartDates = new Map(activeBudgets.map((b) => [b.category, b.startDate]));
+		const budgetScopeKeys = new Set(
+			activeBudgets.map((b) => `${b.userId}::${b.currencyId}::${b.category}`)
+		);
 
-		const accountStreamIds = await eventStoreRepo.getAllStreamIds('account');
+		const accountStreamIds = userId
+			? await eventStoreRepo.getStreamIdsByUserAndType(userId, 'account')
+			: await eventStoreRepo.getAllStreamIds('account');
 		for (const accountStreamId of accountStreamIds) {
 			const accountEvents = await eventStoreRepo.getStream(accountStreamId);
+			const accountState = projectAccountState(accountEvents);
+			if (!accountState) continue;
+
+			const accountScopePrefix = `${accountState.userId}::${accountState.currencyId}::`;
 			// Track which transactions have been deleted
 			const deletedTransactionIds = new Set<string>();
 			for (const event of accountEvents) {
@@ -307,14 +314,13 @@ export async function rebuildBudgetProjections(): Promise<number> {
 					if (
 						e.payload.type === 'expense' &&
 						e.payload.category &&
-						budgetCategories.has(e.payload.category) &&
+						budgetScopeKeys.has(`${accountScopePrefix}${e.payload.category}`) &&
 						!deletedTransactionIds.has(e.payload.transactionId)
 					) {
-						const startDate = budgetStartDates.get(e.payload.category);
-						if (startDate && e.payload.transactionDate >= startDate) {
-							const current = expensesByCategory.get(e.payload.category) ?? 0;
-							expensesByCategory.set(e.payload.category, current + e.payload.amount);
-						}
+						const scopeKey = `${accountScopePrefix}${e.payload.category}`;
+						const scopeExpenses = expensesByBudgetScope.get(scopeKey) ?? [];
+						scopeExpenses.push({ date: e.payload.transactionDate, amount: e.payload.amount });
+						expensesByBudgetScope.set(scopeKey, scopeExpenses);
 					}
 				}
 			}
@@ -322,7 +328,11 @@ export async function rebuildBudgetProjections(): Promise<number> {
 	}
 
 	for (const budgetState of activeBudgets) {
-		const currentSpent = expensesByCategory.get(budgetState.category) ?? 0;
+		const budgetScopeKey = `${budgetState.userId}::${budgetState.currencyId}::${budgetState.category}`;
+		const scopeExpenses = expensesByBudgetScope.get(budgetScopeKey) ?? [];
+		const currentSpent = scopeExpenses
+			.filter((expense) => expense.date >= budgetState.startDate)
+			.reduce((sum, expense) => sum + expense.amount, 0);
 		await eventStoreRepo.createBudgetProjection({
 			id: budgetState.id,
 			userId: budgetState.userId,
@@ -511,7 +521,7 @@ export async function rebuildUserProjections(userId: string): Promise<RebuildRes
 	let currenciesRebuilt = 0;
 
 	try {
-		budgetsRebuilt = await rebuildBudgetProjections();
+		budgetsRebuilt = await rebuildBudgetProjections(userId);
 	} catch (err) {
 		errors.push(`Budgets: ${err instanceof Error ? err.message : 'Unknown error'}`);
 	}

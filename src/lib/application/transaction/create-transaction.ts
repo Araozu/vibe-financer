@@ -190,9 +190,33 @@ export async function createTransaction(
 
 	const event = createTransactionCreatedEvent(data.accountId, userId, payload, sourceVersion + 1);
 
-	// Append event with optimistic concurrency
+	// Append event and update projections atomically with optimistic concurrency
 	try {
-		await eventStoreRepo.append(event, { expectedVersion: sourceVersion });
+		await eventStoreRepo.runInTransaction(async (tx) => {
+			await eventStoreRepo.append(event, { expectedVersion: sourceVersion }, tx);
+			await eventStoreRepo.updateAccountProjection(
+				data.accountId,
+				{
+					currentBalance: balanceAfter
+				},
+				tx
+			);
+			await eventStoreRepo.createTransactionProjection(
+				{
+					id: transactionId,
+					accountId: data.accountId,
+					type: data.type,
+					amount: data.amount,
+					name: data.name ?? null,
+					description: data.description ?? null,
+					category: data.category ?? null,
+					payee: data.payee ?? null,
+					toAccountId: null,
+					createdAt: transactionDate
+				},
+				tx
+			);
+		});
 	} catch (err: unknown) {
 		// Handle concurrent transaction creation gracefully
 		const e = err as { name?: string };
@@ -203,25 +227,6 @@ export async function createTransaction(
 
 		throw err;
 	}
-
-	// Update account read model
-	await eventStoreRepo.updateAccountProjection(data.accountId, {
-		currentBalance: balanceAfter
-	});
-
-	// Create transaction read model
-	await eventStoreRepo.createTransactionProjection({
-		id: transactionId,
-		accountId: data.accountId,
-		type: data.type,
-		amount: data.amount,
-		name: data.name ?? null,
-		description: data.description ?? null,
-		category: data.category ?? null,
-		payee: data.payee ?? null,
-		toAccountId: null,
-		createdAt: transactionDate
-	});
 
 	// Update active budgets for this category
 	if (data.category && data.type === 'expense') {

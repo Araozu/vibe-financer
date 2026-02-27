@@ -123,7 +123,20 @@ export async function deleteTransaction(
 		} else {
 			// Destination account not found/deleted - only append source event
 			try {
-				await eventStoreRepo.append(event, { expectedVersion: accountVersion });
+				await eventStoreRepo.runInTransaction(async (dbTx) => {
+					await eventStoreRepo.append(event, { expectedVersion: accountVersion }, dbTx);
+					const newBalance = account.currentBalance + balanceAdjustment;
+					await eventStoreRepo.updateAccountProjection(
+						tx.accountId,
+						{ currentBalance: newBalance },
+						dbTx
+					);
+					await eventStoreRepo.updateTransactionProjection(
+						transactionId,
+						{ deletedAt: new Date() },
+						dbTx
+					);
+				});
 			} catch (err: unknown) {
 				const e = err as { name?: string };
 				if (e?.name === 'ConcurrencyError') {
@@ -131,20 +144,24 @@ export async function deleteTransaction(
 				}
 				throw err;
 			}
-
-			const newBalance = account.currentBalance + balanceAdjustment;
-			await eventStoreRepo.updateAccountProjection(tx.accountId, {
-				currentBalance: newBalance
-			});
-
-			await eventStoreRepo.updateTransactionProjection(transactionId, {
-				deletedAt: new Date()
-			});
 		}
 	} else {
 		// Non-transfer transaction
 		try {
-			await eventStoreRepo.append(event, { expectedVersion: accountVersion });
+			await eventStoreRepo.runInTransaction(async (dbTx) => {
+				await eventStoreRepo.append(event, { expectedVersion: accountVersion }, dbTx);
+				const newBalance = account.currentBalance + balanceAdjustment;
+				await eventStoreRepo.updateAccountProjection(
+					tx.accountId,
+					{ currentBalance: newBalance },
+					dbTx
+				);
+				await eventStoreRepo.updateTransactionProjection(
+					transactionId,
+					{ deletedAt: new Date() },
+					dbTx
+				);
+			});
 		} catch (err: unknown) {
 			const e = err as { name?: string };
 			if (e?.name === 'ConcurrencyError') {
@@ -152,17 +169,6 @@ export async function deleteTransaction(
 			}
 			throw err;
 		}
-
-		// 6. Update account projection with new balance
-		const newBalance = account.currentBalance + balanceAdjustment;
-		await eventStoreRepo.updateAccountProjection(tx.accountId, {
-			currentBalance: newBalance
-		});
-
-		// 7. Update transaction projection to mark as deleted
-		await eventStoreRepo.updateTransactionProjection(transactionId, {
-			deletedAt: new Date()
-		});
 	}
 
 	// 8. Update budget projections
