@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { deleteAccount } from '$lib/application/account/delete-account';
+import { disableAccount } from '$lib/application/account/disable-account';
 
 export const DELETE: RequestHandler = async ({ params, locals, request }) => {
 	if (!locals.user) {
@@ -11,7 +11,7 @@ export const DELETE: RequestHandler = async ({ params, locals, request }) => {
 		const body = await request.json().catch(() => null);
 		const reason = body?.reason && typeof body.reason === 'string' ? body.reason : undefined;
 
-		await deleteAccount(params.id, locals.user.id, reason);
+		await disableAccount(params.id, locals.user.id, reason);
 		return json({ success: true, message: 'Account disabled successfully' });
 	} catch (error) {
 		console.error('Error disabling account:', error);

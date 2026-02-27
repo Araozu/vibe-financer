@@ -571,8 +571,13 @@ export const eventStoreRepo = {
 	/**
 	 * Delete account projection (for rebuild)
 	 */
-	async deleteAccountProjection(accountId: string): Promise<void> {
-		await db.delete(account).where(eq(account.id, accountId));
+	async deleteAccountProjection(
+		accountId: string,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
+	): Promise<void> {
+		const dbInstance = externalTx ?? db;
+		await dbInstance.delete(account).where(eq(account.id, accountId));
 	},
 
 	/**

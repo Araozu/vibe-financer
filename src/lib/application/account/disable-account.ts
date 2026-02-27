@@ -3,7 +3,7 @@ import { createAccountDeletedEvent, type AccountDeletedPayload } from '$lib/doma
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { getAccountState, getAccountVersion } from './account-projection';
 
-export async function deleteAccount(accountId: string, userId: string, reason?: string): Promise<void> {
+export async function disableAccount(accountId: string, userId: string, reason?: string): Promise<void> {
 	const account = await getAccountState(accountId);
 	if (!account) {
 		throw error(404, 'Account not found');
@@ -24,7 +24,7 @@ export async function deleteAccount(accountId: string, userId: string, reason?: 
 	try {
 		await eventStoreRepo.runInTransaction(async (dbTx) => {
 			await eventStoreRepo.append(event, { expectedVersion: currentVersion }, dbTx);
-			await eventStoreRepo.deleteAccountProjection(accountId);
+			await eventStoreRepo.deleteAccountProjection(accountId, dbTx);
 		});
 	} catch (err: unknown) {
 		const e = err as { name?: string };
