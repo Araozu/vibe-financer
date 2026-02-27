@@ -74,7 +74,7 @@
 	async function handleDeleteAccount() {
 		if (
 			!confirm(
-				'Are you sure you want to delete this account? This action cannot be undone.'
+				'Are you sure you want to disable this account? This account will be hidden from your active accounts.'
 			)
 		) {
 			return;
@@ -88,14 +88,14 @@
 
 			if (!response.ok) {
 				const error = await response.json();
-				throw new Error(error.error ?? 'Failed to delete account');
+				throw new Error(error.error ?? 'Failed to disable account');
 			}
 
 			await queryClient.invalidateQueries({ queryKey: ['accounts'] });
 			goto('/accounts');
 		} catch (error) {
-			console.error('Error deleting account:', error);
-			alert(error instanceof Error ? error.message : 'Failed to delete account');
+			console.error('Error disabling account:', error);
+			alert(error instanceof Error ? error.message : 'Failed to disable account');
 		} finally {
 			isDeleting = false;
 		}
@@ -292,7 +292,7 @@
 				disabled={isDeleting}
 			>
 				<Trash2 class="h-3.5 w-3.5" />
-				{isDeleting ? 'Deleting...' : 'Delete'}
+				{isDeleting ? 'Disabling...' : 'Disable'}
 			</button>
 		</div>
 	</div>
