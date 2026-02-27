@@ -66,9 +66,7 @@
 	}
 
 	// Compute summary stats
-	let totalBalance = $derived(
-		accounts.reduce((sum, acc) => sum + acc.currentBalance, 0)
-	);
+	let totalBalance = $derived(accounts.reduce((sum, acc) => sum + acc.currentBalance, 0));
 
 	let activeAccountCount = $derived(accounts.length);
 
@@ -78,7 +76,7 @@
 			if (acc.chartData.length >= 2) {
 				const startBalance = acc.chartData[0].balance;
 				const endBalance = acc.chartData[acc.chartData.length - 1].balance;
-				return sum + (endBalance - startBalance) * 100; // convert back to cents
+				return sum + (endBalance - startBalance);
 			}
 			return sum;
 		}, 0)
@@ -160,7 +158,10 @@
 						? 'text-emerald-500'
 						: 'text-destructive'}"
 				>
-					{monthlyChange >= 0 ? '+' : '-'}{formatAmount(Math.abs(monthlyChange), primaryCurrencySymbol)}
+					{monthlyChange >= 0 ? '+' : '-'}{formatAmount(
+						Math.abs(monthlyChange),
+						primaryCurrencySymbol
+					)}
 				</p>
 				<p class="mt-1 text-sm text-muted-foreground">vs. last month</p>
 			</Card.Content>
@@ -214,11 +215,7 @@
 							{formatAmount(account.currentBalance, account.currencySymbol ?? '$')}
 						</p>
 						{#if changePercent !== null}
-							<p
-								class="text-sm {changePercent >= 0
-									? 'text-emerald-500'
-									: 'text-destructive'}"
-							>
+							<p class="text-sm {changePercent >= 0 ? 'text-emerald-500' : 'text-destructive'}">
 								{#if changePercent >= 0}
 									<span>&#9650; {changePercent.toFixed(1)}% this month</span>
 								{:else}

@@ -110,10 +110,6 @@
 	// Transaction filter: 'all' | 'income' | 'expense'
 	let txFilter = $state<'all' | 'income' | 'expense'>('all');
 
-	// Chart time range
-	type TimeRange = '7D' | '1M' | '3M' | '1Y' | 'All';
-	let chartRange = $state<TimeRange>('1M');
-
 	const transactionsQuery = createQuery(() => ({
 		queryKey: ['accounts', account.id, 'transactions', offset],
 		queryFn: async () => {
@@ -134,8 +130,8 @@
 	let transactions = $derived(
 		txFilter === 'all'
 			? allTransactions
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			: allTransactions.filter((tx: any) => tx.type === txFilter)
+			: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+				allTransactions.filter((tx: any) => tx.type === txFilter)
 	);
 
 	// Chart data query
@@ -151,9 +147,7 @@
 	const chartQuery = createQuery(() => ({
 		queryKey: ['accounts', 'detailed', chartMonth, chartYear],
 		queryFn: async () => {
-			const res = await fetch(
-				`/api/accounts/detailed?month=${chartMonth}&year=${chartYear}`
-			);
+			const res = await fetch(`/api/accounts/detailed?month=${chartMonth}&year=${chartYear}`);
 			return res.json();
 		}
 	}));
@@ -164,17 +158,7 @@
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const thisAccount = accounts.find((a: any) => a.id === account.id);
 		if (!thisAccount?.chartData) return [];
-
-		const data = thisAccount.chartData;
-
-		// Filter chart data based on selected time range
-		if (chartRange === 'All' || chartRange === '1Y' || chartRange === '3M') {
-			return data; // For now return full month data — these ranges need multi-month data
-		}
-		if (chartRange === '7D') {
-			return data.slice(-7);
-		}
-		return data; // 1M = full month
+		return thisAccount.chartData;
 	});
 
 	// Compute monthly income/expenses from transaction data
@@ -234,11 +218,22 @@
 	const Icon = $derived(typeIcons[account.type as AccountType] ?? Wallet);
 
 	const months = [
-		'January', 'February', 'March', 'April', 'May', 'June',
-		'July', 'August', 'September', 'October', 'November', 'December'
+		'January',
+		'February',
+		'March',
+		'April',
+		'May',
+		'June',
+		'July',
+		'August',
+		'September',
+		'October',
+		'November',
+		'December'
 	];
 
-	const skeuBtn = 'rounded-md border border-border/40 bg-linear-to-b from-background to-accent/10 shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset,0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:to-accent/20 active:translate-y-px active:shadow-inner dark:from-muted/15 dark:to-muted/5 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_1.5px_3px_rgba(0,0,0,0.3)] dark:hover:to-muted/10';
+	const skeuBtn =
+		'rounded-md border border-border/40 bg-linear-to-b from-background to-accent/10 shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset,0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:to-accent/20 active:translate-y-px active:shadow-inner dark:from-muted/15 dark:to-muted/5 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_1.5px_3px_rgba(0,0,0,0.3)] dark:hover:to-muted/10';
 </script>
 
 <!-- Breadcrumb -->
@@ -263,7 +258,9 @@
 		<div>
 			<h1 class="text-2xl font-bold">{account.name}</h1>
 			<div class="flex items-center gap-2 text-sm">
-				<span class="font-medium text-primary">{typeLabels[account.type as AccountType] ?? 'Account'}</span>
+				<span class="font-medium text-primary"
+					>{typeLabels[account.type as AccountType] ?? 'Account'}</span
+				>
 				<span class="text-muted-foreground">{account.currencyCode ?? 'USD'}</span>
 			</div>
 		</div>
@@ -278,9 +275,7 @@
 		<div class="flex items-center gap-2">
 			<EditAccountDialog {account}>
 				{#snippet trigger()}
-					<button
-						class="{skeuBtn} flex h-9 items-center gap-2 px-3 text-sm font-medium"
-					>
+					<button class="{skeuBtn} flex h-9 items-center gap-2 px-3 text-sm font-medium">
 						<Pencil class="h-3.5 w-3.5" />
 						Edit
 					</button>
@@ -330,11 +325,16 @@
 	<Card.Root class="{skeuBtn} border-border/30">
 		<Card.Content class="p-4">
 			<div class="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-				<TrendingUp class="h-3.5 w-3.5 {monthlyNet >= 0 ? 'text-emerald-500' : 'text-destructive'}" />
+				<TrendingUp
+					class="h-3.5 w-3.5 {monthlyNet >= 0 ? 'text-emerald-500' : 'text-destructive'}"
+				/>
 				Net this month
 			</div>
 			<p class="text-xl font-bold {monthlyNet >= 0 ? '' : 'text-destructive'}">
-				{monthlyNet >= 0 ? '' : '-'}{formatAmount(Math.abs(monthlyNet), account.currencySymbol ?? '$')}
+				{monthlyNet >= 0 ? '' : '-'}{formatAmount(
+					Math.abs(monthlyNet),
+					account.currencySymbol ?? '$'
+				)}
 			</p>
 		</Card.Content>
 	</Card.Root>
@@ -356,26 +356,12 @@
 <!-- Balance History Chart -->
 <Card.Root class="mb-8 shadow-sm">
 	<Card.Content class="p-6">
-		<div class="mb-4 flex items-center justify-between">
-			<div>
-				<h2 class="text-lg font-bold">Balance History</h2>
-				<p class="text-sm text-muted-foreground">
-					Daily end-of-day balance for {months[now.getUTCMonth()]} {now.getUTCFullYear()}
-				</p>
-			</div>
-			<div class="flex items-center overflow-hidden rounded-lg border border-border/40 bg-muted/30">
-				{#each (['7D', '1M', '3M', '1Y', 'All'] as const) as range (range)}
-					<button
-						class="px-3 py-1.5 text-xs font-medium transition-all
-							{chartRange === range
-								? 'bg-foreground text-background shadow-sm'
-								: 'text-muted-foreground hover:text-foreground'}"
-						onclick={() => (chartRange = range)}
-					>
-						{range}
-					</button>
-				{/each}
-			</div>
+		<div class="mb-4">
+			<h2 class="text-lg font-bold">Balance History</h2>
+			<p class="text-sm text-muted-foreground">
+				Daily end-of-day balance for {months[now.getUTCMonth()]}
+				{now.getUTCFullYear()}
+			</p>
 		</div>
 		{#if chartData.length > 0}
 			<BalanceChart
@@ -400,31 +386,39 @@
 				{totalTransactionCount}
 			</Badge>
 		</div>
-		<div class="flex items-center gap-1 overflow-hidden rounded-lg border border-border/40 bg-muted/30">
+		<div
+			class="flex items-center gap-1 overflow-hidden rounded-lg border border-border/40 bg-muted/30"
+		>
 			<button
 				class="px-3 py-1.5 text-xs font-medium transition-all
 					{txFilter === 'all'
-						? 'bg-foreground text-background shadow-sm'
-						: 'text-muted-foreground hover:text-foreground'}"
-				onclick={() => { txFilter = 'all'; }}
+					? 'bg-foreground text-background shadow-sm'
+					: 'text-muted-foreground hover:text-foreground'}"
+				onclick={() => {
+					txFilter = 'all';
+				}}
 			>
 				All
 			</button>
 			<button
 				class="px-3 py-1.5 text-xs font-medium transition-all
 					{txFilter === 'income'
-						? 'bg-foreground text-background shadow-sm'
-						: 'text-muted-foreground hover:text-foreground'}"
-				onclick={() => { txFilter = 'income'; }}
+					? 'bg-foreground text-background shadow-sm'
+					: 'text-muted-foreground hover:text-foreground'}"
+				onclick={() => {
+					txFilter = 'income';
+				}}
 			>
 				Income
 			</button>
 			<button
 				class="px-3 py-1.5 text-xs font-medium transition-all
 					{txFilter === 'expense'
-						? 'bg-foreground text-background shadow-sm'
-						: 'text-muted-foreground hover:text-foreground'}"
-				onclick={() => { txFilter = 'expense'; }}
+					? 'bg-foreground text-background shadow-sm'
+					: 'text-muted-foreground hover:text-foreground'}"
+				onclick={() => {
+					txFilter = 'expense';
+				}}
 			>
 				Expenses
 			</button>
@@ -442,14 +436,15 @@
 						<Table.Head class="h-10 pl-6 text-[10px] font-bold tracking-widest uppercase"
 							>Transaction</Table.Head
 						>
-						<Table.Head class="hidden h-10 text-[10px] font-bold tracking-widest uppercase md:table-cell"
+						<Table.Head
+							class="hidden h-10 text-[10px] font-bold tracking-widest uppercase md:table-cell"
 							>Account</Table.Head
 						>
-						<Table.Head class="hidden h-10 text-[10px] font-bold tracking-widest uppercase md:table-cell"
+						<Table.Head
+							class="hidden h-10 text-[10px] font-bold tracking-widest uppercase md:table-cell"
 							>Category</Table.Head
 						>
-						<Table.Head
-							class="h-10 pr-6 text-right text-[10px] font-bold tracking-widest uppercase"
+						<Table.Head class="h-10 pr-6 text-right text-[10px] font-bold tracking-widest uppercase"
 							>Amount</Table.Head
 						>
 						<Table.Head class="h-10 w-12"></Table.Head>
