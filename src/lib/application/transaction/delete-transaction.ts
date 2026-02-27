@@ -87,11 +87,31 @@ export async function deleteTransaction(
 				destVersion + 1
 			);
 
-			// Append both events atomically in a single transaction
+			// Append both events and update projections atomically in a single transaction
 			try {
 				await eventStoreRepo.runInTransaction(async (dbTx) => {
 					await eventStoreRepo.append(event, { expectedVersion: accountVersion }, dbTx);
 					await eventStoreRepo.append(destEvent, { expectedVersion: destVersion }, dbTx);
+
+					// Update both account projections
+					const newBalance = account.currentBalance + balanceAdjustment;
+					await eventStoreRepo.updateAccountProjection(
+						tx.accountId,
+						{ currentBalance: newBalance },
+						dbTx
+					);
+					await eventStoreRepo.updateAccountProjection(
+						tx.toAccountId!,
+						{ currentBalance: destAccount.currentBalance + destBalanceAdjustment },
+						dbTx
+					);
+
+					// Update transaction projection to mark as deleted
+					await eventStoreRepo.updateTransactionProjection(
+						transactionId,
+						{ deletedAt: new Date() },
+						dbTx
+					);
 				});
 			} catch (err: unknown) {
 				const e = err as { name?: string };
@@ -100,20 +120,6 @@ export async function deleteTransaction(
 				}
 				throw err;
 			}
-
-			// Update both account projections
-			const newBalance = account.currentBalance + balanceAdjustment;
-			await eventStoreRepo.updateAccountProjection(tx.accountId, {
-				currentBalance: newBalance
-			});
-			await eventStoreRepo.updateAccountProjection(tx.toAccountId, {
-				currentBalance: destAccount.currentBalance + destBalanceAdjustment
-			});
-
-			// Update transaction projection to mark as deleted
-			await eventStoreRepo.updateTransactionProjection(transactionId, {
-				deletedAt: new Date()
-			});
 		} else {
 			// Destination account not found/deleted - only append source event
 			try {

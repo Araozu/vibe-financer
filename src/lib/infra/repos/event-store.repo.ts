@@ -375,7 +375,8 @@ export const eventStoreRepo = {
 
 	/**
 	 * Update read model (projection) for an account
-	 * This is called after events are appended to keep the read model in sync
+	 * This is called after events are appended to keep the read model in sync.
+	 * Accepts an optional transaction for atomic operations.
 	 */
 	async updateAccountProjection(
 		accountId: string,
@@ -387,9 +388,12 @@ export const eventStoreRepo = {
 			currentBalance?: number;
 			currencyId?: string;
 			color?: string;
-		}
+		},
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
 	): Promise<void> {
-		await db
+		const dbInstance = externalTx ?? db;
+		await dbInstance
 			.update(account)
 			.set({ ...data, updatedAt: new Date() })
 			.where(eq(account.id, accountId));
@@ -413,26 +417,33 @@ export const eventStoreRepo = {
 	},
 
 	/**
-	 * Create read model (projection) for a new transaction
+	 * Create read model (projection) for a new transaction.
+	 * Accepts an optional transaction for atomic operations.
 	 */
-	async createTransactionProjection(data: {
-		id: string;
-		accountId: string;
-		type: 'expense' | 'income' | 'transfer';
-		amount: number;
-		name: string | null;
-		description: string | null;
-		category: string | null;
-		payee: string | null;
-		toAccountId: string | null;
-		createdAt: Date;
-	}): Promise<void> {
-		await db.insert(transaction).values(data);
+	async createTransactionProjection(
+		data: {
+			id: string;
+			accountId: string;
+			type: 'expense' | 'income' | 'transfer';
+			amount: number;
+			name: string | null;
+			description: string | null;
+			category: string | null;
+			payee: string | null;
+			toAccountId: string | null;
+			createdAt: Date;
+		},
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
+	): Promise<void> {
+		const dbInstance = externalTx ?? db;
+		await dbInstance.insert(transaction).values(data);
 	},
 
 	/**
-	 * Update read model (projection) for a transaction
-	 * This is called after events are appended to keep the read model in sync
+	 * Update read model (projection) for a transaction.
+	 * This is called after events are appended to keep the read model in sync.
+	 * Accepts an optional transaction for atomic operations.
 	 */
 	async updateTransactionProjection(
 		transactionId: string,
@@ -447,9 +458,12 @@ export const eventStoreRepo = {
 			type?: 'expense' | 'income' | 'transfer';
 			deletedAt?: Date;
 			createdAt?: Date;
-		}
+		},
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
 	): Promise<void> {
-		await db
+		const dbInstance = externalTx ?? db;
+		await dbInstance
 			.update(transaction)
 			.set({ ...data, updatedAt: new Date() })
 			.where(eq(transaction.id, transactionId));

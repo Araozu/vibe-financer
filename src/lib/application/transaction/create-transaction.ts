@@ -109,28 +109,35 @@ export async function createTransaction(
 		await eventStoreRepo.runInTransaction(async (tx) => {
 			await eventStoreRepo.append(sourceEvent, { expectedVersion: sourceVersion }, tx);
 			await eventStoreRepo.append(destEvent, { expectedVersion: destVersion }, tx);
-		});
 
-		// Update read models
-		await eventStoreRepo.updateAccountProjection(data.accountId, {
-			currentBalance: fromBalanceAfter
-		});
-		await eventStoreRepo.updateAccountProjection(data.toAccountId, {
-			currentBalance: toBalanceAfter
-		});
+			// Update read models within the same transaction
+			await eventStoreRepo.updateAccountProjection(
+				data.accountId,
+				{ currentBalance: fromBalanceAfter },
+				tx
+			);
+			await eventStoreRepo.updateAccountProjection(
+				data.toAccountId!,
+				{ currentBalance: toBalanceAfter },
+				tx
+			);
 
-		// Create transaction read model
-		await eventStoreRepo.createTransactionProjection({
-			id: transactionId,
-			accountId: data.accountId,
-			type: 'transfer',
-			amount: data.amount,
-			name: data.name ?? null,
-			description: data.description ?? null,
-			category: data.category ?? null,
-			payee: data.payee ?? null,
-			toAccountId: data.toAccountId,
-			createdAt: transactionDate
+			// Create transaction read model
+			await eventStoreRepo.createTransactionProjection(
+				{
+					id: transactionId,
+					accountId: data.accountId,
+					type: 'transfer',
+					amount: data.amount,
+					name: data.name ?? null,
+					description: data.description ?? null,
+					category: data.category ?? null,
+					payee: data.payee ?? null,
+					toAccountId: data.toAccountId,
+					createdAt: transactionDate
+				},
+				tx
+			);
 		});
 
 		// Update active budgets for this category (transfers are often treated as expenses for the source account)

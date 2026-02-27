@@ -209,6 +209,18 @@ export async function rebuildBudgetProjections(): Promise<number> {
 	// Get all budget stream IDs
 	const streamIds = await eventStoreRepo.getAllStreamIds('budget');
 
+	// Collect all active budgets first
+	const activeBudgets: Array<{
+		id: string;
+		streamId: string;
+		userId: string;
+		category: string;
+		limit: number;
+		currencyId: string;
+		period: 'monthly' | 'weekly' | 'yearly';
+		startDate: Date;
+	}> = [];
+
 	for (const streamId of streamIds) {
 		const events = await eventStoreRepo.getStream(streamId);
 		if (events.length === 0) continue;
@@ -259,15 +271,48 @@ export async function rebuildBudgetProjections(): Promise<number> {
 			continue;
 		}
 
-		// Delete existing projection and recreate
+		// Delete existing projection
 		try {
 			await eventStoreRepo.deleteBudgetProjection(budgetState.id);
 		} catch {
 			// May not exist
 		}
 
-		// During a rebuild, currentSpent is reset to 0.
-		// It will be recalculated as transaction events are replayed by rebuildAccountProjection.
+		activeBudgets.push({ ...budgetState, streamId });
+	}
+
+	// Now calculate currentSpent for each active budget by scanning account events
+	// for expense transactions matching the budget's category
+	for (const budgetState of activeBudgets) {
+		let currentSpent = 0;
+
+		// Get all account events to find expense transactions with matching category
+		const accountStreamIds = await eventStoreRepo.getAllStreamIds('account');
+		for (const accountStreamId of accountStreamIds) {
+			const accountEvents = await eventStoreRepo.getStream(accountStreamId);
+			// Track which transactions have been deleted
+			const deletedTransactionIds = new Set<string>();
+			for (const event of accountEvents) {
+				if (event.eventType === 'TransactionDeleted') {
+					const e = event as TransactionDeletedEvent;
+					deletedTransactionIds.add(e.payload.transactionId);
+				}
+			}
+			for (const event of accountEvents) {
+				if (event.eventType === 'TransactionCreated') {
+					const e = event as TransactionCreatedEvent;
+					if (
+						e.payload.type === 'expense' &&
+						e.payload.category === budgetState.category &&
+						e.payload.transactionDate >= budgetState.startDate &&
+						!deletedTransactionIds.has(e.payload.transactionId)
+					) {
+						currentSpent += e.payload.amount;
+					}
+				}
+			}
+		}
+
 		await eventStoreRepo.createBudgetProjection({
 			id: budgetState.id,
 			userId: budgetState.userId,
@@ -276,7 +321,7 @@ export async function rebuildBudgetProjections(): Promise<number> {
 			currencyId: budgetState.currencyId,
 			period: budgetState.period,
 			startDate: budgetState.startDate,
-			currentSpent: 0
+			currentSpent
 		});
 		rebuilt++;
 	}
