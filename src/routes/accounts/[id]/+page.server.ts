@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const account = await getAccountState(params.id);
 
-	if (!account || account.userId !== locals.user.id) {
+	if (!account || account.userId !== locals.user.id || account.isDeleted) {
 		throw error(404, 'Account not found');
 	}
 
