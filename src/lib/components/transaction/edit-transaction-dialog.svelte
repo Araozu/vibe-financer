@@ -11,13 +11,16 @@
 		ArrowUpRight,
 		Type,
 		Tag,
-		User as UserIcon,
 		Calendar,
+		Clock,
+		Wallet,
 		Pencil,
 		Loader2
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import { onMount } from 'svelte';
 	import type { Transaction } from '$lib/domain/transaction';
+	import TimePicker from '$lib/components/ui/time-picker/time-picker.svelte';
 
 	interface AccountLike {
 		id: string;
@@ -39,12 +42,14 @@
 	} = $props();
 
 	let selectedType = $state('');
+	let selectedAccountId = $state('');
 	let transactionName = $state('');
 	let description = $state('');
 	let amount = $state('');
 	let category = $state('');
-	let payee = $state('');
 	let transactionDate = $state('');
+	let transactionTime = $state('12:00');
+	let userTimezone = $state('');
 	let isLoading = $state(false);
 
 	const transactionTypes = [
@@ -52,14 +57,20 @@
 		{ value: 'income', label: 'Income', icon: ArrowDownRight, color: 'text-emerald-500' }
 	];
 
+	onMount(() => {
+		userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+	});
+
 	function resetForm() {
 		selectedType = transaction.type;
+		selectedAccountId = transaction.accountId;
 		transactionName = transaction.name ?? '';
 		description = transaction.description ?? '';
 		amount = String(transaction.amount / 100);
 		category = transaction.category ?? '';
-		payee = transaction.payee ?? '';
-		transactionDate = new Date(transaction.createdAt).toISOString().split('T')[0];
+		const d = new Date(transaction.createdAt);
+		transactionDate = d.toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
+		transactionTime = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 	}
 
 	// Initialize form when transaction changes
@@ -114,27 +125,58 @@
 		>
 			<input type="hidden" name="transactionId" value={transaction.id} />
 
-			<!-- Type Selector -->
-			<div class="space-y-2">
-				<Label>Transaction Type</Label>
-				<Select.Root type="single" bind:value={selectedType}>
-					<Select.Trigger class="w-full">
-						{@const currentType = transactionTypes.find((t) => t.value === selectedType)}
-						{#if currentType}
-							<currentType.icon class="mr-2 h-4 w-4 {currentType.color}" />
-							<span>{currentType.label}</span>
-						{/if}
-					</Select.Trigger>
-					<Select.Content>
-						{#each transactionTypes as type (type.value)}
-							<Select.Item value={type.value} label={type.label}>
-								<type.icon class="mr-2 h-4 w-4 {type.color}" />
-								{type.label}
-							</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-				<input type="hidden" name="type" value={selectedType} />
+			<!-- Type & Account Selectors -->
+			<div class="grid grid-cols-2 gap-4">
+				<!-- Type Selector -->
+				<div class="space-y-2">
+					<Label>Transaction Type</Label>
+					<Select.Root type="single" bind:value={selectedType}>
+						<Select.Trigger class="w-full">
+							{@const currentType = transactionTypes.find((t) => t.value === selectedType)}
+							{#if currentType}
+								<currentType.icon class="mr-2 h-4 w-4 {currentType.color}" />
+								<span>{currentType.label}</span>
+							{/if}
+						</Select.Trigger>
+						<Select.Content>
+							{#each transactionTypes as type (type.value)}
+								<Select.Item value={type.value} label={type.label}>
+									<type.icon class="mr-2 h-4 w-4 {type.color}" />
+									{type.label}
+								</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+					<input type="hidden" name="type" value={selectedType} />
+				</div>
+
+				<!-- Account Selector -->
+				{#if _accounts.length > 0}
+					<div class="space-y-2">
+						<Label>
+							<div class="flex items-center gap-2">
+								<Wallet class="h-3.5 w-3.5 text-muted-foreground" />
+								Account
+							</div>
+						</Label>
+						<Select.Root type="single" bind:value={selectedAccountId}>
+							<Select.Trigger class="w-full">
+								<span>{_accounts.find((a) => a.id === selectedAccountId)?.name ?? 'Select Account'}</span>
+							</Select.Trigger>
+							<Select.Content>
+								{#each _accounts as account (account.id)}
+									<Select.Item value={account.id} label={account.name}>
+										<div class="flex items-center gap-2">
+											<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
+											{account.name}
+										</div>
+									</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<input type="hidden" name="accountId" value={selectedAccountId} />
+					</div>
+				{/if}
 			</div>
 
 			<!-- Name -->
@@ -204,6 +246,21 @@
 				</div>
 			</div>
 
+			<!-- Time -->
+			<div class="space-y-2">
+				<Label>
+					<div class="flex items-center gap-2">
+						<Clock class="h-3.5 w-3.5 text-muted-foreground" />
+						Time
+					</div>
+				</Label>
+				<div class="flex items-center gap-2">
+					<TimePicker bind:value={transactionTime} />
+					<input type="hidden" name="time" value={transactionTime} />
+					<input type="hidden" name="timezone" value={userTimezone} />
+				</div>
+			</div>
+
 			{#if selectedType !== 'transfer'}
 				<div class="grid grid-cols-2 gap-4">
 					<!-- Category -->
@@ -220,17 +277,6 @@
 							bind:value={category}
 							placeholder="Category..."
 						/>
-					</div>
-
-					<!-- Payee -->
-					<div class="space-y-2">
-						<Label for="edit-payee">
-							<div class="flex items-center gap-2">
-								<UserIcon class="h-3.5 w-3.5 text-muted-foreground" />
-								Payee
-							</div>
-						</Label>
-						<Input id="edit-payee" name="payee" bind:value={payee} placeholder="Payee..." />
 					</div>
 				</div>
 			{/if}
