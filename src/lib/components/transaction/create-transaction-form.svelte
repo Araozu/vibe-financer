@@ -105,16 +105,23 @@
 	let amount = $state('');
 	let category = $state('');
 	let _payee = $state('');
-	let transactionDate = $state(new Date().toISOString().split('T')[0]);
-	let transactionTime = $state(
-		new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-	);
+	let transactionDate = $state('');
+	let transactionTime = $state('');
 	let userTimezone = $state('');
 
 	let titleInput: HTMLInputElement | null = $state(null);
 
 	onMount(() => {
 		userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+		// Initialize date and time in user's local timezone
+		const now = new Date();
+		transactionDate = now.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+		transactionTime = now.toLocaleTimeString('en-GB', {
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+
 		if (showCreateMore) {
 			const stored = localStorage.getItem('createMoreTransactions');
 			if (stored !== null) {
@@ -123,12 +130,6 @@
 		} else {
 			createMore = false;
 		}
-
-		// Update time on mount to be current
-		transactionTime = new Date().toLocaleTimeString('en-GB', {
-			hour: '2-digit',
-			minute: '2-digit'
-		});
 	});
 
 	$effect(() => {
