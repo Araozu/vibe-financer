@@ -101,12 +101,20 @@
 		queryFn: async () => (await fetch('/api/budgets')).json()
 	}));
 
+	// Query for user (to get defaultAccountId)
+	const userQuery = createQuery<{ defaultAccountId: string | null }>(() => ({
+		queryKey: ['user'],
+		queryFn: async () => (await fetch('/api/user')).json()
+	}));
+
 	const queryClient = useQueryClient();
 
 	let accounts = $derived(accountsQuery.data ?? []);
 	let transactions = $derived(transactionsQuery.data?.transactions ?? []);
 	let initialBalances = $derived(transactionsQuery.data?.initialBalances ?? {});
 	let budgets = $derived(budgetsQuery.data ?? []);
+	let defaultAccountId = $derived(userQuery.data?.defaultAccountId ?? null);
+	let defaultAccount = $derived(accounts.find((a) => a.id === defaultAccountId) ?? null);
 
 	let editingTransaction = $state<SerializedTransaction | null>(null);
 	let editDialogOpen = $state(false);
@@ -180,27 +188,42 @@
 		new Date(Date.UTC(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999))
 	);
 
-	let effectiveEndDate = $derived(
-		dashboardNow < lastDayOfSelectedMonth ? dashboardNow : lastDayOfSelectedMonth
+	let isCurrentMonth = $derived(
+		selectedMonth === dashboardNow.getUTCMonth() &&
+			selectedYear === dashboardNow.getUTCFullYear()
 	);
 
-	let totalBalance = $derived(
-		Object.values(initialBalances).reduce((acc: number, curr) => acc + curr, 0) +
-			transactions
+	let effectiveEndDate = $derived(isCurrentMonth ? dashboardNow : lastDayOfSelectedMonth);
+
+	let defaultCurrencySymbol = $derived(defaultAccount?.currencySymbol ?? '$');
+
+	let defaultAccountTransactions = $derived(
+		defaultAccount ? transactions.filter((tx) => tx.accountId === defaultAccount.id) : []
+	);
+
+	let totalBalance = $derived.by(() => {
+		if (!defaultAccount) return 0;
+		const initialBalance = initialBalances[defaultAccount.id] ?? 0;
+		return (
+			initialBalance +
+			defaultAccountTransactions
 				.filter((tx) => new Date(tx.createdAt) <= effectiveEndDate)
 				.reduce((acc: number, tx) => {
 					if (tx.type === 'income') return acc + tx.amount;
 					if (tx.type === 'expense') return acc - tx.amount;
 					return acc;
 				}, 0)
-	);
+		);
+	});
 
-	let formattedTotalBalance = $derived(
-		(totalBalance / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-	);
+	function formatWithSymbol(amountInCents: number, symbol: string): string {
+		return `${symbol}${(amountInCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+	}
+
+	let formattedTotalBalance = $derived(formatWithSymbol(totalBalance, defaultCurrencySymbol));
 
 	let monthlyIncome = $derived(
-		transactions
+		defaultAccountTransactions
 			.filter(
 				(tx) =>
 					tx.type === 'income' &&
@@ -211,7 +234,7 @@
 	);
 
 	let monthlyExpenses = $derived(
-		transactions
+		defaultAccountTransactions
 			.filter(
 				(tx) =>
 					tx.type === 'expense' &&
@@ -221,11 +244,9 @@
 			.reduce((acc: number, curr) => acc + curr.amount, 0)
 	);
 
-	let formattedMonthlyIncome = $derived(
-		(monthlyIncome / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-	);
+	let formattedMonthlyIncome = $derived(formatWithSymbol(monthlyIncome, defaultCurrencySymbol));
 	let formattedMonthlyExpenses = $derived(
-		(monthlyExpenses / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+		formatWithSymbol(monthlyExpenses, defaultCurrencySymbol)
 	);
 
 	let savingsRate = $derived(
@@ -263,21 +284,21 @@
 		{
 			title: 'Total Balance',
 			amount: formattedTotalBalance,
-			change: 'Overall net worth',
+			change: defaultAccount?.name ?? '',
 			icon: Wallet,
 			color: 'text-blue-500'
 		},
 		{
 			title: 'Monthly Income',
 			amount: formattedMonthlyIncome,
-			change: 'This calendar month',
+			change: isCurrentMonth ? '1st until today' : 'Full month',
 			icon: TrendingUp,
 			color: 'text-income'
 		},
 		{
 			title: 'Monthly Expenses',
 			amount: formattedMonthlyExpenses,
-			change: 'This calendar month',
+			change: isCurrentMonth ? '1st until today' : 'Full month',
 			icon: TrendingDown,
 			color: 'text-expense'
 		},
@@ -363,22 +384,33 @@
 	</div>
 </div>
 
-<div class="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-4">
-	{#each summaryStats as stat (stat.title)}
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">{stat.title}</Card.Title>
-				<stat.icon class="h-4 w-4 {stat.color}" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{stat.amount}</div>
-				<p class="mt-1 text-xs text-muted-foreground">
-					{stat.change}
-				</p>
-			</Card.Content>
-		</Card.Root>
-	{/each}
-</div>
+{#if defaultAccount}
+	<div class="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-4">
+		{#each summaryStats as stat (stat.title)}
+			<Card.Root>
+				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
+					<Card.Title class="text-sm font-medium">{stat.title}</Card.Title>
+					<stat.icon class="h-4 w-4 {stat.color}" />
+				</Card.Header>
+				<Card.Content>
+					<div class="text-2xl font-bold">{stat.amount}</div>
+					<p class="mt-1 text-xs text-muted-foreground">
+						{stat.change}
+					</p>
+				</Card.Content>
+			</Card.Root>
+		{/each}
+	</div>
+{:else}
+	<Card.Root class="mb-0 hidden border-dashed bg-muted/30 md:block">
+		<Card.Content class="flex items-center justify-center gap-3 py-6 text-center">
+			<Wallet class="h-5 w-5 text-muted-foreground" />
+			<p class="text-sm text-muted-foreground">
+				Set a <a href="/settings" class="font-medium text-primary underline underline-offset-4">default account</a> in settings to see your summary stats here.
+			</p>
+		</Card.Content>
+	</Card.Root>
+{/if}
 
 <div class="grid gap-8 md:grid-cols-7">
 	<div class="space-y-8 md:col-span-4">

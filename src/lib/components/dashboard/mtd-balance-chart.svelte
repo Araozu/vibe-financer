@@ -11,6 +11,7 @@
 		name: string;
 		color: string;
 		currentBalance: number;
+		currencySymbol?: string | null;
 	};
 
 	type ChartTransaction = {
@@ -70,8 +71,8 @@
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 	}
 
-	function formatCurrency(amountInCents: number): string {
-		return `$${(amountInCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+	function formatNumber(amountInCents: number): string {
+		return (amountInCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 	}
 
 	let monthToDateBalancePoints = $derived.by(() => {
@@ -177,7 +178,7 @@
 			.filter((account) => activeAccountIds.has(account.id))
 			.map((account) => ({
 				key: account.id,
-				label: account.name,
+				label: `${account.name} (${account.currencySymbol ?? '$'})`,
 				color: account.color
 			}))
 	);
@@ -226,14 +227,14 @@
 						},
 						yAxis: {
 							ticks: 5,
-							format: (value: number) => formatCurrency(Math.round(value))
+							format: (value: number) => formatNumber(Math.round(value))
 						},
 						tooltip: {
 							header: {
 								format: (value: Date) => formatChartDateLabel(value)
 							},
 							item: {
-								format: (value: number) => formatCurrency(value)
+								format: (value: number) => formatNumber(value)
 							}
 						},
 						highlight: { points: { r: 3.5 } }
