@@ -117,6 +117,31 @@
 	let defaultAccountId = $derived(userQuery.data?.defaultAccountId ?? null);
 	let defaultAccount = $derived(accounts.find((a) => a.id === defaultAccountId) ?? null);
 
+	// Compute budget spending from the month-filtered transactions (not from the DB projection)
+	let budgetMonthlySpending = $derived.by(() => {
+		const accountCurrencyMap = new Map<string, string>();
+		for (const account of accounts) {
+			accountCurrencyMap.set(account.id, account.currencyId);
+		}
+		// Single pass: group expense totals by "currencyId::category"
+		const spentByScope = new Map<string, number>();
+		for (const tx of transactions) {
+			if (tx.type === 'expense' && tx.category) {
+				const currencyId = accountCurrencyMap.get(tx.accountId);
+				if (currencyId) {
+					const key = `${currencyId}::${tx.category}`;
+					spentByScope.set(key, (spentByScope.get(key) ?? 0) + tx.amount);
+				}
+			}
+		}
+		// Look up each budget's spending in O(1)
+		const spending = new Map<string, number>();
+		for (const b of budgets) {
+			spending.set(b.id, spentByScope.get(`${b.currencyId}::${b.category}`) ?? 0);
+		}
+		return spending;
+	});
+
 	let editingTransaction = $state<SerializedTransaction | null>(null);
 	let editDialogOpen = $state(false);
 	let deletingTransactionId = $state<string | null>(null);
@@ -612,24 +637,25 @@
 				{:else}
 					{#each budgets as budget, i (budget.id)}
 						{@const _color = budgetColors[i % budgetColors.length]}
+						{@const spent = budgetMonthlySpending.get(budget.id) ?? 0}
 						<div class="space-y-2">
 							<div class="flex items-center justify-between text-sm">
 								<span class="font-medium">{budget.category}</span>
 								<span class="text-muted-foreground">
-									{budget.currencySymbol ?? '$'}{(budget.currentSpent / 100).toFixed(0)} /
+									{budget.currencySymbol ?? '$'}{(spent / 100).toFixed(0)} /
 									<span class="font-semibold"
 										>{budget.currencySymbol ?? '$'}{(budget.limit / 100).toFixed(0)}</span
 									>
 								</span>
 							</div>
 							<Progress
-								value={Math.min((budget.currentSpent / budget.limit) * 100, 100)}
+								value={Math.min((spent / budget.limit) * 100, 100)}
 								class="h-2"
 							/>
-							{#if budget.currentSpent > budget.limit}
+							{#if spent > budget.limit}
 								<p class="text-[10px] font-medium text-rose-500">
 									Over budget by {budget.currencySymbol ?? '$'}{(
-										(budget.currentSpent - budget.limit) /
+										(spent - budget.limit) /
 										100
 									).toFixed(2)}
 								</p>
