@@ -162,13 +162,19 @@
 						</Label>
 						<Select.Root type="single" bind:value={selectedAccountId}>
 							<Select.Trigger class="w-full">
-								<span>{_accounts.find((a) => a.id === selectedAccountId)?.name ?? 'Select Account'}</span>
+								<span
+									>{_accounts.find((a) => a.id === selectedAccountId)?.name ??
+										'Select Account'}</span
+								>
 							</Select.Trigger>
 							<Select.Content>
 								{#each _accounts as account (account.id)}
 									<Select.Item value={account.id} label={account.name}>
 										<div class="flex items-center gap-2">
-											<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
+											<div
+												class="h-2 w-2 rounded-full"
+												style="background-color: {account.color}"
+											></div>
 											{account.name}
 										</div>
 									</Select.Item>

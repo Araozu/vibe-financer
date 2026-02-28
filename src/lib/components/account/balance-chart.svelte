@@ -182,7 +182,11 @@
 				style="left: {(tooltipX / CHART_WIDTH) * 100}%; top: {(tooltipY / CHART_HEIGHT) * 100 - 4}%"
 			>
 				<div class="text-[10px] text-background/70">
-					{hoveredPoint.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+					{hoveredPoint.date.toLocaleDateString('en-US', {
+						month: 'short',
+						day: 'numeric',
+						year: 'numeric'
+					})}
 				</div>
 				<div class="font-bold text-background">
 					{formatCurrency(hoveredPoint.balance)}

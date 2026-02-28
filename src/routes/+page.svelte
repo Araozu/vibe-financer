@@ -429,7 +429,9 @@
 					<div class="space-y-4">
 						<div class="flex items-baseline gap-1">
 							<span class="text-3xl font-bold tracking-tight">
-								{accountWithGoal.currencySymbol ?? '$'}{(currentBalanceForGoalAccount / 100).toLocaleString('en-US', {
+								{accountWithGoal.currencySymbol ?? '$'}{(
+									currentBalanceForGoalAccount / 100
+								).toLocaleString('en-US', {
 									minimumFractionDigits: 2,
 									maximumFractionDigits: 2
 								})}
@@ -441,7 +443,9 @@
 							>
 								<span>{goalProgress.toFixed(0)}% achieved</span>
 								<span>
-									Goal: {accountWithGoal.currencySymbol ?? '$'}{(goal.targetAmount / 100).toLocaleString('en-US', {
+									Goal: {accountWithGoal.currencySymbol ?? '$'}{(
+										goal.targetAmount / 100
+									).toLocaleString('en-US', {
 										maximumFractionDigits: 0
 									})}
 								</span>
@@ -579,8 +583,10 @@
 							<div class="flex items-center justify-between text-sm">
 								<span class="font-medium">{budget.category}</span>
 								<span class="text-muted-foreground">
-									{budget.currencySymbol ?? "$"}{(budget.currentSpent / 100).toFixed(0)} /
-									<span class="font-semibold">{budget.currencySymbol ?? "$"}{(budget.limit / 100).toFixed(0)}</span>
+									{budget.currencySymbol ?? '$'}{(budget.currentSpent / 100).toFixed(0)} /
+									<span class="font-semibold"
+										>{budget.currencySymbol ?? '$'}{(budget.limit / 100).toFixed(0)}</span
+									>
 								</span>
 							</div>
 							<Progress
@@ -589,7 +595,10 @@
 							/>
 							{#if budget.currentSpent > budget.limit}
 								<p class="text-[10px] font-medium text-rose-500">
-									Over budget by {budget.currencySymbol ?? '$'}{((budget.currentSpent - budget.limit) / 100).toFixed(2)}
+									Over budget by {budget.currencySymbol ?? '$'}{(
+										(budget.currentSpent - budget.limit) /
+										100
+									).toFixed(2)}
 								</p>
 							{/if}
 						</div>

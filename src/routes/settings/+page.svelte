@@ -210,16 +210,17 @@
 					<div class="space-y-2">
 						<Label for="defaultAccountId">Default Account</Label>
 						<Select.Root type="single" bind:value={selectedDefaultAccountId}>
-							<Select.Trigger
-								id="defaultAccountId"
-								disabled={loadingProfile}
-								class="w-full"
-							>
+							<Select.Trigger id="defaultAccountId" disabled={loadingProfile} class="w-full">
 								{#if selectedDefaultAccountId}
-									{@const selectedAccount = accountsList.find((a) => a.id === selectedDefaultAccountId)}
+									{@const selectedAccount = accountsList.find(
+										(a) => a.id === selectedDefaultAccountId
+									)}
 									{#if selectedAccount}
 										<div class="flex items-center gap-2">
-											<div class="h-2 w-2 rounded-full" style="background-color: {selectedAccount.color}"></div>
+											<div
+												class="h-2 w-2 rounded-full"
+												style="background-color: {selectedAccount.color}"
+											></div>
 											{selectedAccount.name}
 										</div>
 									{:else}
@@ -234,7 +235,10 @@
 								{#each accountsList as account (account.id)}
 									<Select.Item value={account.id} label={account.name}>
 										<div class="flex items-center gap-2">
-											<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
+											<div
+												class="h-2 w-2 rounded-full"
+												style="background-color: {account.color}"
+											></div>
 											{account.name}
 										</div>
 									</Select.Item>

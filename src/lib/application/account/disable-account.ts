@@ -3,7 +3,11 @@ import { createAccountDeletedEvent, type AccountDeletedPayload } from '$lib/doma
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { getAccountState, getAccountVersion } from './account-projection';
 
-export async function disableAccount(accountId: string, userId: string, reason?: string): Promise<void> {
+export async function disableAccount(
+	accountId: string,
+	userId: string,
+	reason?: string
+): Promise<void> {
 	const account = await getAccountState(accountId);
 	if (!account) {
 		throw error(404, 'Account not found');
