@@ -1,6 +1,6 @@
 import { db } from '../db';
-import { transaction } from '../db/schema';
-import { eq, desc, isNull, and, between, lt, inArray } from 'drizzle-orm';
+import { transaction, account } from '../db/schema';
+import { eq, desc, isNull, and, between, lt, inArray, sql } from 'drizzle-orm';
 import type { Transaction, CreateTransactionDTO } from '../../domain/transaction';
 
 export const transactionRepo = {
@@ -115,6 +115,43 @@ export const transactionRepo = {
 			.set({ ...data, updatedAt: new Date() })
 			.where(eq(transaction.id, id))
 			.returning();
+		return result;
+	},
+
+	/**
+	 * Sum expense amounts grouped by category for a user's accounts
+	 * with a specific currency within a date range.
+	 */
+	async sumExpensesByCategoryForUser(
+		userId: string,
+		currencyId: string,
+		start: Date,
+		end: Date
+	): Promise<Map<string, number>> {
+		const rows = await db
+			.select({
+				category: transaction.category,
+				total: sql<number>`COALESCE(SUM(${transaction.amount}), 0)`
+			})
+			.from(transaction)
+			.innerJoin(account, eq(transaction.accountId, account.id))
+			.where(
+				and(
+					eq(account.userId, userId),
+					eq(account.currencyId, currencyId),
+					eq(transaction.type, 'expense'),
+					isNull(transaction.deletedAt),
+					between(transaction.createdAt, start, end)
+				)
+			)
+			.groupBy(transaction.category);
+
+		const result = new Map<string, number>();
+		for (const row of rows) {
+			if (row.category) {
+				result.set(row.category, Number(row.total));
+			}
+		}
 		return result;
 	}
 };

@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
@@ -57,6 +58,7 @@
 		period: 'monthly' | 'weekly' | 'yearly';
 		startDate: string;
 		currentSpent: number;
+		periodSpent: number;
 		createdAt: string;
 		updatedAt: string;
 		currencyCode: string | null;
@@ -99,7 +101,10 @@
 	// Query for budgets
 	const budgetsQuery = createQuery<SerializedBudget[]>(() => ({
 		queryKey: ['budgets'],
-		queryFn: async () => (await fetch('/api/budgets')).json()
+		queryFn: async () => {
+			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+			return (await fetch(`/api/budgets?tz=${tz}`)).json();
+		}
 	}));
 
 	// Query for user (to get defaultAccountId)
@@ -116,31 +121,6 @@
 	let budgets = $derived(budgetsQuery.data ?? []);
 	let defaultAccountId = $derived(userQuery.data?.defaultAccountId ?? null);
 	let defaultAccount = $derived(accounts.find((a) => a.id === defaultAccountId) ?? null);
-
-	// Compute budget spending from the month-filtered transactions (not from the DB projection)
-	let budgetMonthlySpending = $derived.by(() => {
-		const accountCurrencyMap = new Map<string, string>();
-		for (const account of accounts) {
-			accountCurrencyMap.set(account.id, account.currencyId);
-		}
-		// Single pass: group expense totals by "currencyId::category"
-		const spentByScope = new Map<string, number>();
-		for (const tx of transactions) {
-			if (tx.type === 'expense' && tx.category) {
-				const currencyId = accountCurrencyMap.get(tx.accountId);
-				if (currencyId) {
-					const key = `${currencyId}::${tx.category}`;
-					spentByScope.set(key, (spentByScope.get(key) ?? 0) + tx.amount);
-				}
-			}
-		}
-		// Look up each budget's spending in O(1)
-		const spending = new Map<string, number>();
-		for (const b of budgets) {
-			spending.set(b.id, spentByScope.get(`${b.currencyId}::${b.category}`) ?? 0);
-		}
-		return spending;
-	});
 
 	let editingTransaction = $state<SerializedTransaction | null>(null);
 	let editDialogOpen = $state(false);
@@ -623,7 +603,7 @@
 			<Card.Header class="flex flex-row items-center justify-between">
 				<div>
 					<Card.Title>Budgets</Card.Title>
-					<Card.Description>Monthly limit tracking</Card.Description>
+					<Card.Description>Budget tracking by period</Card.Description>
 				</div>
 				<a href="/budgets">
 					<Button variant="ghost" size="icon" class="h-8 w-8">
@@ -637,10 +617,13 @@
 				{:else}
 					{#each budgets as budget, i (budget.id)}
 						{@const _color = budgetColors[i % budgetColors.length]}
-						{@const spent = budgetMonthlySpending.get(budget.id) ?? 0}
+						{@const spent = budget.periodSpent}
 						<div class="space-y-2">
 							<div class="flex items-center justify-between text-sm">
-								<span class="font-medium">{budget.category}</span>
+								<div class="flex items-center gap-2">
+									<span class="font-medium">{budget.category}</span>
+									<Badge variant="outline" class="text-[10px] capitalize">{budget.period}</Badge>
+								</div>
 								<span class="text-muted-foreground">
 									{budget.currencySymbol ?? '$'}{(spent / 100).toFixed(0)} /
 									<span class="font-semibold"
