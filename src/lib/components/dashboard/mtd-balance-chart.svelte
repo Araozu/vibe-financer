@@ -5,12 +5,14 @@
 	import { curveNatural } from 'd3-shape';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Chart from '$lib/components/ui/chart/index.js';
+	import { DEFAULT_CURRENCY_SYMBOL } from '$lib/domain/currency';
 
 	type ChartAccount = {
 		id: string;
 		name: string;
 		color: string;
 		currentBalance: number;
+		currencySymbol?: string | null;
 	};
 
 	type ChartTransaction = {
@@ -70,8 +72,8 @@
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 	}
 
-	function formatCurrency(amountInCents: number): string {
-		return `$${(amountInCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+	function formatNumber(amountInCents: number): string {
+		return (amountInCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 	}
 
 	let monthToDateBalancePoints = $derived.by(() => {
@@ -177,7 +179,7 @@
 			.filter((account) => activeAccountIds.has(account.id))
 			.map((account) => ({
 				key: account.id,
-				label: account.name,
+				label: `${account.name} (${account.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL})`,
 				color: account.color
 			}))
 	);
@@ -226,14 +228,14 @@
 						},
 						yAxis: {
 							ticks: 5,
-							format: (value: number) => formatCurrency(Math.round(value))
+							format: (value: number) => formatNumber(Math.round(value))
 						},
 						tooltip: {
 							header: {
 								format: (value: Date) => formatChartDateLabel(value)
 							},
 							item: {
-								format: (value: number) => formatCurrency(value)
+								format: (value: number) => formatNumber(value)
 							}
 						},
 						highlight: { points: { r: 3.5 } }

@@ -1,3 +1,5 @@
+export const DEFAULT_CURRENCY_SYMBOL = '$';
+
 export interface Currency {
 	id: string;
 	code: string; // e.g., "USD"
