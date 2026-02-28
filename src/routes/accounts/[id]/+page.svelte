@@ -152,7 +152,7 @@
 		}
 	}));
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	 
 	let chartData = $derived.by(() => {
 		const accounts = chartQuery.data ?? [];
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -163,7 +163,7 @@
 
 	// Compute monthly income/expenses from transaction data
 	let monthlyIncome = $derived(
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		 
 		allTransactions
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			.filter((tx: any) => tx.type === 'income')
@@ -172,7 +172,7 @@
 	);
 
 	let monthlyExpenses = $derived(
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		 
 		allTransactions
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			.filter((tx: any) => tx.type === 'expense')

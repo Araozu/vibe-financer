@@ -24,7 +24,11 @@
 	const queryClient = useQueryClient();
 
 	// We use any here because the account might come from a serialized API response (dates as strings)
-	let { open = $bindable(false), account, trigger: triggerSnippet } = $props<{
+	let {
+		open = $bindable(false),
+		account,
+		trigger: triggerSnippet
+	} = $props<{
 		open?: boolean;
 		account: {
 			id: string;
