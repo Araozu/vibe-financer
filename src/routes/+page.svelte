@@ -24,6 +24,7 @@
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
+	import { DEFAULT_CURRENCY_SYMBOL } from '$lib/domain/currency';
 
 	type SerializedGoal = {
 		id: string;
@@ -195,7 +196,7 @@
 
 	let effectiveEndDate = $derived(isCurrentMonth ? dashboardNow : lastDayOfSelectedMonth);
 
-	let defaultCurrencySymbol = $derived(defaultAccount?.currencySymbol ?? '$');
+	let defaultCurrencySymbol = $derived(defaultAccount?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL);
 
 	let defaultAccountTransactions = $derived(
 		defaultAccount ? transactions.filter((tx) => tx.accountId === defaultAccount.id) : []
@@ -284,28 +285,28 @@
 		{
 			title: 'Total Balance',
 			amount: formattedTotalBalance,
-			change: defaultAccount?.name ?? '',
+			subtitle: defaultAccount?.name ?? '',
 			icon: Wallet,
 			color: 'text-blue-500'
 		},
 		{
 			title: 'Monthly Income',
 			amount: formattedMonthlyIncome,
-			change: isCurrentMonth ? '1st until today' : 'Full month',
+			subtitle: isCurrentMonth ? '1st until today' : 'Full month',
 			icon: TrendingUp,
 			color: 'text-income'
 		},
 		{
 			title: 'Monthly Expenses',
 			amount: formattedMonthlyExpenses,
-			change: isCurrentMonth ? '1st until today' : 'Full month',
+			subtitle: isCurrentMonth ? '1st until today' : 'Full month',
 			icon: TrendingDown,
 			color: 'text-expense'
 		},
 		{
 			title: 'Savings Rate',
 			amount: `${savingsRate.toFixed(1)}%`,
-			change: 'Monthly performance',
+			subtitle: 'Monthly performance',
 			icon: PiggyBank,
 			color: 'text-savings'
 		}
@@ -395,7 +396,7 @@
 				<Card.Content>
 					<div class="text-2xl font-bold">{stat.amount}</div>
 					<p class="mt-1 text-xs text-muted-foreground">
-						{stat.change}
+						{stat.subtitle}
 					</p>
 				</Card.Content>
 			</Card.Root>

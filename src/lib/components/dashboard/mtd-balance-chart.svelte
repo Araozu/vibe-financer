@@ -5,6 +5,7 @@
 	import { curveNatural } from 'd3-shape';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Chart from '$lib/components/ui/chart/index.js';
+	import { DEFAULT_CURRENCY_SYMBOL } from '$lib/domain/currency';
 
 	type ChartAccount = {
 		id: string;
@@ -178,7 +179,7 @@
 			.filter((account) => activeAccountIds.has(account.id))
 			.map((account) => ({
 				key: account.id,
-				label: `${account.name} (${account.currencySymbol ?? '$'})`,
+				label: `${account.name} (${account.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL})`,
 				color: account.color
 			}))
 	);
