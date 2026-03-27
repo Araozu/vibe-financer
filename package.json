@@ -4,7 +4,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"start": "bun --bun ./build/index.js",
+		"start": "bun i drizzle-kit && bun x drizzle-kit migrate && bun --bun ./build/index.js",
 		"dev": "vite dev --port 5124",
 		"build": "vite build",
 		"preview": "vite preview",
