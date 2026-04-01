@@ -116,8 +116,7 @@ export async function listTransactionsByAccountPaginated(
 ): Promise<Transaction[]> {
 	const normalizedSearch = filters?.search?.trim();
 	const normalizedCategory = filters?.category?.trim();
-	const normalizedType =
-		filters?.type && filters.type !== 'all' ? filters.type : undefined;
+	const normalizedType = filters?.type && filters.type !== 'all' ? filters.type : undefined;
 	const dateRange = getDateRangeForTimeframe(filters?.timeframe ?? 'all');
 
 	if (

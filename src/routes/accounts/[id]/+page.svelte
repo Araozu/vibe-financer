@@ -137,10 +137,16 @@
 	);
 
 	$effect(() => {
-		searchQuery;
-		selectedTimeframe;
-		selectedCategory;
-		txFilter;
+		if (
+			searchQuery.trim().length > 0 ||
+			selectedTimeframe !== 'all' ||
+			selectedCategory !== '' ||
+			txFilter !== 'all'
+		) {
+			offset = 0;
+			return;
+		}
+
 		offset = 0;
 	});
 
@@ -156,23 +162,17 @@
 			searchQuery.trim()
 		],
 		queryFn: async () => {
-			const params = new URLSearchParams({
-				limit: limit.toString(),
-				offset: offset.toString(),
-				type: txFilter,
-				timeframe: selectedTimeframe
-			});
-
 			const trimmedSearch = searchQuery.trim();
-			if (trimmedSearch) {
-				params.set('search', trimmedSearch);
-			}
+			const queryParams = [
+				`limit=${encodeURIComponent(limit.toString())}`,
+				`offset=${encodeURIComponent(offset.toString())}`,
+				`type=${encodeURIComponent(txFilter)}`,
+				`timeframe=${encodeURIComponent(selectedTimeframe)}`,
+				...(trimmedSearch ? [`search=${encodeURIComponent(trimmedSearch)}`] : []),
+				...(selectedCategory ? [`category=${encodeURIComponent(selectedCategory)}`] : [])
+			].join('&');
 
-			if (selectedCategory) {
-				params.set('category', selectedCategory);
-			}
-
-			const res = await fetch(`/api/accounts/${account.id}/transactions?${params.toString()}`);
+			const res = await fetch(`/api/accounts/${account.id}/transactions?${queryParams}`);
 			return res.json();
 		},
 		placeholderData: (previousData: unknown) => previousData
@@ -208,7 +208,6 @@
 		}
 	}));
 
-	 
 	let chartData = $derived.by(() => {
 		const accounts = chartQuery.data ?? [];
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -219,7 +218,6 @@
 
 	// Compute monthly income/expenses from transaction data
 	let monthlyIncome = $derived(
-		 
 		allTransactions
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			.filter((tx: any) => tx.type === 'income')
@@ -228,7 +226,6 @@
 	);
 
 	let monthlyExpenses = $derived(
-		 
 		allTransactions
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			.filter((tx: any) => tx.type === 'expense')
