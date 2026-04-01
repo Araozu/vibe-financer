@@ -129,25 +129,23 @@
 	];
 
 	const categories = $derived(data.categories ?? []);
+	const filtersKey = $derived(
+		[txFilter, selectedTimeframe, selectedCategory, searchQuery.trim()].join('::')
+	);
 	const hasActiveFilters = $derived(
 		searchQuery.trim().length > 0 ||
 			selectedTimeframe !== 'all' ||
 			selectedCategory !== '' ||
 			txFilter !== 'all'
 	);
+	let previousFiltersKey = $state('');
 
 	$effect(() => {
-		if (
-			searchQuery.trim().length > 0 ||
-			selectedTimeframe !== 'all' ||
-			selectedCategory !== '' ||
-			txFilter !== 'all'
-		) {
+		if (previousFiltersKey !== '' && previousFiltersKey !== filtersKey) {
 			offset = 0;
-			return;
 		}
 
-		offset = 0;
+		previousFiltersKey = filtersKey;
 	});
 
 	const transactionsQuery = createQuery(() => ({

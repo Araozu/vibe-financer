@@ -146,14 +146,14 @@ export const transactionRepo = {
 
 		if (filters.search) {
 			const searchTerm = `%${filters.search}%`;
-			conditions.push(
-				or(
-					ilike(transaction.name, searchTerm),
-					ilike(transaction.description, searchTerm),
-					ilike(transaction.category, searchTerm),
-					ilike(transaction.payee, searchTerm)
-				)!
-			);
+			const searchConditions = [
+				ilike(transaction.name, searchTerm),
+				ilike(transaction.description, searchTerm),
+				ilike(transaction.category, searchTerm),
+				ilike(transaction.payee, searchTerm)
+			] as const;
+
+			conditions.push(or(...searchConditions) ?? searchConditions[0]);
 		}
 
 		return await db

@@ -150,16 +150,19 @@ function getDateRangeForTimeframe(timeframe: TransactionTimeframe): {
 
 	switch (timeframe) {
 		case '7d':
+			// Last 7 days (today and the previous 6 days).
 			return {
 				startDate: startOfDay(subDays(now, 6)),
 				endDate: endOfDay(now)
 			};
 		case '30d':
+			// Last 30 days (today and the previous 29 days).
 			return {
 				startDate: startOfDay(subDays(now, 29)),
 				endDate: endOfDay(now)
 			};
 		case '90d':
+			// Last 90 days (today and the previous 89 days).
 			return {
 				startDate: startOfDay(subDays(now, 89)),
 				endDate: endOfDay(now)
