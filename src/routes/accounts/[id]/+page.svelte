@@ -2,8 +2,10 @@
 	import { createQuery } from '@tanstack/svelte-query';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
 	import {
 		CreditCard,
 		TrendingUp,
@@ -17,7 +19,9 @@
 		Loader2,
 		Pencil,
 		Trash2,
-		LayoutGrid
+		LayoutGrid,
+		Search,
+		X
 	} from '@lucide/svelte';
 	import { useQueryClient } from '@tanstack/svelte-query';
 	import TransactionRow from '$lib/components/transaction/transaction-row.svelte';
@@ -25,6 +29,7 @@
 	import EditAccountDialog from '$lib/components/account/edit-account-dialog.svelte';
 	import BalanceChart from '$lib/components/account/balance-chart.svelte';
 	import type { AccountType } from '$lib/domain/account';
+	import type { TransactionTimeframe } from '$lib/application/transaction/list-transactions';
 	import { goto } from '$app/navigation';
 
 	const queryClient = useQueryClient();
@@ -108,31 +113,90 @@
 	const limit = 50;
 
 	// Transaction filter: 'all' | 'income' | 'expense'
-	let txFilter = $state<'all' | 'income' | 'expense'>('all');
+	let txFilter = $state<'all' | 'income' | 'expense' | 'transfer'>('all');
+	let searchQuery = $state('');
+	let debouncedSearch = $state('');
+	let selectedTimeframe = $state<TransactionTimeframe>('all');
+	let selectedCategory = $state('');
+
+	// Debounce searchQuery by 350 ms so the query fires only after the user stops typing.
+	$effect(() => {
+		const value = searchQuery;
+		const timer = setTimeout(() => {
+			debouncedSearch = value;
+		}, 350);
+
+		return () => clearTimeout(timer);
+	});
+
+	const timeframeOptions: { value: TransactionTimeframe; label: string }[] = [
+		{ value: 'all', label: 'All time' },
+		{ value: '7d', label: 'Last 7 days' },
+		{ value: '30d', label: 'Last 30 days' },
+		{ value: '90d', label: 'Last 90 days' },
+		{ value: 'this-month', label: 'This month' },
+		{ value: 'last-month', label: 'Last month' },
+		{ value: 'this-year', label: 'This year' }
+	];
+
+	const categories = $derived(data.categories ?? []);
+	const filtersKey = $derived(
+		[txFilter, selectedTimeframe, selectedCategory, debouncedSearch].join('::')
+	);
+	const hasActiveFilters = $derived(
+		searchQuery.trim().length > 0 ||
+			selectedTimeframe !== 'all' ||
+			selectedCategory !== '' ||
+			txFilter !== 'all'
+	);
+	let previousFiltersKey = $state('');
+
+	$effect(() => {
+		if (previousFiltersKey !== '' && previousFiltersKey !== filtersKey) {
+			offset = 0;
+		}
+
+		previousFiltersKey = filtersKey;
+	});
 
 	const transactionsQuery = createQuery(() => ({
-		queryKey: ['accounts', account.id, 'transactions', offset],
+		queryKey: [
+			'accounts',
+			account.id,
+			'transactions',
+			offset,
+			txFilter,
+			selectedTimeframe,
+			selectedCategory,
+			debouncedSearch
+		],
 		queryFn: async () => {
-			const res = await fetch(
-				`/api/accounts/${account.id}/transactions?limit=${limit}&offset=${offset}`
-			);
+			const queryParams = [
+				`limit=${encodeURIComponent(limit.toString())}`,
+				`offset=${encodeURIComponent(offset.toString())}`,
+				`type=${encodeURIComponent(txFilter)}`,
+				`timeframe=${encodeURIComponent(selectedTimeframe)}`,
+				...(debouncedSearch ? [`search=${encodeURIComponent(debouncedSearch)}`] : []),
+				...(selectedCategory ? [`category=${encodeURIComponent(selectedCategory)}`] : [])
+			].join('&');
+
+			const res = await fetch(`/api/accounts/${account.id}/transactions?${queryParams}`);
 			return res.json();
 		},
 		placeholderData: (previousData: unknown) => previousData
 	}));
 
 	let allTransactions = $derived(
-		transactionsQuery.data?.transactions ?? (offset === 0 ? data.initialTransactions : [])
+		debouncedSearch.length === 0 &&
+			selectedTimeframe === 'all' &&
+			selectedCategory === '' &&
+			txFilter === 'all' &&
+			offset === 0
+			? data.initialTransactions
+			: (transactionsQuery.data?.transactions ?? [])
 	);
 	let hasMore = $derived(transactionsQuery.data?.hasMore ?? true);
-
-	// Filtered transactions based on the selected tab
-	let transactions = $derived(
-		txFilter === 'all'
-			? allTransactions
-			: // eslint-disable-next-line @typescript-eslint/no-explicit-any
-				allTransactions.filter((tx: any) => tx.type === txFilter)
-	);
+	let transactions = $derived(allTransactions);
 
 	// Chart data query
 	const now = new Date();
@@ -152,7 +216,6 @@
 		}
 	}));
 
-	 
 	let chartData = $derived.by(() => {
 		const accounts = chartQuery.data ?? [];
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -163,7 +226,6 @@
 
 	// Compute monthly income/expenses from transaction data
 	let monthlyIncome = $derived(
-		 
 		allTransactions
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			.filter((tx: any) => tx.type === 'income')
@@ -172,7 +234,6 @@
 	);
 
 	let monthlyExpenses = $derived(
-		 
 		allTransactions
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			.filter((tx: any) => tx.type === 'expense')
@@ -213,6 +274,13 @@
 
 	function prevPage() {
 		if (offset >= limit) offset -= limit;
+	}
+
+	function clearFilters() {
+		searchQuery = '';
+		selectedTimeframe = 'all';
+		selectedCategory = '';
+		txFilter = 'all';
 	}
 
 	const Icon = $derived(typeIcons[account.type as AccountType] ?? Wallet);
@@ -386,45 +454,78 @@
 				{totalTransactionCount}
 			</Badge>
 		</div>
-		<div
-			class="flex items-center gap-1 overflow-hidden rounded-lg border border-border/40 bg-muted/30"
-		>
-			<button
-				class="px-3 py-1.5 text-xs font-medium transition-all
-					{txFilter === 'all'
-					? 'bg-foreground text-background shadow-sm'
-					: 'text-muted-foreground hover:text-foreground'}"
-				onclick={() => {
-					txFilter = 'all';
-				}}
-			>
-				All
-			</button>
-			<button
-				class="px-3 py-1.5 text-xs font-medium transition-all
-					{txFilter === 'income'
-					? 'bg-foreground text-background shadow-sm'
-					: 'text-muted-foreground hover:text-foreground'}"
-				onclick={() => {
-					txFilter = 'income';
-				}}
-			>
-				Income
-			</button>
-			<button
-				class="px-3 py-1.5 text-xs font-medium transition-all
-					{txFilter === 'expense'
-					? 'bg-foreground text-background shadow-sm'
-					: 'text-muted-foreground hover:text-foreground'}"
-				onclick={() => {
-					txFilter = 'expense';
-				}}
-			>
-				Expenses
-			</button>
+		<div class="flex items-center gap-2">
+			{#if hasActiveFilters}
+				<Button variant="ghost" size="sm" class="h-9 gap-1.5 px-2.5 text-xs" onclick={clearFilters}>
+					<X class="h-3.5 w-3.5" />
+					Clear
+				</Button>
+			{/if}
 		</div>
 	</Card.Header>
-	<Card.Content class="p-0">
+	<Card.Content class="space-y-4 p-6 pb-0">
+		<div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+			<div class="relative w-full lg:max-w-sm">
+				<Search
+					class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+				/>
+				<Input
+					type="search"
+					placeholder="Search transactions"
+					class="pl-9"
+					bind:value={searchQuery}
+				/>
+			</div>
+
+			<div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap lg:justify-end">
+				<Select.Root type="single" bind:value={selectedTimeframe}>
+					<Select.Trigger class="w-full sm:w-[170px]">
+						{timeframeOptions.find((option) => option.value === selectedTimeframe)?.label ??
+							'All time'}
+					</Select.Trigger>
+					<Select.Content>
+						{#each timeframeOptions as option (option.value)}
+							<Select.Item value={option.value} label={option.label}>
+								{option.label}
+							</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+
+				<Select.Root type="single" bind:value={selectedCategory}>
+					<Select.Trigger class="w-full sm:w-[170px]">
+						{selectedCategory || 'All categories'}
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="" label="All categories">All categories</Select.Item>
+						{#each categories as category (category)}
+							<Select.Item value={category} label={category}>
+								{category}
+							</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
+		</div>
+
+		<div
+			class="flex flex-wrap items-center gap-1 overflow-hidden rounded-lg border border-border/40 bg-muted/30"
+		>
+			{#each ['all', 'income', 'expense', 'transfer'] as filter (filter)}
+				<button
+					class="px-3 py-1.5 text-xs font-medium capitalize transition-all
+						{txFilter === filter
+						? 'bg-foreground text-background shadow-sm'
+						: 'text-muted-foreground hover:text-foreground'}"
+					onclick={() => {
+						txFilter = filter as typeof txFilter;
+					}}
+				>
+					{filter === 'all' ? 'All' : filter}
+				</button>
+			{/each}
+		</div>
+
 		{#if transactionsQuery.isPending && transactions.length === 0}
 			<div class="flex h-64 items-center justify-center">
 				<Loader2 class="h-8 w-8 animate-spin text-muted-foreground/40" />
@@ -454,7 +555,9 @@
 					{#if transactions.length === 0}
 						<Table.Row>
 							<Table.Cell colspan={5} class="py-24 text-center text-muted-foreground">
-								No transactions found.
+								{hasActiveFilters
+									? 'No transactions match the current filters.'
+									: 'No transactions found.'}
 							</Table.Cell>
 						</Table.Row>
 					{:else}

@@ -1,7 +1,10 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getAccountState } from '$lib/application/account/list-accounts';
-import { listTransactionsByAccountPaginated } from '$lib/application/transaction/list-transactions';
+import {
+	listTransactionCategoriesByAccount,
+	listTransactionsByAccountPaginated
+} from '$lib/application/transaction/list-transactions';
 import { editTransaction } from '$lib/application/transaction/edit-transaction';
 import type { TransactionType } from '$lib/domain/transaction';
 import { parseDateLocal } from '$lib/domain/date-formatter';
@@ -20,6 +23,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	// Initial 50 transactions
 	const initialTransactions = await listTransactionsByAccountPaginated(account.id, 50, 0);
+	const categories = await listTransactionCategoriesByAccount(account.id);
 
 	return {
 		account: {
@@ -43,7 +47,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				tx.updatedAt instanceof Date
 					? tx.updatedAt.toISOString()
 					: new Date(tx.updatedAt).toISOString()
-		}))
+		})),
+		categories
 	};
 };
 
