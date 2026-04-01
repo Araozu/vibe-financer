@@ -195,8 +195,7 @@
 	);
 
 	let isCurrentMonth = $derived(
-		selectedMonth === dashboardNow.getUTCMonth() &&
-			selectedYear === dashboardNow.getUTCFullYear()
+		selectedMonth === dashboardNow.getUTCMonth() && selectedYear === dashboardNow.getUTCFullYear()
 	);
 
 	let effectiveEndDate = $derived(isCurrentMonth ? dashboardNow : lastDayOfSelectedMonth);
@@ -251,9 +250,7 @@
 	);
 
 	let formattedMonthlyIncome = $derived(formatWithSymbol(monthlyIncome, defaultCurrencySymbol));
-	let formattedMonthlyExpenses = $derived(
-		formatWithSymbol(monthlyExpenses, defaultCurrencySymbol)
-	);
+	let formattedMonthlyExpenses = $derived(formatWithSymbol(monthlyExpenses, defaultCurrencySymbol));
 
 	let savingsRate = $derived(
 		monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0
@@ -412,7 +409,9 @@
 		<Card.Content class="flex items-center justify-center gap-3 py-6 text-center">
 			<Wallet class="h-5 w-5 text-muted-foreground" />
 			<p class="text-sm text-muted-foreground">
-				Set a <a href="/settings" class="font-medium text-primary underline underline-offset-4">default account</a> in settings to see your summary stats here.
+				Set a <a href="/settings" class="font-medium text-primary underline underline-offset-4"
+					>default account</a
+				> in settings to see your summary stats here.
 			</p>
 		</Card.Content>
 	</Card.Root>
@@ -631,10 +630,7 @@
 									>
 								</span>
 							</div>
-							<Progress
-								value={Math.min((spent / budget.limit) * 100, 100)}
-								class="h-2"
-							/>
+							<Progress value={Math.min((spent / budget.limit) * 100, 100)} class="h-2" />
 							{#if spent > budget.limit}
 								<p class="text-[10px] font-medium text-rose-500">
 									Over budget by {budget.currencySymbol ?? '$'}{(

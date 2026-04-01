@@ -1,14 +1,6 @@
 import { transactionRepo } from '$lib/infra/repos/transaction.repo';
 import type { Transaction, TransactionType } from '$lib/domain/transaction';
-import {
-	endOfDay,
-	endOfMonth,
-	startOfDay,
-	startOfMonth,
-	startOfYear,
-	subDays,
-	subMonths
-} from 'date-fns';
+import { startOfMonth, endOfMonth } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
 
 export type TransactionTimeframe =
@@ -148,42 +140,51 @@ function getDateRangeForTimeframe(timeframe: TransactionTimeframe): {
 } {
 	const now = new Date();
 
+	// Compute today's start/end in UTC to avoid server-local timezone shifts.
+	const utcTodayStart = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+	);
+	const utcTodayEnd = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999)
+	);
+
 	switch (timeframe) {
-		case '7d':
-			// Last 7 days (today and the previous 6 days).
-			return {
-				startDate: startOfDay(subDays(now, 6)),
-				endDate: endOfDay(now)
-			};
-		case '30d':
-			// Last 30 days (today and the previous 29 days).
-			return {
-				startDate: startOfDay(subDays(now, 29)),
-				endDate: endOfDay(now)
-			};
-		case '90d':
-			// Last 90 days (today and the previous 89 days).
-			return {
-				startDate: startOfDay(subDays(now, 89)),
-				endDate: endOfDay(now)
-			};
-		case 'this-month':
-			return {
-				startDate: startOfMonth(now),
-				endDate: endOfDay(now)
-			};
-		case 'last-month': {
-			const lastMonth = subMonths(now, 1);
-			return {
-				startDate: startOfMonth(lastMonth),
-				endDate: endOfMonth(lastMonth)
-			};
+		case '7d': {
+			// Last 7 days in UTC (today and the previous 6 days).
+			const start = new Date(utcTodayStart);
+			start.setUTCDate(start.getUTCDate() - 6);
+			return { startDate: start, endDate: utcTodayEnd };
 		}
-		case 'this-year':
-			return {
-				startDate: startOfYear(now),
-				endDate: endOfDay(now)
-			};
+		case '30d': {
+			// Last 30 days in UTC (today and the previous 29 days).
+			const start = new Date(utcTodayStart);
+			start.setUTCDate(start.getUTCDate() - 29);
+			return { startDate: start, endDate: utcTodayEnd };
+		}
+		case '90d': {
+			// Last 90 days in UTC (today and the previous 89 days).
+			const start = new Date(utcTodayStart);
+			start.setUTCDate(start.getUTCDate() - 89);
+			return { startDate: start, endDate: utcTodayEnd };
+		}
+		case 'this-month': {
+			// From the first day of this month (UTC) through the end of today (UTC).
+			const startOfThisMonthUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+			return { startDate: startOfThisMonthUtc, endDate: utcTodayEnd };
+		}
+		case 'last-month': {
+			// Entire previous calendar month in UTC.
+			const year = now.getUTCFullYear();
+			const month = now.getUTCMonth();
+			const startOfLastMonthUtc = new Date(Date.UTC(year, month - 1, 1));
+			const endOfLastMonthUtc = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+			return { startDate: startOfLastMonthUtc, endDate: endOfLastMonthUtc };
+		}
+		case 'this-year': {
+			// From the first day of this year (UTC) through the end of today (UTC).
+			const startOfThisYearUtc = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+			return { startDate: startOfThisYearUtc, endDate: utcTodayEnd };
+		}
 		default:
 			return {};
 	}

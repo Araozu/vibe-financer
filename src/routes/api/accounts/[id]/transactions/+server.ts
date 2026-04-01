@@ -16,7 +16,17 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 	const rawLimit = Number.parseInt(url.searchParams.get('limit') ?? '50', 10);
 	const rawOffset = Number.parseInt(url.searchParams.get('offset') ?? '0', 10);
 	const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 50;
-	const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+
+	if (!Number.isFinite(rawOffset) || rawOffset < 0) {
+		return json({ error: 'Invalid offset' }, { status: 400 });
+	}
+
+	const MAX_OFFSET = 10_000;
+	if (rawOffset > MAX_OFFSET) {
+		return json({ error: `Offset must not exceed ${MAX_OFFSET}` }, { status: 400 });
+	}
+
+	const offset = rawOffset;
 	const search = url.searchParams.get('search')?.trim() ?? '';
 	const category = url.searchParams.get('category')?.trim() ?? '';
 	const requestedType = url.searchParams.get('type') ?? 'all';

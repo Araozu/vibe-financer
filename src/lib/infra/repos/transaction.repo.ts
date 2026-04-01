@@ -167,7 +167,7 @@ export const transactionRepo = {
 
 	async findCategoriesByAccountId(accountId: string): Promise<string[]> {
 		const rows = await db
-			.select({ category: transaction.category })
+			.select({ category: sql<string>`TRIM(${transaction.category})` })
 			.from(transaction)
 			.where(
 				and(
@@ -177,11 +177,11 @@ export const transactionRepo = {
 					sql`TRIM(${transaction.category}) <> ''`
 				)
 			)
-			.groupBy(transaction.category)
-			.orderBy(asc(transaction.category));
+			.groupBy(sql`TRIM(${transaction.category})`)
+			.orderBy(asc(sql`TRIM(${transaction.category})`));
 
 		return rows
-			.map((row) => row.category?.trim())
+			.map((row) => row.category)
 			.filter((category): category is string => Boolean(category));
 	},
 

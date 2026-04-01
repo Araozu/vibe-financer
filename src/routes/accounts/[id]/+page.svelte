@@ -115,8 +115,19 @@
 	// Transaction filter: 'all' | 'income' | 'expense'
 	let txFilter = $state<'all' | 'income' | 'expense' | 'transfer'>('all');
 	let searchQuery = $state('');
+	let debouncedSearch = $state('');
 	let selectedTimeframe = $state<TransactionTimeframe>('all');
 	let selectedCategory = $state('');
+
+	// Debounce searchQuery by 350 ms so the query fires only after the user stops typing.
+	$effect(() => {
+		const value = searchQuery;
+		const timer = setTimeout(() => {
+			debouncedSearch = value;
+		}, 350);
+
+		return () => clearTimeout(timer);
+	});
 
 	const timeframeOptions: { value: TransactionTimeframe; label: string }[] = [
 		{ value: 'all', label: 'All time' },
@@ -130,7 +141,7 @@
 
 	const categories = $derived(data.categories ?? []);
 	const filtersKey = $derived(
-		[txFilter, selectedTimeframe, selectedCategory, searchQuery.trim()].join('::')
+		[txFilter, selectedTimeframe, selectedCategory, debouncedSearch].join('::')
 	);
 	const hasActiveFilters = $derived(
 		searchQuery.trim().length > 0 ||
@@ -157,16 +168,15 @@
 			txFilter,
 			selectedTimeframe,
 			selectedCategory,
-			searchQuery.trim()
+			debouncedSearch
 		],
 		queryFn: async () => {
-			const trimmedSearch = searchQuery.trim();
 			const queryParams = [
 				`limit=${encodeURIComponent(limit.toString())}`,
 				`offset=${encodeURIComponent(offset.toString())}`,
 				`type=${encodeURIComponent(txFilter)}`,
 				`timeframe=${encodeURIComponent(selectedTimeframe)}`,
-				...(trimmedSearch ? [`search=${encodeURIComponent(trimmedSearch)}`] : []),
+				...(debouncedSearch ? [`search=${encodeURIComponent(debouncedSearch)}`] : []),
 				...(selectedCategory ? [`category=${encodeURIComponent(selectedCategory)}`] : [])
 			].join('&');
 
@@ -177,7 +187,7 @@
 	}));
 
 	let allTransactions = $derived(
-		searchQuery.trim().length === 0 &&
+		debouncedSearch.length === 0 &&
 			selectedTimeframe === 'all' &&
 			selectedCategory === '' &&
 			txFilter === 'all' &&
