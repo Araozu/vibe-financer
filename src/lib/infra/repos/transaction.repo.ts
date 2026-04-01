@@ -1,7 +1,29 @@
 import { db } from '../db';
 import { transaction, account } from '../db/schema';
-import { eq, desc, isNull, and, between, lt, inArray, sql } from 'drizzle-orm';
-import type { Transaction, CreateTransactionDTO } from '../../domain/transaction';
+import {
+	and,
+	asc,
+	between,
+	desc,
+	eq,
+	gte,
+	ilike,
+	inArray,
+	isNull,
+	lt,
+	lte,
+	or,
+	sql
+} from 'drizzle-orm';
+import type { Transaction, CreateTransactionDTO, TransactionType } from '../../domain/transaction';
+
+interface TransactionQueryFilters {
+	search?: string;
+	category?: string;
+	type?: TransactionType;
+	startDate?: Date;
+	endDate?: Date;
+}
 
 export const transactionRepo = {
 	async create(data: CreateTransactionDTO): Promise<Transaction> {
@@ -96,6 +118,71 @@ export const transactionRepo = {
 			.orderBy(desc(transaction.createdAt))
 			.limit(limit)
 			.offset(offset);
+	},
+
+	async findByAccountIdPaginatedFiltered(
+		accountId: string,
+		limit: number,
+		offset: number,
+		filters: TransactionQueryFilters
+	): Promise<Transaction[]> {
+		const conditions = [eq(transaction.accountId, accountId), isNull(transaction.deletedAt)];
+
+		if (filters.type) {
+			conditions.push(eq(transaction.type, filters.type));
+		}
+
+		if (filters.category) {
+			conditions.push(eq(transaction.category, filters.category));
+		}
+
+		if (filters.startDate) {
+			conditions.push(gte(transaction.createdAt, filters.startDate));
+		}
+
+		if (filters.endDate) {
+			conditions.push(lte(transaction.createdAt, filters.endDate));
+		}
+
+		if (filters.search) {
+			const searchTerm = `%${filters.search}%`;
+			conditions.push(
+				or(
+					ilike(transaction.name, searchTerm),
+					ilike(transaction.description, searchTerm),
+					ilike(transaction.category, searchTerm),
+					ilike(transaction.payee, searchTerm)
+				)!
+			);
+		}
+
+		return await db
+			.select()
+			.from(transaction)
+			.where(and(...conditions))
+			.orderBy(desc(transaction.createdAt))
+			.limit(limit)
+			.offset(offset);
+	},
+
+	async findCategoriesByAccountId(accountId: string): Promise<string[]> {
+		const rows = await db
+			.select({ category: transaction.category })
+			.from(transaction)
+			.where(
+				and(
+					eq(transaction.accountId, accountId),
+					isNull(transaction.deletedAt),
+					sql`${transaction.category} IS NOT NULL`,
+					sql`TRIM(${transaction.category}) <> ''`
+				)
+			)
+			.groupBy(transaction.category)
+			.orderBy(asc(transaction.category));
+
+		return rows
+			.map((row) => row.category?.trim())
+			.filter((category): category is string => Boolean(category));
 	},
 
 	async findAll(): Promise<Transaction[]> {

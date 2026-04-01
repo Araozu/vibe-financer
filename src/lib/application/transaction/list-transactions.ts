@@ -1,7 +1,31 @@
 import { transactionRepo } from '$lib/infra/repos/transaction.repo';
-import type { Transaction } from '$lib/domain/transaction';
-import { startOfMonth, endOfMonth } from 'date-fns';
+import type { Transaction, TransactionType } from '$lib/domain/transaction';
+import {
+	endOfDay,
+	endOfMonth,
+	startOfDay,
+	startOfMonth,
+	startOfYear,
+	subDays,
+	subMonths
+} from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
+
+export type TransactionTimeframe =
+	| 'all'
+	| '7d'
+	| '30d'
+	| '90d'
+	| 'this-month'
+	| 'last-month'
+	| 'this-year';
+
+export interface TransactionListFilters {
+	search?: string;
+	category?: string;
+	type?: TransactionType | 'all';
+	timeframe?: TransactionTimeframe;
+}
 
 export async function listTransactions(): Promise<Transaction[]> {
 	return await transactionRepo.findAll();
@@ -87,7 +111,78 @@ export async function listTransactionsForMonthForAccounts(
 export async function listTransactionsByAccountPaginated(
 	accountId: string,
 	limit: number,
-	offset: number
+	offset: number,
+	filters?: TransactionListFilters
 ): Promise<Transaction[]> {
-	return await transactionRepo.findByAccountIdPaginated(accountId, limit, offset);
+	const normalizedSearch = filters?.search?.trim();
+	const normalizedCategory = filters?.category?.trim();
+	const normalizedType =
+		filters?.type && filters.type !== 'all' ? filters.type : undefined;
+	const dateRange = getDateRangeForTimeframe(filters?.timeframe ?? 'all');
+
+	if (
+		!normalizedSearch &&
+		!normalizedCategory &&
+		!normalizedType &&
+		!dateRange.startDate &&
+		!dateRange.endDate
+	) {
+		return await transactionRepo.findByAccountIdPaginated(accountId, limit, offset);
+	}
+
+	return await transactionRepo.findByAccountIdPaginatedFiltered(accountId, limit, offset, {
+		search: normalizedSearch,
+		category: normalizedCategory,
+		type: normalizedType,
+		startDate: dateRange.startDate,
+		endDate: dateRange.endDate
+	});
+}
+
+export async function listTransactionCategoriesByAccount(accountId: string): Promise<string[]> {
+	return await transactionRepo.findCategoriesByAccountId(accountId);
+}
+
+function getDateRangeForTimeframe(timeframe: TransactionTimeframe): {
+	startDate?: Date;
+	endDate?: Date;
+} {
+	const now = new Date();
+
+	switch (timeframe) {
+		case '7d':
+			return {
+				startDate: startOfDay(subDays(now, 6)),
+				endDate: endOfDay(now)
+			};
+		case '30d':
+			return {
+				startDate: startOfDay(subDays(now, 29)),
+				endDate: endOfDay(now)
+			};
+		case '90d':
+			return {
+				startDate: startOfDay(subDays(now, 89)),
+				endDate: endOfDay(now)
+			};
+		case 'this-month':
+			return {
+				startDate: startOfMonth(now),
+				endDate: endOfDay(now)
+			};
+		case 'last-month': {
+			const lastMonth = subMonths(now, 1);
+			return {
+				startDate: startOfMonth(lastMonth),
+				endDate: endOfMonth(lastMonth)
+			};
+		}
+		case 'this-year':
+			return {
+				startDate: startOfYear(now),
+				endDate: endOfDay(now)
+			};
+		default:
+			return {};
+	}
 }
