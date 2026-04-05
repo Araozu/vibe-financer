@@ -21,13 +21,14 @@
 		Trash2,
 		LayoutGrid,
 		Search,
-		X
+		X,
+		Calendar
 	} from '@lucide/svelte';
 	import { useQueryClient } from '@tanstack/svelte-query';
 	import TransactionRow from '$lib/components/transaction/transaction-row.svelte';
 	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
 	import EditAccountDialog from '$lib/components/account/edit-account-dialog.svelte';
-	import BalanceChart from '$lib/components/account/balance-chart.svelte';
+	import MtdBalanceChart from '$lib/components/dashboard/mtd-balance-chart.svelte';
 	import type { AccountType } from '$lib/domain/account';
 	import type { TransactionTimeframe } from '$lib/application/transaction/list-transactions';
 	import { goto } from '$app/navigation';
@@ -200,29 +201,23 @@
 
 	// Chart data query
 	const now = new Date();
-	let chartMonth = $derived.by(() => {
-		// For 1M, use current month
-		return now.getUTCMonth();
-	});
-	let chartYear = $derived.by(() => {
-		return now.getUTCFullYear();
-	});
+	let chartMonth = $state(now.getUTCMonth());
+	let chartYear = $state(now.getUTCFullYear());
+	const years = Array.from({ length: 5 }, (_, i) => now.getUTCFullYear() - 2 + i);
 
 	const chartQuery = createQuery(() => ({
-		queryKey: ['accounts', 'detailed', chartMonth, chartYear],
+		queryKey: ['chart-transactions', account.id, chartMonth, chartYear],
 		queryFn: async () => {
-			const res = await fetch(`/api/accounts/detailed?month=${chartMonth}&year=${chartYear}`);
+			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+			const res = await fetch(
+				`/api/transactions?month=${chartMonth}&year=${chartYear}&tz=${tz}`
+			);
 			return res.json();
 		}
 	}));
 
-	let chartData = $derived.by(() => {
-		const accounts = chartQuery.data ?? [];
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const thisAccount = accounts.find((a: any) => a.id === account.id);
-		if (!thisAccount?.chartData) return [];
-		return thisAccount.chartData;
-	});
+	let chartTransactions = $derived(chartQuery.data?.transactions ?? []);
+	let chartInitialBalances = $derived(chartQuery.data?.initialBalances ?? {});
 
 	// Compute monthly income/expenses from transaction data
 	let monthlyIncome = $derived(
@@ -422,28 +417,71 @@
 </div>
 
 <!-- Balance History Chart -->
-<Card.Root class="mb-8 shadow-sm">
-	<Card.Content class="p-6">
-		<div class="mb-4">
-			<h2 class="text-lg font-bold">Balance History</h2>
-			<p class="text-sm text-muted-foreground">
-				Daily end-of-day balance for {months[now.getUTCMonth()]}
-				{now.getUTCFullYear()}
-			</p>
+<div class="mb-8">
+	<div class="mb-4 flex items-center gap-3">
+		<div class="flex h-10 items-center gap-1 rounded-xl border px-2 shadow-sm">
+			<Calendar class="ml-1 h-4 w-4 text-muted-foreground" />
+
+			<Select.Root
+				type="single"
+				value={chartMonth.toString()}
+				onValueChange={(v) => (chartMonth = parseInt(v))}
+			>
+				<Select.Trigger
+					class="h-8 border-none bg-transparent px-2 text-sm font-bold transition-colors hover:bg-muted/50 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
+				>
+					{months[chartMonth]}
+				</Select.Trigger>
+				<Select.Content>
+					{#each months as month, i (i)}
+						<Select.Item value={i.toString()} label={month}>{month}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+
+			<div class="mx-0.5 h-4 w-px bg-border"></div>
+
+			<Select.Root
+				type="single"
+				value={chartYear.toString()}
+				onValueChange={(v) => (chartYear = parseInt(v))}
+			>
+				<Select.Trigger
+					class="h-8 border-none bg-transparent px-2 text-sm font-bold transition-colors hover:bg-muted/50 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
+				>
+					{chartYear}
+				</Select.Trigger>
+				<Select.Content>
+					{#each years as year (year)}
+						<Select.Item value={year.toString()} label={year.toString()}>{year}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
 		</div>
-		{#if chartData.length > 0}
-			<BalanceChart
-				data={chartData}
-				color={account.color}
-				currencySymbol={account.currencySymbol ?? '$'}
-			/>
-		{:else}
-			<div class="flex h-[280px] items-center justify-center text-muted-foreground">
-				<p>No chart data available</p>
-			</div>
+
+		{#if chartMonth !== now.getUTCMonth() || chartYear !== now.getUTCFullYear()}
+			<Button
+				variant="ghost"
+				size="sm"
+				onclick={() => {
+					chartMonth = now.getUTCMonth();
+					chartYear = now.getUTCFullYear();
+				}}
+				class="text-[10px] font-bold tracking-widest uppercase"
+			>
+				Reset to Today
+			</Button>
 		{/if}
-	</Card.Content>
-</Card.Root>
+	</div>
+
+	<MtdBalanceChart
+		accounts={[account]}
+		transactions={chartTransactions}
+		initialBalances={chartInitialBalances}
+		selectedMonth={chartMonth}
+		selectedYear={chartYear}
+	/>
+</div>
 
 <!-- Transactions Section -->
 <Card.Root class="shadow-sm">
