@@ -2,7 +2,7 @@
 	import { SvelteMap, SvelteDate, SvelteSet } from 'svelte/reactivity';
 	import { LineChart } from 'layerchart';
 	import { scaleTime } from 'd3-scale';
-	import { curveNatural } from 'd3-shape';
+	import { curveMonotoneX } from 'd3-shape';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import { DEFAULT_CURRENCY_SYMBOL } from '$lib/domain/currency';
@@ -225,7 +225,7 @@
 					axis={true}
 					series={chartSeries}
 					props={{
-						spline: { curve: curveNatural, motion: 'tween', strokeWidth: 2.5 },
+						spline: { curve: curveMonotoneX, motion: 'tween', strokeWidth: 2.5 },
 						xAxis: {
 							format: (value: Date) => formatDayTick(value)
 						},
