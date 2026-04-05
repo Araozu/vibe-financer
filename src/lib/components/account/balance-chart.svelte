@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { line as d3Line, curveMonotoneX } from 'd3-shape';
+
 	type ChartDataPoint = {
 		date: string;
 		balance: number;
@@ -84,15 +86,14 @@
 
 	let hoveredIndex = $state<number | null>(null);
 
-	let pathData = $derived(
-		parsedData
-			.map((point, index) => {
-				const x = getChartX(index, parsedData.length);
-				const y = getChartY(point.balance, chartBounds.min, chartBounds.max);
-				return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-			})
-			.join(' ')
-	);
+	let pathData = $derived.by(() => {
+		if (parsedData.length === 0) return '';
+		const lineGen = d3Line<{ date: Date; balance: number }>()
+			.x((_, i) => getChartX(i, parsedData.length))
+			.y((d) => getChartY(d.balance, chartBounds.min, chartBounds.max))
+			.curve(curveMonotoneX);
+		return lineGen(parsedData) ?? '';
+	});
 </script>
 
 <div class="space-y-4">
