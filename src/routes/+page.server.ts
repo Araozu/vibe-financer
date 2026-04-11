@@ -22,6 +22,7 @@ export const actions: Actions = {
 		const category = formData.get('category') as string;
 		const payee = formData.get('payee') as string;
 		const toAccountId = formData.get('toAccountId') as string | null;
+		const exchangeRateStr = formData.get('exchangeRate') as string | null;
 		const dateStr = formData.get('date') as string;
 		const timeStr = formData.get('time') as string;
 		const timezone = formData.get('timezone') as string;
@@ -31,6 +32,11 @@ export const actions: Actions = {
 		}
 
 		const amount = Math.round(parseFloat(amountStr) * 100);
+
+		const exchangeRate =
+			exchangeRateStr != null && exchangeRateStr !== ''
+				? parseFloat(exchangeRateStr)
+				: null;
 
 		// Combine date and time in the user's timezone, then convert to UTC Date object
 		const localDateTimeStr = `${dateStr}T${timeStr}:00`;
@@ -49,6 +55,7 @@ export const actions: Actions = {
 					category: category ?? null,
 					payee: payee ?? null,
 					toAccountId: toAccountId ?? null,
+					exchangeRate,
 					createdAt,
 					deletedAt: null
 				},

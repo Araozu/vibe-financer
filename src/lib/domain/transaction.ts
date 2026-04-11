@@ -17,6 +17,8 @@ export interface Transaction {
 
 export type CreateTransactionDTO = Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'> & {
 	createdAt?: Date;
+	/** Exchange rate for cross-currency transfers: 1 unit of source currency = exchangeRate units of destination currency. Required when source and destination currencies differ. */
+	exchangeRate?: number | null;
 };
 
 export function validateTransactionAmount(amount: number): boolean {

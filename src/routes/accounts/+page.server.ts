@@ -121,10 +121,16 @@ export const actions: Actions = {
 		const category = formData.get('category') as string;
 		const payee = formData.get('payee') as string;
 		const toAccountId = formData.get('toAccountId') as string | null;
+		const exchangeRateStr = formData.get('exchangeRate') as string | null;
 		const dateStr = formData.get('date') as string;
 
 		const parsedAmount = parseFloat(amountStr);
 		const amount = isNaN(parsedAmount) ? 0 : Math.round(parsedAmount * 100);
+
+		const exchangeRate =
+			exchangeRateStr != null && exchangeRateStr !== ''
+				? parseFloat(exchangeRateStr)
+				: null;
 
 		// If it's a date-only string (YYYY-MM-DD), parse it as local midnight
 		const createdAt = dateStr ? parseDateLocal(dateStr) : new Date();
@@ -140,6 +146,7 @@ export const actions: Actions = {
 					category: category ?? null,
 					payee: payee ?? null,
 					toAccountId: toAccountId ?? null,
+					exchangeRate,
 					createdAt,
 					deletedAt: null
 				},
