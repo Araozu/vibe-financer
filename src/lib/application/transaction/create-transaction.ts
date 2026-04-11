@@ -2,6 +2,7 @@ import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { getAccountState, getAccountVersion } from '../account/account-projection';
 import { calculateBalanceChange, canAcceptTransaction } from '$lib/domain/account-aggregate';
 import type { CreateTransactionDTO, Transaction } from '$lib/domain/transaction';
+import { validateExchangeRate } from '$lib/domain/transaction';
 import {
 	createTransactionCreatedEvent,
 	createTransferCreatedEvent,
@@ -50,7 +51,7 @@ export async function createTransaction(
 		}
 
 		if (sourceAccount.currencyId !== destAccount.currencyId) {
-			if (data.exchangeRate == null || data.exchangeRate <= 0) {
+			if (!validateExchangeRate(data.exchangeRate)) {
 				throw error(
 					400,
 					'Exchange rate is required for transfers between accounts with different currencies'

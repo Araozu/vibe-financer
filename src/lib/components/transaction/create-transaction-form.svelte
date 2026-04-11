@@ -6,6 +6,7 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { enhance } from '$app/forms';
 	import { useQueryClient, createQuery } from '@tanstack/svelte-query';
+	import { validateExchangeRate } from '$lib/domain/transaction';
 	import {
 		ArrowDownRight,
 		ArrowUpRight,
@@ -504,7 +505,7 @@
 				disabled={isLoading ||
 					accounts.length === 0 ||
 					(selectedType === 'transfer' && availableToAccounts.length === 0) ||
-					(isCrossCurrency && (!exchangeRate || parseFloat(exchangeRate) <= 0))}
+					(isCrossCurrency && !validateExchangeRate(parseFloat(exchangeRate)))}
 			>
 				{#if isLoading}
 					<Loader2 class="mr-2 h-4 w-4 animate-spin" />

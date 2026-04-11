@@ -6,6 +6,7 @@ import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import type { AccountType } from '$lib/domain/account';
 import type { TransactionType } from '$lib/domain/transaction';
+import { parseExchangeRate } from '$lib/domain/transaction';
 import { parseDateLocal } from '$lib/domain/date-formatter';
 import { fromZonedTime } from 'date-fns-tz';
 
@@ -127,10 +128,7 @@ export const actions: Actions = {
 		const parsedAmount = parseFloat(amountStr);
 		const amount = isNaN(parsedAmount) ? 0 : Math.round(parsedAmount * 100);
 
-		const exchangeRate =
-			exchangeRateStr != null && exchangeRateStr !== ''
-				? parseFloat(exchangeRateStr)
-				: null;
+		const exchangeRate = parseExchangeRate(exchangeRateStr);
 
 		// If it's a date-only string (YYYY-MM-DD), parse it as local midnight
 		const createdAt = dateStr ? parseDateLocal(dateStr) : new Date();

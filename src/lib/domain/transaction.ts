@@ -25,6 +25,24 @@ export function validateTransactionAmount(amount: number): boolean {
 	return amount > 0;
 }
 
+/**
+ * Validate an exchange rate value.
+ * Returns true if the rate is a positive finite number.
+ */
+export function validateExchangeRate(rate: number | null | undefined): rate is number {
+	return rate != null && Number.isFinite(rate) && rate > 0;
+}
+
+/**
+ * Parse an exchange rate string from form data.
+ * Returns the parsed number or null when absent/empty.
+ */
+export function parseExchangeRate(value: string | null): number | null {
+	if (value == null || value === '') return null;
+	const parsed = parseFloat(value);
+	return Number.isNaN(parsed) ? null : parsed;
+}
+
 export function calculateNewBalance(
 	currentBalance: number,
 	amount: number,

@@ -3,6 +3,7 @@ import { editTransaction } from '$lib/application/transaction/edit-transaction';
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import type { TransactionType } from '$lib/domain/transaction';
+import { parseExchangeRate } from '$lib/domain/transaction';
 import { parseDateLocal } from '$lib/domain/date-formatter';
 import { fromZonedTime } from 'date-fns-tz';
 
@@ -33,10 +34,7 @@ export const actions: Actions = {
 
 		const amount = Math.round(parseFloat(amountStr) * 100);
 
-		const exchangeRate =
-			exchangeRateStr != null && exchangeRateStr !== ''
-				? parseFloat(exchangeRateStr)
-				: null;
+		const exchangeRate = parseExchangeRate(exchangeRateStr);
 
 		// Combine date and time in the user's timezone, then convert to UTC Date object
 		const localDateTimeStr = `${dateStr}T${timeStr}:00`;
