@@ -106,39 +106,47 @@ export async function createTransaction(
 		);
 
 		// Append both events and update projections atomically in a single transaction
-		await eventStoreRepo.runInTransaction(async (tx) => {
-			await eventStoreRepo.append(sourceEvent, { expectedVersion: sourceVersion }, tx);
-			await eventStoreRepo.append(destEvent, { expectedVersion: destVersion }, tx);
+		try {
+			await eventStoreRepo.runInTransaction(async (tx) => {
+				await eventStoreRepo.append(sourceEvent, { expectedVersion: sourceVersion }, tx);
+				await eventStoreRepo.append(destEvent, { expectedVersion: destVersion }, tx);
 
-			// Update read models within the same transaction
-			await eventStoreRepo.updateAccountProjection(
-				data.accountId,
-				{ currentBalance: fromBalanceAfter },
-				tx
-			);
-			await eventStoreRepo.updateAccountProjection(
-				data.toAccountId!,
-				{ currentBalance: toBalanceAfter },
-				tx
-			);
+				// Update read models within the same transaction
+				await eventStoreRepo.updateAccountProjection(
+					data.accountId,
+					{ currentBalance: fromBalanceAfter },
+					tx
+				);
+				await eventStoreRepo.updateAccountProjection(
+					data.toAccountId!,
+					{ currentBalance: toBalanceAfter },
+					tx
+				);
 
-			// Create transaction read model
-			await eventStoreRepo.createTransactionProjection(
-				{
-					id: transactionId,
-					accountId: data.accountId,
-					type: 'transfer',
-					amount: data.amount,
-					name: data.name ?? null,
-					description: data.description ?? null,
-					category: data.category ?? null,
-					payee: data.payee ?? null,
-					toAccountId: data.toAccountId,
-					createdAt: transactionDate
-				},
-				tx
-			);
-		});
+				// Create transaction read model
+				await eventStoreRepo.createTransactionProjection(
+					{
+						id: transactionId,
+						accountId: data.accountId,
+						type: 'transfer',
+						amount: data.amount,
+						name: data.name ?? null,
+						description: data.description ?? null,
+						category: data.category ?? null,
+						payee: data.payee ?? null,
+						toAccountId: data.toAccountId,
+						createdAt: transactionDate
+					},
+					tx
+				);
+			});
+		} catch (err: unknown) {
+			const e = err as { name?: string };
+			if (e?.name === 'ConcurrencyError') {
+				throw error(409, 'Concurrent update detected while creating transfer. Please retry.');
+			}
+			throw err;
+		}
 
 		// Update active budgets for this category (transfers are often treated as expenses for the source account)
 		if (data.category) {

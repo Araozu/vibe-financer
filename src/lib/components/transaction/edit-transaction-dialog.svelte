@@ -9,6 +9,7 @@
 	import {
 		ArrowDownRight,
 		ArrowUpRight,
+		ArrowLeftRight,
 		Type,
 		Tag,
 		Calendar,
@@ -55,7 +56,8 @@
 
 	const transactionTypes = [
 		{ value: 'expense', label: 'Expense', icon: ArrowUpRight, color: 'text-rose-500' },
-		{ value: 'income', label: 'Income', icon: ArrowDownRight, color: 'text-emerald-500' }
+		{ value: 'income', label: 'Income', icon: ArrowDownRight, color: 'text-emerald-500' },
+		{ value: 'transfer', label: 'Transfer', icon: ArrowLeftRight, color: 'text-blue-500' }
 	];
 
 	onMount(() => {
@@ -126,12 +128,20 @@
 		>
 			<input type="hidden" name="transactionId" value={transaction.id} />
 
+			<!-- Transfer notice -->
+			{#if transaction.type === 'transfer'}
+				<div class="flex items-center gap-2 rounded-md border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-600 dark:text-blue-400">
+					<ArrowLeftRight class="h-4 w-4 shrink-0" />
+					<span>Transfer amounts and accounts cannot be edited. You can still update the name, description, and date.</span>
+				</div>
+			{/if}
+
 			<!-- Type & Account Selectors -->
 			<div class="grid grid-cols-2 gap-4">
 				<!-- Type Selector -->
 				<div class="space-y-2">
 					<Label>Transaction Type</Label>
-					<Select.Root type="single" bind:value={selectedType}>
+					<Select.Root type="single" bind:value={selectedType} disabled={transaction.type === 'transfer'}>
 						<Select.Trigger class="w-full">
 							{@const currentType = transactionTypes.find((t) => t.value === selectedType)}
 							{#if currentType}
@@ -160,7 +170,7 @@
 								Account
 							</div>
 						</Label>
-						<Select.Root type="single" bind:value={selectedAccountId}>
+						<Select.Root type="single" bind:value={selectedAccountId} disabled={transaction.type === 'transfer'}>
 							<Select.Trigger class="w-full">
 								<span
 									>{_accounts.find((a) => a.id === selectedAccountId)?.name ??
@@ -230,6 +240,7 @@
 							placeholder="0.00"
 							bind:value={amount}
 							class="pl-7"
+							disabled={transaction.type === 'transfer'}
 							required
 						/>
 					</div>
