@@ -60,7 +60,7 @@ export async function createTransaction(
 		}
 
 		const exchangeRate =
-			sourceAccount.currencyId !== destAccount.currencyId ? data.exchangeRate! : null;
+			sourceAccount.currencyId !== destAccount.currencyId ? (data.exchangeRate ?? null) : null;
 
 		const destVersion = await getAccountVersion(data.toAccountId);
 
