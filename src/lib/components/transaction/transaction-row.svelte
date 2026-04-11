@@ -115,9 +115,9 @@
 		>
 	</Table.Cell>
 	<Table.Cell
-		class="text-right font-medium {tx.type === 'income' ? 'text-income' : 'text-expense'}"
+		class="text-right font-medium {tx.type === 'income' ? 'text-income' : tx.type === 'transfer' ? 'text-blue-500' : 'text-expense'}"
 	>
-		{tx.type === 'income' ? '+' : '-'}{account?.currencySymbol ?? '$'}{(
+		{tx.type === 'income' ? '+' : tx.type === 'transfer' ? '→' : '-'}{account?.currencySymbol ?? '$'}{(
 			tx.amount / 100
 		).toLocaleString('en-US', {
 			minimumFractionDigits: 2,

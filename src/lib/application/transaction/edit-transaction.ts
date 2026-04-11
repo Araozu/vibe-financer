@@ -211,7 +211,19 @@ async function handleSameAccountEdit(
 	);
 
 	try {
-		await eventStoreRepo.append(event, { expectedVersion: accountVersion });
+		await eventStoreRepo.runInTransaction(async (tx) => {
+			await eventStoreRepo.append(event, { expectedVersion: accountVersion }, tx);
+			await eventStoreRepo.updateAccountProjection(
+				currentTransaction.accountId,
+				{ currentBalance: balanceAfter },
+				tx
+			);
+			await eventStoreRepo.updateTransactionProjection(
+				transactionId,
+				buildTransactionProjectionData(changes),
+				tx
+			);
+		});
 	} catch (err: unknown) {
 		const e = err as { name?: string };
 		if (e?.name === 'ConcurrencyError') {
@@ -220,11 +232,7 @@ async function handleSameAccountEdit(
 		throw err;
 	}
 
-	await eventStoreRepo.updateAccountProjection(currentTransaction.accountId, {
-		currentBalance: balanceAfter
-	});
-
-	return await updateTransactionProjection(transactionId, changes);
+	return buildUpdatedTransaction(currentTransaction, changes);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -311,81 +319,96 @@ async function handleAccountChange(
 		newAccountVersion + 1
 	);
 
-	// C. Append events to both streams with optimistic concurrency
+	// C. Append events and update projections atomically
 	try {
-		await eventStoreRepo.append(oldEvent, { expectedVersion: oldAccountVersion });
+		await eventStoreRepo.runInTransaction(async (tx) => {
+			await eventStoreRepo.append(oldEvent, { expectedVersion: oldAccountVersion }, tx);
+			await eventStoreRepo.append(newEvent, { expectedVersion: newAccountVersion }, tx);
+
+			await eventStoreRepo.updateAccountProjection(
+				currentTransaction.accountId,
+				{ currentBalance: oldBalanceAfter },
+				tx
+			);
+			await eventStoreRepo.updateAccountProjection(newAccountId, { currentBalance: newBalanceAfter }, tx);
+
+			await eventStoreRepo.updateTransactionProjection(
+				transactionId,
+				{ accountId: newAccountId, ...buildTransactionProjectionData(changes) },
+				tx
+			);
+		});
 	} catch (err: unknown) {
 		const e = err as { name?: string };
 		if (e?.name === 'ConcurrencyError') {
-			throw error(409, 'Concurrent update on source account. Please retry.');
+			throw error(409, 'Concurrent update detected while editing transaction. Please retry.');
 		}
 		throw err;
 	}
 
-	try {
-		await eventStoreRepo.append(newEvent, { expectedVersion: newAccountVersion });
-	} catch (err: unknown) {
-		const e = err as { name?: string };
-		if (e?.name === 'ConcurrencyError') {
-			throw error(409, 'Concurrent update on target account. Please retry.');
-		}
-		throw err;
-	}
-
-	// D. Update both account projections
-	await eventStoreRepo.updateAccountProjection(currentTransaction.accountId, {
-		currentBalance: oldBalanceAfter
-	});
-	await eventStoreRepo.updateAccountProjection(newAccountId, {
-		currentBalance: newBalanceAfter
-	});
-
-	// E. Update transaction projection (including the new accountId)
-	const updatedData: Partial<Transaction> = { accountId: newAccountId };
-	if (changes.type !== undefined) updatedData.type = changes.type;
-	if (changes.amount !== undefined) updatedData.amount = changes.amount;
-	if (changes.name !== undefined) updatedData.name = changes.name;
-	if (changes.description !== undefined) updatedData.description = changes.description;
-	if (changes.category !== undefined) updatedData.category = changes.category;
-	if (changes.payee !== undefined) updatedData.payee = changes.payee;
-	if (changes.toAccountId !== undefined) updatedData.toAccountId = changes.toAccountId;
-	if (changes.transactionDate !== undefined) {
-		updatedData.createdAt = toUTC(changes.transactionDate);
-	}
-
-	const updated = await transactionRepo.update(transactionId, updatedData);
-	if (!updated) {
-		throw error(500, 'Failed to update transaction projection');
-	}
-
-	return updated;
+	return buildUpdatedTransaction({ ...currentTransaction, accountId: newAccountId }, changes);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function updateTransactionProjection(
-	transactionId: string,
-	changes: UpdateTransactionDTO
-): Promise<Transaction> {
-	const updatedData: Partial<Transaction> = {};
-	if (changes.type !== undefined) updatedData.type = changes.type;
-	if (changes.amount !== undefined) updatedData.amount = changes.amount;
-	if (changes.name !== undefined) updatedData.name = changes.name;
-	if (changes.description !== undefined) updatedData.description = changes.description;
-	if (changes.category !== undefined) updatedData.category = changes.category;
-	if (changes.payee !== undefined) updatedData.payee = changes.payee;
-	if (changes.toAccountId !== undefined) updatedData.toAccountId = changes.toAccountId;
-	if (changes.transactionDate !== undefined) {
-		updatedData.createdAt = toUTC(changes.transactionDate);
-	}
+/**
+ * Build the projection data object for updateTransactionProjection from a set of changes.
+ */
+function buildTransactionProjectionData(changes: UpdateTransactionDTO): {
+	type?: 'expense' | 'income' | 'transfer';
+	amount?: number;
+	name?: string | null;
+	description?: string | null;
+	category?: string | null;
+	payee?: string | null;
+	toAccountId?: string | null;
+	createdAt?: Date;
+} {
+	const data: {
+		type?: 'expense' | 'income' | 'transfer';
+		amount?: number;
+		name?: string | null;
+		description?: string | null;
+		category?: string | null;
+		payee?: string | null;
+		toAccountId?: string | null;
+		createdAt?: Date;
+	} = {};
+	if (changes.type !== undefined) data.type = changes.type;
+	if (changes.amount !== undefined) data.amount = changes.amount;
+	if (changes.name !== undefined) data.name = changes.name;
+	if (changes.description !== undefined) data.description = changes.description;
+	if (changes.category !== undefined) data.category = changes.category;
+	if (changes.payee !== undefined) data.payee = changes.payee;
+	if (changes.toAccountId !== undefined) data.toAccountId = changes.toAccountId;
+	if (changes.transactionDate !== undefined) data.createdAt = toUTC(changes.transactionDate);
+	return data;
+}
 
-	const updated = await transactionRepo.update(transactionId, updatedData);
-	if (!updated) {
-		throw error(500, 'Failed to update transaction projection');
-	}
-	return updated;
+/**
+ * Build an updated Transaction object in memory from the current transaction and a set of changes,
+ * avoiding an extra database round-trip.
+ *
+ * Note: `!== undefined` is used instead of `??` for all fields because nullable fields such as
+ * `name` can be explicitly set to `null` (meaning "clear the field"). Using `??` would treat
+ * `null` as a missing value and fall back to the current value, silently ignoring the clear.
+ */
+function buildUpdatedTransaction(current: Transaction, changes: UpdateTransactionDTO): Transaction {
+	return {
+		...current,
+		type: changes.type !== undefined ? changes.type : current.type,
+		amount: changes.amount !== undefined ? changes.amount : current.amount,
+		name: changes.name !== undefined ? changes.name : current.name,
+		description: changes.description !== undefined ? changes.description : current.description,
+		category: changes.category !== undefined ? changes.category : current.category,
+		payee: changes.payee !== undefined ? changes.payee : current.payee,
+		toAccountId: changes.toAccountId !== undefined ? changes.toAccountId : current.toAccountId,
+		createdAt:
+			changes.transactionDate !== undefined ? toUTC(changes.transactionDate) : current.createdAt,
+		updatedAt: new Date()
+	};
 }
 
 /**
