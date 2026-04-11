@@ -142,9 +142,13 @@ export interface TransferCreatedPayload {
 	fromAccountId: string;
 	toAccountId: string;
 	amount: number;
+	/** The amount credited to the destination account (may differ from `amount` when exchangeRate is set) */
+	destinationAmount: number;
 	name: string | null;
 	description: string | null;
 	category: string | null;
+	/** Exchange rate applied: 1 unit of source currency = exchangeRate units of destination currency. Null when same currency. */
+	exchangeRate: number | null;
 	fromBalanceBefore: number;
 	fromBalanceAfter: number;
 	toBalanceBefore: number;

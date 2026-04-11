@@ -17,10 +17,30 @@ export interface Transaction {
 
 export type CreateTransactionDTO = Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'> & {
 	createdAt?: Date;
+	/** Exchange rate for cross-currency transfers: 1 unit of source currency = exchangeRate units of destination currency. Required when source and destination currencies differ. */
+	exchangeRate?: number | null;
 };
 
 export function validateTransactionAmount(amount: number): boolean {
 	return amount > 0;
+}
+
+/**
+ * Validate an exchange rate value.
+ * Returns true if the rate is a positive finite number.
+ */
+export function validateExchangeRate(rate: number | null | undefined): rate is number {
+	return rate != null && Number.isFinite(rate) && rate > 0;
+}
+
+/**
+ * Parse an exchange rate string from form data.
+ * Returns the parsed number or null when absent/empty.
+ */
+export function parseExchangeRate(value: string | null): number | null {
+	if (value == null || value === '') return null;
+	const parsed = parseFloat(value);
+	return Number.isNaN(parsed) ? null : parsed;
 }
 
 export function calculateNewBalance(

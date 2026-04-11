@@ -6,6 +6,7 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { enhance } from '$app/forms';
 	import { useQueryClient, createQuery } from '@tanstack/svelte-query';
+	import { validateExchangeRate } from '$lib/domain/transaction';
 	import {
 		ArrowDownRight,
 		ArrowUpRight,
@@ -29,6 +30,8 @@
 		name: string;
 		color: string;
 		currencyId: string;
+		currencyCode?: string | null;
+		currencySymbol?: string | null;
 	}
 
 	const queryClient = useQueryClient();
@@ -74,14 +77,21 @@
 		}
 	});
 
-	// Filter accounts for transfer destination (same currency, different account)
+	// Filter accounts for transfer destination (any account except source)
 	let availableToAccounts = $derived(
 		selectedType === 'transfer' && selectedAccountId
-			? accounts.filter((acc) => {
-					const fromAccount = accounts.find((a) => a.id === selectedAccountId);
-					return acc.id !== selectedAccountId && acc.currencyId === fromAccount?.currencyId;
-				})
+			? accounts.filter((acc) => acc.id !== selectedAccountId)
 			: []
+	);
+
+	// Determine if a cross-currency transfer requires an exchange rate
+	let fromAccount = $derived(accounts.find((a) => a.id === selectedAccountId));
+	let toAccount = $derived(accounts.find((a) => a.id === selectedToAccountId));
+	let isCrossCurrency = $derived(
+		selectedType === 'transfer' &&
+			fromAccount != null &&
+			toAccount != null &&
+			fromAccount.currencyId !== toAccount.currencyId
 	);
 
 	$effect(() => {
@@ -104,6 +114,7 @@
 	let description = $state('');
 	let amount = $state('');
 	let category = $state('');
+	let exchangeRate = $state('');
 	let _payee = $state('');
 	let transactionDate = $state('');
 	let transactionTime = $state('');
@@ -149,6 +160,7 @@
 		description = '';
 		amount = '';
 		category = '';
+		exchangeRate = '';
 		_payee = '';
 		// We no longer reset transactionDate and transactionTime and selectedToAccountId here
 		// as per user request to keep their values on submit.
@@ -277,6 +289,9 @@
 								<div class="flex items-center gap-2">
 									<div class="h-2 w-2 rounded-full" style="background-color: {account.color}"></div>
 									{account.name}
+									{#if account.currencyCode}
+										<span class="text-muted-foreground/60">({account.currencyCode})</span>
+									{/if}
 								</div>
 							</Select.Item>
 						{/each}
@@ -287,7 +302,7 @@
 				<div
 					class="flex h-8 items-center rounded-md border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-500"
 				>
-					No compatible accounts
+					No other accounts available
 				</div>
 			{/if}
 		{/if}
@@ -371,6 +386,34 @@
 								{/each}
 							</datalist>
 						</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Exchange Rate Badge (only for cross-currency transfers) -->
+			{#if isCrossCurrency}
+				<div
+					class="flex items-center overflow-hidden rounded-md border border-amber-500/30 bg-amber-500/5"
+				>
+					<div
+						class="border-r border-amber-500/20 px-2 py-1 text-[10px] font-bold tracking-tight text-amber-600/80 uppercase"
+					>
+						RATE
+					</div>
+					<div class="flex items-center gap-2 px-2">
+						<span class="text-xs text-muted-foreground/60"
+							>{fromAccount?.currencyCode ?? '?'} → {toAccount?.currencyCode ?? '?'}</span
+						>
+						<Input
+							id="exchangeRate"
+							name="exchangeRate"
+							type="number"
+							step="any"
+							placeholder="1.00"
+							bind:value={exchangeRate}
+							class="h-8 w-24 border-none bg-transparent px-2 text-xs font-medium focus-visible:ring-0"
+							required
+						/>
 					</div>
 				</div>
 			{/if}
@@ -461,7 +504,8 @@
 				size="sm"
 				disabled={isLoading ||
 					accounts.length === 0 ||
-					(selectedType === 'transfer' && availableToAccounts.length === 0)}
+					(selectedType === 'transfer' && availableToAccounts.length === 0) ||
+					(isCrossCurrency && !validateExchangeRate(parseFloat(exchangeRate)))}
 			>
 				{#if isLoading}
 					<Loader2 class="mr-2 h-4 w-4 animate-spin" />

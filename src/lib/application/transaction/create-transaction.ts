@@ -2,6 +2,7 @@ import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { getAccountState, getAccountVersion } from '../account/account-projection';
 import { calculateBalanceChange, canAcceptTransaction } from '$lib/domain/account-aggregate';
 import type { CreateTransactionDTO, Transaction } from '$lib/domain/transaction';
+import { validateExchangeRate } from '$lib/domain/transaction';
 import {
 	createTransactionCreatedEvent,
 	createTransferCreatedEvent,
@@ -50,14 +51,23 @@ export async function createTransaction(
 		}
 
 		if (sourceAccount.currencyId !== destAccount.currencyId) {
-			throw error(400, 'Cannot transfer between accounts with different currencies');
+			if (!validateExchangeRate(data.exchangeRate)) {
+				throw error(
+					400,
+					'Exchange rate is required for transfers between accounts with different currencies'
+				);
+			}
 		}
+
+		const exchangeRate =
+			sourceAccount.currencyId !== destAccount.currencyId ? (data.exchangeRate ?? null) : null;
 
 		const destVersion = await getAccountVersion(data.toAccountId);
 
 		// Calculate new balances
 		const fromBalanceAfter = sourceAccount.currentBalance - data.amount;
-		const toBalanceAfter = destAccount.currentBalance + data.amount;
+		const destinationAmount = exchangeRate != null ? Math.round(data.amount * exchangeRate) : data.amount;
+		const toBalanceAfter = destAccount.currentBalance + destinationAmount;
 
 		// Create transfer event (stored in source account's stream)
 		const transferPayload: TransferCreatedPayload = {
@@ -65,9 +75,11 @@ export async function createTransaction(
 			fromAccountId: data.accountId,
 			toAccountId: data.toAccountId,
 			amount: data.amount,
+			destinationAmount,
 			name: data.name ?? null,
 			description: data.description ?? null,
 			category: data.category ?? null,
+			exchangeRate,
 			fromBalanceBefore: sourceAccount.currentBalance,
 			fromBalanceAfter,
 			toBalanceBefore: destAccount.currentBalance,
@@ -87,7 +99,7 @@ export async function createTransaction(
 			transactionId,
 			accountId: data.toAccountId,
 			type: 'income', // Transfer in is income for dest
-			amount: data.amount,
+			amount: destinationAmount,
 			name: data.name ?? null,
 			description: `Transfer from ${sourceAccount.name}`,
 			category: data.category ?? null,
