@@ -41,6 +41,8 @@
 						Diamond hands
 					{:else if page.url.pathname.startsWith('/accounts')}
 						Accounts
+					{:else if page.url.pathname.startsWith('/currencies')}
+						Currencies
 					{:else if page.url.pathname.startsWith('/settings')}
 						Settings
 					{:else}
@@ -57,6 +59,13 @@
 						<a href="/accounts">
 							<NavigationMenu.Link class={navigationMenuTriggerStyle()}>
 								Accounts
+							</NavigationMenu.Link>
+						</a>
+					</NavigationMenu.Item>
+					<NavigationMenu.Item>
+						<a href="/currencies">
+							<NavigationMenu.Link class={navigationMenuTriggerStyle()}>
+								Currencies
 							</NavigationMenu.Link>
 						</a>
 					</NavigationMenu.Item>
