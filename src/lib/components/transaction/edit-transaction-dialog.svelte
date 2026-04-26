@@ -105,7 +105,7 @@
 
 		<form
 			method="POST"
-			action="?/editTransaction"
+			action="/?/editTransaction"
 			use:enhance={() => {
 				isLoading = true;
 				return async ({ result }) => {

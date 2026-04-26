@@ -23,6 +23,7 @@
 	import { onMount, tick } from 'svelte';
 	import { SvelteDate } from 'svelte/reactivity';
 	import TimePicker from '$lib/components/ui/time-picker/time-picker.svelte';
+	import type { Transaction } from '$lib/domain/transaction';
 
 	// Minimal account type for what this component needs
 	interface AccountLike {
@@ -48,11 +49,13 @@
 	let {
 		accounts = [],
 		onSuccess,
+		onEdit,
 		showCreateMore = true,
 		class: className = ''
 	}: {
 		accounts: AccountLike[];
 		onSuccess?: (createMore: boolean) => void;
+		onEdit?: (transaction: Transaction) => void;
 		showCreateMore?: boolean;
 		class?: string;
 	} = $props();
@@ -192,13 +195,23 @@
 
 <form
 	method="POST"
-	action="?/createTransaction"
+	action="/?/createTransaction"
 	use:enhance={() => {
 		isLoading = true;
 		return async ({ result }) => {
 			isLoading = false;
 			if (result.type === 'success') {
-				toast.success('Transaction created successfully');
+				const created = (result.data?.transaction ?? null) as Transaction | null;
+				if (onEdit && created) {
+					toast.success('Transaction created successfully', {
+						action: {
+							label: 'Edit',
+							onClick: () => onEdit(created)
+						}
+					});
+				} else {
+					toast.success('Transaction created successfully');
+				}
 				// Invalidate queries to refetch updated data
 				queryClient.invalidateQueries({ queryKey: ['transactions'] });
 				queryClient.invalidateQueries({ queryKey: ['accounts'] });
