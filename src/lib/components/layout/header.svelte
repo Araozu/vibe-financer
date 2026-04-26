@@ -52,7 +52,7 @@
 			</div>
 		</div>
 
-		<div class="flex items-center gap-4 md:gap-8">
+		<div class="flex flex-wrap items-center gap-4 md:gap-8">
 			<NavigationMenu.Root>
 				<NavigationMenu.List>
 					<NavigationMenu.Item>
