@@ -5,7 +5,7 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { enhance } from '$app/forms';
-	import { useQueryClient } from '@tanstack/svelte-query';
+	import { useQueryClient, createQuery } from '@tanstack/svelte-query';
 	import {
 		ArrowDownRight,
 		ArrowUpRight,
@@ -32,6 +32,15 @@
 	}
 
 	const queryClient = useQueryClient();
+
+	// Query for budgets to get categories
+	const budgetsQuery = createQuery(() => ({
+		queryKey: ['budgets'],
+		queryFn: async () => (await fetch('/api/budgets')).json()
+	}));
+
+	let budgets = $derived(budgetsQuery.data ?? []);
+	let categories = $derived([...new Set(budgets.map((b: { category: string }) => b.category))]);
 
 	let {
 		transaction,
@@ -114,6 +123,7 @@
 						toast.success('Transaction updated successfully');
 						queryClient.invalidateQueries({ queryKey: ['transactions'] });
 						queryClient.invalidateQueries({ queryKey: ['accounts'] });
+						queryClient.invalidateQueries({ queryKey: ['budgets'] });
 						open = false;
 					} else if (result.type === 'failure') {
 						const errorMessage =
@@ -294,7 +304,13 @@
 							name="category"
 							bind:value={category}
 							placeholder="Category..."
+							list="edit-budget-categories"
 						/>
+						<datalist id="edit-budget-categories">
+							{#each categories as cat (cat)}
+								<option value={cat}>{cat}</option>
+							{/each}
+						</datalist>
 					</div>
 				</div>
 			{/if}
