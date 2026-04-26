@@ -43,7 +43,7 @@ export const actions: Actions = {
 			: parseDateLocal(localDateTimeStr);
 
 		try {
-			await createTransaction(
+			const transaction = await createTransaction(
 				{
 					accountId,
 					type,
@@ -59,7 +59,7 @@ export const actions: Actions = {
 				},
 				locals.user.id
 			);
-			return { success: true };
+			return { success: true, transaction };
 		} catch (error: unknown) {
 			const message = error instanceof Error ? error.message : 'Unknown error';
 			return fail(400, { error: message });
