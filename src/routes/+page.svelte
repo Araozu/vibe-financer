@@ -21,6 +21,7 @@
 		Plus,
 		Target,
 		Calendar,
+		CalendarClock,
 		Pencil
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
@@ -227,6 +228,27 @@
 
 	let formattedTotalBalance = $derived(formatWithSymbol(totalBalance, defaultCurrencySymbol));
 
+	// Projected balance at the end of the selected month (includes future-dated transactions
+	// within the selected month, e.g. scheduled bills or upcoming income).
+	let projectedEndOfMonthBalance = $derived.by(() => {
+		if (!defaultAccount) return 0;
+		const initialBalance = initialBalances[defaultAccount.id] ?? 0;
+		return (
+			initialBalance +
+			defaultAccountTransactions
+				.filter((tx) => new Date(tx.createdAt) <= lastDayOfSelectedMonth)
+				.reduce((acc: number, tx) => {
+					if (tx.type === 'income') return acc + tx.amount;
+					if (tx.type === 'expense') return acc - tx.amount;
+					return acc;
+				}, 0)
+		);
+	});
+
+	let formattedProjectedEndOfMonthBalance = $derived(
+		formatWithSymbol(projectedEndOfMonthBalance, defaultCurrencySymbol)
+	);
+
 	let monthlyIncome = $derived(
 		defaultAccountTransactions
 			.filter(
@@ -290,6 +312,13 @@
 			subtitle: defaultAccount?.name ?? '',
 			icon: Wallet,
 			color: 'text-blue-500'
+		},
+		{
+			title: 'Projected (End of Month)',
+			amount: formattedProjectedEndOfMonthBalance,
+			subtitle: `Incl. upcoming · ${months[selectedMonth]}`,
+			icon: CalendarClock,
+			color: 'text-savings'
 		},
 		{
 			title: 'Monthly Income',
@@ -388,7 +417,40 @@
 </div>
 
 {#if defaultAccount}
-	<div class="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-4">
+	<!-- Mobile-only compact summary: keeps focus on the create transaction card -->
+	<div
+		class="mb-6 flex items-center justify-between gap-4 rounded-xl border bg-muted/30 px-4 py-3 shadow-sm md:hidden"
+	>
+		<div class="flex items-center gap-2">
+			<Wallet class="h-4 w-4 text-blue-500" />
+			<div class="flex flex-col">
+				<span
+					class="text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
+				>
+					Now
+				</span>
+				<span class="text-base leading-tight font-bold tracking-tight">
+					{formattedTotalBalance}
+				</span>
+			</div>
+		</div>
+		<div class="h-8 w-px bg-border"></div>
+		<div class="flex items-center gap-2">
+			<CalendarClock class="h-4 w-4 text-savings" />
+			<div class="flex flex-col">
+				<span
+					class="text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
+				>
+					End of month
+				</span>
+				<span class="text-base leading-tight font-bold tracking-tight">
+					{formattedProjectedEndOfMonthBalance}
+				</span>
+			</div>
+		</div>
+	</div>
+
+	<div class="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-5">
 		{#each summaryStats as stat (stat.title)}
 			<Card.Root>
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
