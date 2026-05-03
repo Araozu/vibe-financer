@@ -240,5 +240,34 @@ export const transactionRepo = {
 			}
 		}
 		return result;
+	},
+
+	/**
+	 * Total expense amounts (cents) for a user in a currency and category from start onward.
+	 * Matches budget rebuild logic for category-scoped spend.
+	 */
+	async sumExpenseAmountsForUserCategoryCurrencySince(
+		userId: string,
+		currencyId: string,
+		category: string,
+		since: Date
+	): Promise<number> {
+		const [row] = await db
+			.select({
+				total: sql<number>`COALESCE(SUM(${transaction.amount}), 0)`
+			})
+			.from(transaction)
+			.innerJoin(account, eq(transaction.accountId, account.id))
+			.where(
+				and(
+					eq(account.userId, userId),
+					eq(account.currencyId, currencyId),
+					eq(transaction.type, 'expense'),
+					eq(transaction.category, category),
+					isNull(transaction.deletedAt),
+					gte(transaction.createdAt, since)
+				)
+			);
+		return Number(row?.total ?? 0);
 	}
 };

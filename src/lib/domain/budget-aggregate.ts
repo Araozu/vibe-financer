@@ -26,6 +26,11 @@ export interface BudgetState {
 	version: number;
 }
 
+/** Event payloads / DB JSON often deserialize dates as strings. */
+function asDate(value: Date | string): Date {
+	return value instanceof Date ? value : new Date(value);
+}
+
 /**
  * Project budget state from events
  */
@@ -56,9 +61,9 @@ function applyEvent(state: BudgetState | null, event: DomainEvent): BudgetState 
 				limit: e.payload.limit,
 				currencyId: e.payload.currencyId,
 				period: e.payload.period,
-				startDate: e.payload.startDate,
-				createdAt: e.occurredAt,
-				updatedAt: e.occurredAt,
+				startDate: asDate(e.payload.startDate),
+				createdAt: asDate(e.occurredAt),
+				updatedAt: asDate(e.occurredAt),
 				isDeleted: false,
 				version: e.version
 			};
@@ -74,8 +79,8 @@ function applyEvent(state: BudgetState | null, event: DomainEvent): BudgetState 
 				category: changes.category ?? state.category,
 				limit: changes.limit ?? state.limit,
 				period: changes.period ?? state.period,
-				startDate: changes.startDate ?? state.startDate,
-				updatedAt: e.occurredAt,
+				startDate: changes.startDate !== undefined ? asDate(changes.startDate) : state.startDate,
+				updatedAt: asDate(e.occurredAt),
 				version: e.version
 			};
 		}
@@ -86,7 +91,7 @@ function applyEvent(state: BudgetState | null, event: DomainEvent): BudgetState 
 			return {
 				...state,
 				isDeleted: true,
-				updatedAt: e.occurredAt,
+				updatedAt: asDate(e.occurredAt),
 				version: e.version
 			};
 		}

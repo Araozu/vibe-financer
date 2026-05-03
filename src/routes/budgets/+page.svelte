@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
-	import { Plus, PiggyBank, Globe } from '@lucide/svelte';
+	import { Plus, PiggyBank, Globe, Pencil, Loader2 } from '@lucide/svelte';
 	import { enhance } from '$app/forms';
 	import { Progress } from '$lib/components/ui/progress/index.js';
+	import { toast } from 'svelte-sonner';
 
 	const queryClient = useQueryClient();
 
@@ -39,11 +41,42 @@
 	let selectedPeriod = $state('monthly');
 	let currencyId = $state('');
 
+	let editOpen = $state(false);
+	let editBudgetId = $state('');
+	let editCategory = $state('');
+	let editLimitStr = $state('');
+	let editPeriod = $state('monthly');
+	let editStartDate = $state('');
+	let editCurrencyLabel = $state('');
+	let isUpdating = $state(false);
+
 	$effect(() => {
 		if (currencies.length > 0 && !currencyId) {
 			currencyId = currencies[0].id;
 		}
 	});
+
+	function openEdit(b: {
+		id: string;
+		category: string;
+		limit: number;
+		period: 'monthly' | 'weekly' | 'yearly';
+		startDate: string | Date;
+		currencyCode?: string | null;
+		currencySymbol?: string | null;
+	}) {
+		editBudgetId = b.id;
+		editCategory = b.category;
+		editLimitStr = (b.limit / 100).toFixed(2);
+		editPeriod = b.period;
+		const sd = typeof b.startDate === 'string' ? new Date(b.startDate) : b.startDate;
+		editStartDate = Number.isNaN(sd.getTime()) ? '' : sd.toISOString().slice(0, 10);
+		editCurrencyLabel =
+			b.currencyCode != null && b.currencyCode !== ''
+				? `${b.currencyCode}${b.currencySymbol ? ` (${b.currencySymbol})` : ''}`
+				: (b.currencySymbol ?? '—');
+		editOpen = true;
+	}
 </script>
 
 <div class="container mx-auto py-8">
@@ -172,7 +205,7 @@
 				{#each budgets as budget (budget.id)}
 					<Card.Root>
 						<Card.Content class="pt-6">
-							<div class="mb-4 flex items-center justify-between">
+							<div class="mb-4 flex items-start justify-between gap-4">
 								<div class="flex items-center gap-3">
 									<div class="rounded-full bg-primary/10 p-2 text-primary">
 										<PiggyBank class="h-5 w-5" />
@@ -182,12 +215,23 @@
 										<p class="text-xs text-muted-foreground capitalize">{budget.period} limit</p>
 									</div>
 								</div>
-								<div class="text-right">
-									<div class="text-sm font-medium">
-										{budget.currencySymbol ?? '$'}{(budget.currentSpent / 100).toFixed(2)} /
-										<span class="text-lg font-bold"
-											>{budget.currencySymbol ?? '$'}{(budget.limit / 100).toFixed(2)}</span
-										>
+								<div class="flex shrink-0 flex-col items-end gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onclick={() => openEdit(budget)}
+									>
+										<Pencil class="mr-1.5 h-3.5 w-3.5" />
+										Edit
+									</Button>
+									<div class="text-right">
+										<div class="text-sm font-medium">
+											{budget.currencySymbol ?? '$'}{(budget.currentSpent / 100).toFixed(2)} /
+											<span class="text-lg font-bold"
+												>{budget.currencySymbol ?? '$'}{(budget.limit / 100).toFixed(2)}</span
+											>
+										</div>
 									</div>
 								</div>
 							</div>
@@ -233,3 +277,89 @@
 		</div>
 	</div>
 </div>
+
+<Dialog.Root bind:open={editOpen}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Edit budget</Dialog.Title>
+			<Dialog.Description>
+				Update the category, limit, period, or start date. Currency cannot be changed.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/update"
+			use:enhance={() => {
+				isUpdating = true;
+				return async ({ result }) => {
+					isUpdating = false;
+					if (result.type === 'success') {
+						queryClient.invalidateQueries({ queryKey: ['budgets'] });
+						editOpen = false;
+						toast.success('Budget updated');
+					} else if (result.type === 'failure') {
+						const msg =
+							typeof result.data?.error === 'string'
+								? result.data.error
+								: 'Failed to update budget';
+						toast.error(msg);
+					}
+				};
+			}}
+			class="space-y-4"
+		>
+			<input type="hidden" name="budgetId" value={editBudgetId} />
+			<div class="space-y-2">
+				<Label>Currency</Label>
+				<p class="text-sm text-muted-foreground">{editCurrencyLabel}</p>
+			</div>
+			<div class="space-y-2">
+				<Label for="edit-category">Category</Label>
+				<Input id="edit-category" name="category" bind:value={editCategory} required />
+			</div>
+			<div class="space-y-2">
+				<Label for="edit-limit">Limit</Label>
+				<div class="relative">
+					<span class="absolute top-2.5 left-3 text-muted-foreground">$</span>
+					<Input
+						id="edit-limit"
+						name="limit"
+						type="number"
+						step="0.01"
+						class="pl-7"
+						bind:value={editLimitStr}
+						required
+					/>
+				</div>
+			</div>
+			<div class="space-y-2">
+				<Label for="edit-period">Period</Label>
+				<Select.Root type="single" bind:value={editPeriod} name="period">
+					<Select.Trigger id="edit-period">
+						{periods.find((p) => p.value === editPeriod)?.label ?? 'Select period'}
+					</Select.Trigger>
+					<Select.Content>
+						{#each periods as period (period.value)}
+							<Select.Item value={period.value}>{period.label}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
+			<div class="space-y-2">
+				<Label for="edit-start">Start date</Label>
+				<Input id="edit-start" name="startDate" type="date" bind:value={editStartDate} required />
+			</div>
+			<Dialog.Footer class="gap-2 sm:gap-0">
+				<Button type="button" variant="outline" onclick={() => (editOpen = false)}>Cancel</Button>
+				<Button type="submit" disabled={isUpdating}>
+					{#if isUpdating}
+						<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+						Saving…
+					{:else}
+						Save changes
+					{/if}
+				</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>

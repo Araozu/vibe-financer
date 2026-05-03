@@ -1,7 +1,10 @@
 import { createBudget } from '$lib/application/budget/create-budget';
+import { updateBudget } from '$lib/application/budget/update-budget';
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { parseDateAsUTC, toUTC } from '$lib/domain/date-formatter';
+
+const PERIODS = new Set(['monthly', 'weekly', 'yearly']);
 
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
@@ -26,6 +29,43 @@ export const actions: Actions = {
 				category,
 				limit,
 				currencyId,
+				period,
+				startDate
+			});
+			return { success: true };
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : 'Unknown error';
+			return fail(400, { error: message });
+		}
+	},
+
+	update: async ({ request, locals }) => {
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
+		const formData = await request.formData();
+		const budgetId = formData.get('budgetId') as string;
+		if (!budgetId?.trim()) {
+			return fail(400, { error: 'budgetId is required' });
+		}
+
+		const category = formData.get('category') as string;
+		const limitStr = formData.get('limit') as string;
+		const periodRaw = formData.get('period') as string;
+		const startDateStr = formData.get('startDate') as string;
+
+		const parsedLimit = parseFloat(limitStr);
+		const limit = isNaN(parsedLimit) ? 0 : Math.round(parsedLimit * 100);
+		const period = PERIODS.has(periodRaw)
+			? (periodRaw as 'monthly' | 'weekly' | 'yearly')
+			: 'monthly';
+		const startDate = startDateStr ? parseDateAsUTC(startDateStr) : toUTC(new Date());
+
+		try {
+			await updateBudget(budgetId.trim(), locals.user.id, {
+				category,
+				limit,
 				period,
 				startDate
 			});
