@@ -37,6 +37,7 @@ export async function createTransaction(
 	const transactionId = crypto.randomUUID();
 	const transactionDate = toUTC(data.createdAt ?? new Date());
 	const sourceVersion = await getAccountVersion(data.accountId);
+	const budgetId = data.budgetId ?? null;
 
 	// 2. Handle transfers specially (two accounts involved)
 	if (data.type === 'transfer') {
@@ -66,7 +67,8 @@ export async function createTransaction(
 
 		// Calculate new balances
 		const fromBalanceAfter = sourceAccount.currentBalance - data.amount;
-		const destinationAmount = exchangeRate != null ? Math.round(data.amount * exchangeRate) : data.amount;
+		const destinationAmount =
+			exchangeRate != null ? Math.round(data.amount * exchangeRate) : data.amount;
 		const toBalanceAfter = destAccount.currentBalance + destinationAmount;
 
 		// Create transfer event (stored in source account's stream)
@@ -79,6 +81,7 @@ export async function createTransaction(
 			name: data.name ?? null,
 			description: data.description ?? null,
 			category: data.category ?? null,
+			budgetId,
 			exchangeRate,
 			fromBalanceBefore: sourceAccount.currentBalance,
 			fromBalanceAfter,
@@ -103,6 +106,7 @@ export async function createTransaction(
 			name: data.name ?? null,
 			description: `Transfer from ${sourceAccount.name}`,
 			category: data.category ?? null,
+			budgetId,
 			payee: null,
 			toAccountId: null,
 			balanceBefore: destAccount.currentBalance,
@@ -145,6 +149,7 @@ export async function createTransaction(
 						name: data.name ?? null,
 						description: data.description ?? null,
 						category: data.category ?? null,
+						budgetId,
 						payee: data.payee ?? null,
 						toAccountId: data.toAccountId,
 						createdAt: transactionDate
@@ -181,6 +186,7 @@ export async function createTransaction(
 			name: data.name ?? null,
 			description: data.description ?? null,
 			category: data.category ?? null,
+			budgetId,
 			payee: data.payee ?? null,
 			toAccountId: data.toAccountId,
 			createdAt: transactionDate,
@@ -201,6 +207,7 @@ export async function createTransaction(
 		name: data.name ?? null,
 		description: data.description ?? null,
 		category: data.category ?? null,
+		budgetId,
 		payee: data.payee ?? null,
 		toAccountId: null,
 		balanceBefore,
@@ -230,6 +237,7 @@ export async function createTransaction(
 					name: data.name ?? null,
 					description: data.description ?? null,
 					category: data.category ?? null,
+					budgetId,
 					payee: data.payee ?? null,
 					toAccountId: null,
 					createdAt: transactionDate
@@ -270,6 +278,7 @@ export async function createTransaction(
 		deletedAt: null,
 		description: data.description ?? null,
 		category: data.category ?? null,
+		budgetId,
 		payee: data.payee ?? null,
 		toAccountId: null,
 		createdAt: transactionDate,

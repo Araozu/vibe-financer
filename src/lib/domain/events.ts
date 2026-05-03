@@ -94,6 +94,7 @@ export interface TransactionCreatedPayload {
 	name: string | null;
 	description: string | null;
 	category: string | null;
+	budgetId: string | null;
 	payee: string | null;
 	toAccountId: string | null;
 	balanceBefore: number;
@@ -116,6 +117,7 @@ export interface TransactionUpdatedPayload {
 		name?: string | null;
 		description?: string | null;
 		category?: string | null;
+		budgetId?: string | null;
 		payee?: string | null;
 		toAccountId?: string | null;
 		transactionDate?: Date;
@@ -127,6 +129,7 @@ export interface TransactionUpdatedPayload {
 		name?: string | null;
 		description?: string | null;
 		category?: string | null;
+		budgetId?: string | null;
 		payee?: string | null;
 		toAccountId?: string | null;
 		transactionDate?: Date;
@@ -147,6 +150,7 @@ export interface TransferCreatedPayload {
 	name: string | null;
 	description: string | null;
 	category: string | null;
+	budgetId: string | null;
 	/** Exchange rate applied: 1 unit of source currency = exchangeRate units of destination currency. Null when same currency. */
 	exchangeRate: number | null;
 	fromBalanceBefore: number;

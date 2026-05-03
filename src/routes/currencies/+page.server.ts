@@ -50,11 +50,7 @@ export const actions: Actions = {
 
 		try {
 			const { updateCurrency } = await import('$lib/application/currency/update-currency');
-			await updateCurrency(
-				id,
-				{ code, symbol, name },
-				locals.user.id
-			);
+			await updateCurrency(id, { code, symbol, name }, locals.user.id);
 			return { success: true };
 		} catch (error: unknown) {
 			const message = error instanceof Error ? error.message : 'Unknown error';

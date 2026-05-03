@@ -8,6 +8,8 @@ export interface Transaction {
 	name: string | null;
 	description: string | null;
 	category: string | null;
+	/** Optional link to a budget row; category string remains the display label. */
+	budgetId: string | null;
 	payee: string | null;
 	toAccountId: string | null; // For transfers: the destination account
 	deletedAt: Date | null; // Soft delete timestamp for audit trail

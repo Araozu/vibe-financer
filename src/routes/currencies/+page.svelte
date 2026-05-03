@@ -80,9 +80,7 @@
 	<!-- Currency List -->
 	<div class="lg:col-span-2">
 		{#if currencies.length === 0}
-			<Card.Root
-				class="flex flex-col items-center justify-center border-dashed p-12 text-center"
-			>
+			<Card.Root class="flex flex-col items-center justify-center border-dashed p-12 text-center">
 				<div class="mb-4 rounded-full bg-muted p-4">
 					<Coins class="h-10 w-10 text-muted-foreground/40" />
 				</div>
@@ -395,9 +393,7 @@
 		>
 			<input type="hidden" name="id" value={deleteId} />
 			<div class="flex justify-end gap-2 pt-4">
-				<Button type="button" variant="outline" onclick={() => (deleteOpen = false)}>
-					Cancel
-				</Button>
+				<Button type="button" variant="outline" onclick={() => (deleteOpen = false)}>Cancel</Button>
 				<Button type="submit" variant="destructive" disabled={isDeleting}>
 					{#if isDeleting}
 						<Loader2 class="mr-2 h-4 w-4 animate-spin" />

@@ -6,6 +6,7 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { enhance } from '$app/forms';
 	import { useQueryClient, createQuery } from '@tanstack/svelte-query';
+	import CategoryPicker from '$lib/components/transaction/category-picker.svelte';
 	import { validateExchangeRate } from '$lib/domain/transaction';
 	import {
 		ArrowDownRight,
@@ -44,7 +45,6 @@
 	}));
 
 	let budgets = $derived(budgetsQuery.data ?? []);
-	let categories = $derived([...new Set(budgets.map((b: { category: string }) => b.category))]);
 
 	let {
 		accounts = [],
@@ -117,6 +117,7 @@
 	let description = $state('');
 	let amount = $state('');
 	let category = $state('');
+	let budgetId = $state<string | null>(null);
 	let exchangeRate = $state('');
 	let _payee = $state('');
 	let transactionDate = $state('');
@@ -163,6 +164,7 @@
 		description = '';
 		amount = '';
 		category = '';
+		budgetId = null;
 		exchangeRate = '';
 		_payee = '';
 		// We no longer reset transactionDate and transactionTime and selectedToAccountId here
@@ -383,22 +385,21 @@
 					>
 						CAT
 					</div>
-					<div class="flex items-center gap-2 px-2">
-						<Tag class="h-3.5 w-3.5 text-muted-foreground/60" />
-						<div class="relative">
-							<Input
-								name="category"
-								bind:value={category}
-								placeholder="Category..."
-								class="h-8 w-28 border-none bg-transparent px-2 py-1 text-xs font-medium focus-visible:ring-0"
-								list="budget-categories"
-							/>
-							<datalist id="budget-categories">
-								{#each categories as cat (cat)}
-									<option value={cat}>{cat}</option>
-								{/each}
-							</datalist>
-						</div>
+					<div class="flex min-w-0 flex-1 items-center gap-2 px-2">
+						<Tag class="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+						<CategoryPicker
+							budgets={budgets.map((b: { id: string; category: string; currencyId: string }) => ({
+								id: b.id,
+								category: b.category,
+								currencyId: b.currencyId
+							}))}
+							currencyId={fromAccount?.currencyId ?? ''}
+							bind:value={category}
+							bind:budgetId
+							onBudgetCreated={() => queryClient.invalidateQueries({ queryKey: ['budgets'] })}
+						/>
+						<input type="hidden" name="category" value={category} />
+						<input type="hidden" name="budgetId" value={budgetId ?? ''} />
 					</div>
 				</div>
 			{/if}

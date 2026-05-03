@@ -141,6 +141,7 @@ export const transaction = pgTable('transaction', {
 	name: text('name'),
 	description: text('description'),
 	category: text('category'),
+	budgetId: text('budget_id').references(() => budget.id, { onDelete: 'set null' }),
 	payee: text('payee'),
 	toAccountId: text('to_account_id').references(() => account.id, { onDelete: 'cascade' }),
 	deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'date' }), // Soft delete for audit trail

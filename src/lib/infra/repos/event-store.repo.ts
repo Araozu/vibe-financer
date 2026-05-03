@@ -429,6 +429,7 @@ export const eventStoreRepo = {
 			name: string | null;
 			description: string | null;
 			category: string | null;
+			budgetId?: string | null;
 			payee: string | null;
 			toAccountId: string | null;
 			createdAt: Date;
@@ -452,6 +453,7 @@ export const eventStoreRepo = {
 			name?: string | null;
 			description?: string | null;
 			category?: string | null;
+			budgetId?: string | null;
 			payee?: string | null;
 			toAccountId?: string | null;
 			amount?: number;

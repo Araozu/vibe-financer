@@ -112,6 +112,7 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 					name: e.payload.name,
 					description: e.payload.description,
 					category: e.payload.category,
+					budgetId: e.payload.budgetId ?? null,
 					payee: e.payload.payee,
 					toAccountId: e.payload.toAccountId,
 					createdAt: e.payload.transactionDate
@@ -138,6 +139,7 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 						name: e.payload.name,
 						description: e.payload.description,
 						category: e.payload.category,
+						budgetId: e.payload.budgetId ?? null,
 						payee: null,
 						toAccountId: e.payload.toAccountId,
 						createdAt: e.payload.transactionDate
@@ -154,6 +156,7 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 					name?: string | null;
 					description?: string | null;
 					category?: string | null;
+					budgetId?: string | null;
 					payee?: string | null;
 					toAccountId?: string | null;
 					createdAt?: Date;
@@ -163,6 +166,7 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 				if (changes.name !== undefined) updateData.name = changes.name;
 				if (changes.description !== undefined) updateData.description = changes.description;
 				if (changes.category !== undefined) updateData.category = changes.category;
+				if (changes.budgetId !== undefined) updateData.budgetId = changes.budgetId;
 				if (changes.payee !== undefined) updateData.payee = changes.payee;
 				if (changes.toAccountId !== undefined) updateData.toAccountId = changes.toAccountId;
 				if (changes.transactionDate !== undefined) updateData.createdAt = changes.transactionDate;

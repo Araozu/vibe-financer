@@ -1,0 +1,2 @@
+ALTER TABLE "transaction" ADD COLUMN "budget_id" text;--> statement-breakpoint
+ALTER TABLE "transaction" ADD CONSTRAINT "transaction_budget_id_budget_id_fk" FOREIGN KEY ("budget_id") REFERENCES "public"."budget"("id") ON DELETE set null ON UPDATE no action;

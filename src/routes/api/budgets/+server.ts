@@ -1,5 +1,6 @@
 import { budgetRepo } from '$lib/infra/repos/budget.repo';
 import { transactionRepo } from '$lib/infra/repos/transaction.repo';
+import { createBudget } from '$lib/application/budget/create-budget';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfYear, endOfYear } from 'date-fns';
@@ -74,4 +75,77 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}));
 
 	return json(result);
+};
+
+const PERIODS = new Set(['monthly', 'weekly', 'yearly']);
+
+export const POST: RequestHandler = async ({ request, locals }) => {
+	if (!locals.user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON' }, { status: 400 });
+	}
+
+	if (typeof body !== 'object' || body === null) {
+		return json({ error: 'Expected JSON object' }, { status: 400 });
+	}
+
+	const o = body as Record<string, unknown>;
+	const category = typeof o.category === 'string' ? o.category.trim() : '';
+	if (!category) {
+		return json({ error: 'category is required' }, { status: 400 });
+	}
+
+	const currencyId = typeof o.currencyId === 'string' ? o.currencyId : '';
+	if (!currencyId) {
+		return json({ error: 'currencyId is required' }, { status: 400 });
+	}
+
+	const limit = typeof o.limit === 'number' && Number.isFinite(o.limit) ? Math.round(o.limit) : 0;
+	const periodRaw = typeof o.period === 'string' ? o.period : 'monthly';
+	const period = PERIODS.has(periodRaw)
+		? (periodRaw as 'monthly' | 'weekly' | 'yearly')
+		: 'monthly';
+
+	let startDate: Date;
+	if (typeof o.startDate === 'string' && o.startDate.length > 0) {
+		const d = new Date(o.startDate);
+		if (Number.isNaN(d.getTime())) {
+			return json({ error: 'Invalid startDate' }, { status: 400 });
+		}
+		startDate = d;
+	} else {
+		startDate = new Date();
+	}
+
+	try {
+		const created = await createBudget({
+			userId: locals.user.id,
+			category,
+			limit,
+			currencyId,
+			period,
+			startDate
+		});
+		return json({
+			id: created.id,
+			userId: created.userId,
+			category: created.category,
+			limit: created.limit,
+			currencyId: created.currencyId,
+			period: created.period,
+			startDate: created.startDate,
+			currentSpent: created.currentSpent,
+			createdAt: created.createdAt,
+			updatedAt: created.updatedAt
+		});
+	} catch (e: unknown) {
+		const message = e instanceof Error ? e.message : 'Failed to create budget';
+		return json({ error: message }, { status: 400 });
+	}
 };

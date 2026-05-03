@@ -26,6 +26,7 @@
 		name: string | null;
 		description: string | null;
 		category: string | null;
+		budgetId: string | null;
 		payee: string | null;
 		toAccountId: string | null;
 		createdAt: string;
@@ -115,11 +116,14 @@
 		>
 	</Table.Cell>
 	<Table.Cell
-		class="text-right font-medium {tx.type === 'income' ? 'text-income' : tx.type === 'transfer' ? 'text-blue-500' : 'text-expense'}"
+		class="text-right font-medium {tx.type === 'income'
+			? 'text-income'
+			: tx.type === 'transfer'
+				? 'text-blue-500'
+				: 'text-expense'}"
 	>
-		{tx.type === 'income' ? '+' : tx.type === 'transfer' ? '→' : '-'}{account?.currencySymbol ?? '$'}{(
-			tx.amount / 100
-		).toLocaleString('en-US', {
+		{tx.type === 'income' ? '+' : tx.type === 'transfer' ? '→' : '-'}{account?.currencySymbol ??
+			'$'}{(tx.amount / 100).toLocaleString('en-US', {
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2
 		})}

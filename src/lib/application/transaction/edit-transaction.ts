@@ -16,6 +16,7 @@ export interface UpdateTransactionDTO {
 	name?: string | null;
 	description?: string | null;
 	category?: string | null;
+	budgetId?: string | null;
 	payee?: string | null;
 	toAccountId?: string | null;
 	transactionDate?: Date;
@@ -101,6 +102,13 @@ export async function editTransaction(
 	if (updates.category !== undefined && updates.category !== currentTransaction.category) {
 		changes.category = updates.category;
 		previousValues.category = currentTransaction.category;
+	}
+	if (
+		updates.budgetId !== undefined &&
+		updates.budgetId !== (currentTransaction.budgetId ?? null)
+	) {
+		changes.budgetId = updates.budgetId;
+		previousValues.budgetId = currentTransaction.budgetId ?? null;
 	}
 	if (updates.payee !== undefined && updates.payee !== currentTransaction.payee) {
 		changes.payee = updates.payee;
@@ -330,7 +338,11 @@ async function handleAccountChange(
 				{ currentBalance: oldBalanceAfter },
 				tx
 			);
-			await eventStoreRepo.updateAccountProjection(newAccountId, { currentBalance: newBalanceAfter }, tx);
+			await eventStoreRepo.updateAccountProjection(
+				newAccountId,
+				{ currentBalance: newBalanceAfter },
+				tx
+			);
 
 			await eventStoreRepo.updateTransactionProjection(
 				transactionId,
@@ -362,6 +374,7 @@ function buildTransactionProjectionData(changes: UpdateTransactionDTO): {
 	name?: string | null;
 	description?: string | null;
 	category?: string | null;
+	budgetId?: string | null;
 	payee?: string | null;
 	toAccountId?: string | null;
 	createdAt?: Date;
@@ -372,6 +385,7 @@ function buildTransactionProjectionData(changes: UpdateTransactionDTO): {
 		name?: string | null;
 		description?: string | null;
 		category?: string | null;
+		budgetId?: string | null;
 		payee?: string | null;
 		toAccountId?: string | null;
 		createdAt?: Date;
@@ -381,6 +395,7 @@ function buildTransactionProjectionData(changes: UpdateTransactionDTO): {
 	if (changes.name !== undefined) data.name = changes.name;
 	if (changes.description !== undefined) data.description = changes.description;
 	if (changes.category !== undefined) data.category = changes.category;
+	if (changes.budgetId !== undefined) data.budgetId = changes.budgetId;
 	if (changes.payee !== undefined) data.payee = changes.payee;
 	if (changes.toAccountId !== undefined) data.toAccountId = changes.toAccountId;
 	if (changes.transactionDate !== undefined) data.createdAt = toUTC(changes.transactionDate);
@@ -403,6 +418,7 @@ function buildUpdatedTransaction(current: Transaction, changes: UpdateTransactio
 		name: changes.name !== undefined ? changes.name : current.name,
 		description: changes.description !== undefined ? changes.description : current.description,
 		category: changes.category !== undefined ? changes.category : current.category,
+		budgetId: changes.budgetId !== undefined ? changes.budgetId : current.budgetId,
 		payee: changes.payee !== undefined ? changes.payee : current.payee,
 		toAccountId: changes.toAccountId !== undefined ? changes.toAccountId : current.toAccountId,
 		createdAt:

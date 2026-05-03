@@ -24,12 +24,7 @@ export async function deleteCurrency(
 	const newVersion = currentVersion + 1;
 
 	// Create the delete event
-	const event = createCurrencyDeletedEvent(
-		currencyId,
-		userId,
-		{ reason },
-		newVersion
-	);
+	const event = createCurrencyDeletedEvent(currencyId, userId, { reason }, newVersion);
 
 	// Append to event store with optimistic concurrency check
 	try {

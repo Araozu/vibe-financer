@@ -22,6 +22,7 @@
 	import { onMount } from 'svelte';
 	import { format } from 'date-fns';
 	import type { Transaction } from '$lib/domain/transaction';
+	import CategoryPicker from '$lib/components/transaction/category-picker.svelte';
 	import TimePicker from '$lib/components/ui/time-picker/time-picker.svelte';
 
 	interface AccountLike {
@@ -40,7 +41,6 @@
 	}));
 
 	let budgets = $derived(budgetsQuery.data ?? []);
-	let categories = $derived([...new Set(budgets.map((b: { category: string }) => b.category))]);
 
 	let {
 		transaction,
@@ -58,6 +58,7 @@
 	let description = $state('');
 	let amount = $state('');
 	let category = $state('');
+	let budgetId = $state<string | null>(null);
 	let transactionDate = $state('');
 	let transactionTime = $state('00:00');
 	let userTimezone = $state('');
@@ -80,6 +81,7 @@
 		description = transaction.description ?? '';
 		amount = String(transaction.amount / 100);
 		category = transaction.category ?? '';
+		budgetId = transaction.budgetId ?? null;
 		const d = new Date(transaction.createdAt);
 		transactionDate = format(d, 'yyyy-MM-dd');
 		transactionTime = format(d, 'HH:mm');
@@ -140,9 +142,14 @@
 
 			<!-- Transfer notice -->
 			{#if transaction.type === 'transfer'}
-				<div class="flex items-center gap-2 rounded-md border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-600 dark:text-blue-400">
+				<div
+					class="flex items-center gap-2 rounded-md border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-600 dark:text-blue-400"
+				>
 					<ArrowLeftRight class="h-4 w-4 shrink-0" />
-					<span>Transfer amounts and accounts cannot be edited. You can still update the name, description, and date.</span>
+					<span
+						>Transfer amounts and accounts cannot be edited. You can still update the name,
+						description, and date.</span
+					>
 				</div>
 			{/if}
 
@@ -151,7 +158,11 @@
 				<!-- Type Selector -->
 				<div class="space-y-2">
 					<Label>Transaction Type</Label>
-					<Select.Root type="single" bind:value={selectedType} disabled={transaction.type === 'transfer'}>
+					<Select.Root
+						type="single"
+						bind:value={selectedType}
+						disabled={transaction.type === 'transfer'}
+					>
 						<Select.Trigger class="w-full">
 							{@const currentType = transactionTypes.find((t) => t.value === selectedType)}
 							{#if currentType}
@@ -180,7 +191,11 @@
 								Account
 							</div>
 						</Label>
-						<Select.Root type="single" bind:value={selectedAccountId} disabled={transaction.type === 'transfer'}>
+						<Select.Root
+							type="single"
+							bind:value={selectedAccountId}
+							disabled={transaction.type === 'transfer'}
+						>
 							<Select.Trigger class="w-full">
 								<span
 									>{_accounts.find((a) => a.id === selectedAccountId)?.name ??
@@ -291,26 +306,26 @@
 
 			{#if selectedType !== 'transfer'}
 				<div class="grid grid-cols-2 gap-4">
-					<!-- Category -->
 					<div class="space-y-2">
-						<Label for="edit-category">
+						<Label>
 							<div class="flex items-center gap-2">
 								<Tag class="h-3.5 w-3.5 text-muted-foreground" />
 								Category
 							</div>
 						</Label>
-						<Input
-							id="edit-category"
-							name="category"
+						<CategoryPicker
+							budgets={budgets.map((b: { id: string; category: string; currencyId: string }) => ({
+								id: b.id,
+								category: b.category,
+								currencyId: b.currencyId
+							}))}
+							currencyId={_accounts.find((a) => a.id === selectedAccountId)?.currencyId ?? ''}
 							bind:value={category}
-							placeholder="Category..."
-							list="edit-budget-categories"
+							bind:budgetId
+							onBudgetCreated={() => queryClient.invalidateQueries({ queryKey: ['budgets'] })}
 						/>
-						<datalist id="edit-budget-categories">
-							{#each categories as cat (cat)}
-								<option value={cat}>{cat}</option>
-							{/each}
-						</datalist>
+						<input type="hidden" name="category" value={category} />
+						<input type="hidden" name="budgetId" value={budgetId ?? ''} />
 					</div>
 				</div>
 			{/if}

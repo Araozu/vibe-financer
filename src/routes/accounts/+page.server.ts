@@ -120,6 +120,8 @@ export const actions: Actions = {
 		const name = formData.get('name') as string;
 		const description = formData.get('description') as string;
 		const category = formData.get('category') as string;
+		const budgetIdRaw = formData.get('budgetId');
+		const budgetId = budgetIdRaw == null || String(budgetIdRaw) === '' ? null : String(budgetIdRaw);
 		const payee = formData.get('payee') as string;
 		const toAccountId = formData.get('toAccountId') as string | null;
 		const exchangeRateStr = formData.get('exchangeRate') as string | null;
@@ -142,6 +144,7 @@ export const actions: Actions = {
 					name: name ?? null,
 					description: description ?? null,
 					category: category ?? null,
+					budgetId,
 					payee: payee ?? null,
 					toAccountId: toAccountId ?? null,
 					exchangeRate,
@@ -168,6 +171,7 @@ export const actions: Actions = {
 		const name = formData.get('name') as string | null;
 		const description = formData.get('description') as string | null;
 		const category = formData.get('category') as string | null;
+		const budgetIdField = formData.get('budgetId');
 		const payee = formData.get('payee') as string | null;
 		const dateStr = formData.get('date') as string | null;
 		const timeStr = formData.get('time') as string | null;
@@ -181,6 +185,7 @@ export const actions: Actions = {
 			name?: string | null;
 			description?: string | null;
 			category?: string | null;
+			budgetId?: string | null;
 			payee?: string | null;
 			transactionDate?: Date;
 		} = {};
@@ -197,6 +202,9 @@ export const actions: Actions = {
 		if (name !== null) updates.name = name || null;
 		if (description !== null) updates.description = description || null;
 		if (category !== null) updates.category = category || null;
+		if (budgetIdField !== null) {
+			updates.budgetId = String(budgetIdField) === '' ? null : String(budgetIdField);
+		}
 		if (payee !== null) updates.payee = payee || null;
 		if (dateStr) {
 			const timePart = timeStr ?? '00:00';

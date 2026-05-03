@@ -22,6 +22,13 @@
 			"when": 1772121069372,
 			"tag": "0002_tiresome_solo",
 			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1777851798362,
+			"tag": "0003_nebulous_molly_hayes",
+			"breakpoints": true
 		}
 	]
 }

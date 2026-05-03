@@ -637,7 +637,9 @@
 				<Card.Header class="flex flex-row items-center justify-between gap-3">
 					<div>
 						<Card.Title>Recent Transactions</Card.Title>
-						<Card.Description>You have {transactions.length} transactions recorded.</Card.Description>
+						<Card.Description
+							>You have {transactions.length} transactions recorded.</Card.Description
+						>
 					</div>
 					{#if upcomingTransactions.length > 0}
 						<Collapsible.Trigger

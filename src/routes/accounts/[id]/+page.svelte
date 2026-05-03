@@ -209,9 +209,7 @@
 		queryKey: ['chart-transactions', account.id, chartMonth, chartYear],
 		queryFn: async () => {
 			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-			const res = await fetch(
-				`/api/transactions?month=${chartMonth}&year=${chartYear}&tz=${tz}`
-			);
+			const res = await fetch(`/api/transactions?month=${chartMonth}&year=${chartYear}&tz=${tz}`);
 			return res.json();
 		}
 	}));
