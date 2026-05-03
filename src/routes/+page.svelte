@@ -633,25 +633,26 @@
 	<!-- Main Content -->
 	<div class="space-y-8 md:col-span-4">
 		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between">
-				<div>
-					<Card.Title>Recent Transactions</Card.Title>
-					<Card.Description>You have {transactions.length} transactions recorded.</Card.Description>
-				</div>
-				<Button variant="ghost" size="sm">View All</Button>
-			</Card.Header>
-			<Card.Content>
-				<div class="space-y-4">
+			<Collapsible.Root bind:open={upcomingTransactionsOpen}>
+				<Card.Header class="flex flex-row items-center justify-between gap-3">
+					<div>
+						<Card.Title>Recent Transactions</Card.Title>
+						<Card.Description>You have {transactions.length} transactions recorded.</Card.Description>
+					</div>
 					{#if upcomingTransactions.length > 0}
-						<Collapsible.Root bind:open={upcomingTransactionsOpen} class="space-y-3">
-							<Collapsible.Trigger
-								class={`${buttonVariants({ variant: 'ghost', size: 'sm' })} w-full justify-between px-2 text-muted-foreground hover:text-foreground`}
-							>
-								<span>Upcoming transactions ({upcomingTransactions.length})</span>
-								<ChevronDown
-									class={`h-4 w-4 transition-transform ${upcomingTransactionsOpen ? 'rotate-180' : ''}`}
-								/>
-							</Collapsible.Trigger>
+						<Collapsible.Trigger
+							class={`${buttonVariants({ variant: 'ghost', size: 'sm' })} h-7 px-2 text-xs text-muted-foreground hover:text-foreground`}
+						>
+							<span>Upcoming ({upcomingTransactions.length})</span>
+							<ChevronDown
+								class={`h-3.5 w-3.5 transition-transform ${upcomingTransactionsOpen ? 'rotate-180' : ''}`}
+							/>
+						</Collapsible.Trigger>
+					{/if}
+				</Card.Header>
+				<Card.Content>
+					<div class="space-y-4">
+						{#if upcomingTransactions.length > 0}
 							<Collapsible.Content>
 								<Table.Root>
 									<Table.Body>
@@ -667,10 +668,9 @@
 									</Table.Body>
 								</Table.Root>
 							</Collapsible.Content>
-						</Collapsible.Root>
-					{/if}
+						{/if}
 
-					<Table.Root>
+						<Table.Root>
 						<Table.Header>
 							<Table.Row>
 								<Table.Head>Transaction</Table.Head>
@@ -700,9 +700,9 @@
 							{/if}
 						</Table.Body>
 					</Table.Root>
-
-				</div>
-			</Card.Content>
+					</div>
+				</Card.Content>
+			</Collapsible.Root>
 		</Card.Root>
 	</div>
 
