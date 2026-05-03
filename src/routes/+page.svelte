@@ -2,6 +2,8 @@
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -22,6 +24,7 @@
 		Target,
 		Calendar,
 		CalendarClock,
+		ChevronDown,
 		Pencil
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
@@ -126,6 +129,7 @@
 	let editingTransaction = $state<SerializedTransaction | null>(null);
 	let editDialogOpen = $state(false);
 	let deletingTransactionId = $state<string | null>(null);
+	let upcomingTransactionsOpen = $state(false);
 
 	let goalDialogOpen = $state(false);
 	let goalAccount = $state<SerializedAccount | null>(null);
@@ -202,6 +206,16 @@
 	let effectiveEndDate = $derived(isCurrentMonth ? dashboardNow : lastDayOfSelectedMonth);
 
 	let defaultCurrencySymbol = $derived(defaultAccount?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL);
+	const todayStart = new Date();
+	todayStart.setHours(0, 0, 0, 0);
+
+	let recentTransactions = $derived(
+		transactions.filter((tx) => new Date(tx.createdAt) < todayStart).slice(0, 10)
+	);
+
+	let upcomingTransactions = $derived(
+		transactions.filter((tx) => new Date(tx.createdAt) >= todayStart).slice(0, 10)
+	);
 
 	let defaultAccountTransactions = $derived(
 		defaultAccount ? transactions.filter((tx) => tx.accountId === defaultAccount.id) : []
@@ -424,9 +438,7 @@
 		<div class="flex items-center gap-2">
 			<Wallet class="h-4 w-4 text-blue-500" />
 			<div class="flex flex-col">
-				<span
-					class="text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
-				>
+				<span class="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
 					Now
 				</span>
 				<span class="text-base leading-tight font-bold tracking-tight">
@@ -438,9 +450,7 @@
 		<div class="flex items-center gap-2">
 			<CalendarClock class="h-4 w-4 text-savings" />
 			<div class="flex flex-col">
-				<span
-					class="text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
-				>
+				<span class="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
 					End of month
 				</span>
 				<span class="text-base leading-tight font-bold tracking-tight">
@@ -631,28 +641,66 @@
 				<Button variant="ghost" size="sm">View All</Button>
 			</Card.Header>
 			<Card.Content>
-				<Table.Root>
-					<Table.Header>
-						<Table.Row>
-							<Table.Head>Transaction</Table.Head>
-							<Table.Head class="hidden md:table-cell">Account</Table.Head>
-							<Table.Head class="hidden md:table-cell">Category</Table.Head>
-							<Table.Head class="text-right">Amount</Table.Head>
-							<Table.Head class="w-12"></Table.Head>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#each transactions.slice(0, 10) as tx (tx.id)}
-							<TransactionRow
-								{tx}
-								account={accounts.find((a) => a.id === tx.accountId) ?? null}
-								{deletingTransactionId}
-								onEdit={openEditDialog}
-								onDelete={handleDeleteTransaction}
-							/>
-						{/each}
-					</Table.Body>
-				</Table.Root>
+				<div class="space-y-4">
+					<Table.Root>
+						<Table.Header>
+							<Table.Row>
+								<Table.Head>Transaction</Table.Head>
+								<Table.Head class="hidden md:table-cell">Account</Table.Head>
+								<Table.Head class="hidden md:table-cell">Category</Table.Head>
+								<Table.Head class="text-right">Amount</Table.Head>
+								<Table.Head class="w-12"></Table.Head>
+							</Table.Row>
+						</Table.Header>
+						<Table.Body>
+							{#if recentTransactions.length === 0}
+								<Table.Row>
+									<Table.Cell colspan={5} class="py-6 text-center text-sm text-muted-foreground">
+										No posted transactions yet for this view.
+									</Table.Cell>
+								</Table.Row>
+							{:else}
+								{#each recentTransactions as tx (tx.id)}
+									<TransactionRow
+										{tx}
+										account={accounts.find((a) => a.id === tx.accountId) ?? null}
+										{deletingTransactionId}
+										onEdit={openEditDialog}
+										onDelete={handleDeleteTransaction}
+									/>
+								{/each}
+							{/if}
+						</Table.Body>
+					</Table.Root>
+
+					{#if upcomingTransactions.length > 0}
+						<Collapsible.Root bind:open={upcomingTransactionsOpen} class="space-y-3">
+							<Collapsible.Trigger
+								class={`${buttonVariants({ variant: 'ghost', size: 'sm' })} w-full justify-between px-2 text-muted-foreground hover:text-foreground`}
+							>
+								<span>Upcoming transactions ({upcomingTransactions.length})</span>
+								<ChevronDown
+									class={`h-4 w-4 transition-transform ${upcomingTransactionsOpen ? 'rotate-180' : ''}`}
+								/>
+							</Collapsible.Trigger>
+							<Collapsible.Content>
+								<Table.Root>
+									<Table.Body>
+										{#each upcomingTransactions as tx (tx.id)}
+											<TransactionRow
+												{tx}
+												account={accounts.find((a) => a.id === tx.accountId) ?? null}
+												{deletingTransactionId}
+												onEdit={openEditDialog}
+												onDelete={handleDeleteTransaction}
+											/>
+										{/each}
+									</Table.Body>
+								</Table.Root>
+							</Collapsible.Content>
+						</Collapsible.Root>
+					{/if}
+				</div>
 			</Card.Content>
 		</Card.Root>
 	</div>
