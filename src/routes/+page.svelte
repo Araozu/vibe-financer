@@ -206,15 +206,15 @@
 	let effectiveEndDate = $derived(isCurrentMonth ? dashboardNow : lastDayOfSelectedMonth);
 
 	let defaultCurrencySymbol = $derived(defaultAccount?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL);
-	const todayStart = new Date();
-	todayStart.setHours(0, 0, 0, 0);
+	const tomorrowStart = new Date();
+	tomorrowStart.setHours(24, 0, 0, 0);
 
 	let recentTransactions = $derived(
-		transactions.filter((tx) => new Date(tx.createdAt) < todayStart).slice(0, 10)
+		transactions.filter((tx) => new Date(tx.createdAt) < tomorrowStart).slice(0, 10)
 	);
 
 	let upcomingTransactions = $derived(
-		transactions.filter((tx) => new Date(tx.createdAt) >= todayStart).slice(0, 10)
+		transactions.filter((tx) => new Date(tx.createdAt) >= tomorrowStart).slice(0, 10)
 	);
 
 	let defaultAccountTransactions = $derived(
@@ -642,6 +642,34 @@
 			</Card.Header>
 			<Card.Content>
 				<div class="space-y-4">
+					{#if upcomingTransactions.length > 0}
+						<Collapsible.Root bind:open={upcomingTransactionsOpen} class="space-y-3">
+							<Collapsible.Trigger
+								class={`${buttonVariants({ variant: 'ghost', size: 'sm' })} w-full justify-between px-2 text-muted-foreground hover:text-foreground`}
+							>
+								<span>Upcoming transactions ({upcomingTransactions.length})</span>
+								<ChevronDown
+									class={`h-4 w-4 transition-transform ${upcomingTransactionsOpen ? 'rotate-180' : ''}`}
+								/>
+							</Collapsible.Trigger>
+							<Collapsible.Content>
+								<Table.Root>
+									<Table.Body>
+										{#each upcomingTransactions as tx (tx.id)}
+											<TransactionRow
+												{tx}
+												account={accounts.find((a) => a.id === tx.accountId) ?? null}
+												{deletingTransactionId}
+												onEdit={openEditDialog}
+												onDelete={handleDeleteTransaction}
+											/>
+										{/each}
+									</Table.Body>
+								</Table.Root>
+							</Collapsible.Content>
+						</Collapsible.Root>
+					{/if}
+
 					<Table.Root>
 						<Table.Header>
 							<Table.Row>
@@ -673,33 +701,6 @@
 						</Table.Body>
 					</Table.Root>
 
-					{#if upcomingTransactions.length > 0}
-						<Collapsible.Root bind:open={upcomingTransactionsOpen} class="space-y-3">
-							<Collapsible.Trigger
-								class={`${buttonVariants({ variant: 'ghost', size: 'sm' })} w-full justify-between px-2 text-muted-foreground hover:text-foreground`}
-							>
-								<span>Upcoming transactions ({upcomingTransactions.length})</span>
-								<ChevronDown
-									class={`h-4 w-4 transition-transform ${upcomingTransactionsOpen ? 'rotate-180' : ''}`}
-								/>
-							</Collapsible.Trigger>
-							<Collapsible.Content>
-								<Table.Root>
-									<Table.Body>
-										{#each upcomingTransactions as tx (tx.id)}
-											<TransactionRow
-												{tx}
-												account={accounts.find((a) => a.id === tx.accountId) ?? null}
-												{deletingTransactionId}
-												onEdit={openEditDialog}
-												onDelete={handleDeleteTransaction}
-											/>
-										{/each}
-									</Table.Body>
-								</Table.Root>
-							</Collapsible.Content>
-						</Collapsible.Root>
-					{/if}
 				</div>
 			</Card.Content>
 		</Card.Root>
