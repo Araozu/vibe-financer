@@ -652,54 +652,60 @@
 				</Card.Header>
 				<Card.Content>
 					<div class="space-y-4">
-						{#if upcomingTransactions.length > 0}
-							<Collapsible.Content>
-								<Table.Root>
-									<Table.Body>
-										{#each upcomingTransactions as tx (tx.id)}
-											<TransactionRow
-												{tx}
-												account={accounts.find((a) => a.id === tx.accountId) ?? null}
-												{deletingTransactionId}
-												onEdit={openEditDialog}
-												onDelete={handleDeleteTransaction}
-											/>
-										{/each}
-									</Table.Body>
-								</Table.Root>
-							</Collapsible.Content>
-						{/if}
-
 						<Table.Root>
-						<Table.Header>
-							<Table.Row>
-								<Table.Head>Transaction</Table.Head>
-								<Table.Head class="hidden md:table-cell">Account</Table.Head>
-								<Table.Head class="hidden md:table-cell">Category</Table.Head>
-								<Table.Head class="text-right">Amount</Table.Head>
-								<Table.Head class="w-12"></Table.Head>
-							</Table.Row>
-						</Table.Header>
-						<Table.Body>
-							{#if recentTransactions.length === 0}
+							<Table.Header>
 								<Table.Row>
-									<Table.Cell colspan={5} class="py-6 text-center text-sm text-muted-foreground">
-										No posted transactions yet for this view.
-									</Table.Cell>
+									<Table.Head>Transaction</Table.Head>
+									<Table.Head class="hidden md:table-cell">Account</Table.Head>
+									<Table.Head class="hidden md:table-cell">Category</Table.Head>
+									<Table.Head class="text-right">Amount</Table.Head>
+									<Table.Head class="w-12"></Table.Head>
 								</Table.Row>
-							{:else}
-								{#each recentTransactions as tx (tx.id)}
-									<TransactionRow
-										{tx}
-										account={accounts.find((a) => a.id === tx.accountId) ?? null}
-										{deletingTransactionId}
-										onEdit={openEditDialog}
-										onDelete={handleDeleteTransaction}
-									/>
-								{/each}
-							{/if}
-						</Table.Body>
-					</Table.Root>
+							</Table.Header>
+							<Table.Body>
+								{#if upcomingTransactions.length > 0}
+									<Table.Row>
+										<Table.Cell colspan={5} class="p-0">
+											<Collapsible.Content>
+												<div class="opacity-75">
+													<Table.Root>
+														<Table.Body>
+															{#each upcomingTransactions as tx (tx.id)}
+																<TransactionRow
+																	{tx}
+																	account={accounts.find((a) => a.id === tx.accountId) ?? null}
+																	{deletingTransactionId}
+																	onEdit={openEditDialog}
+																	onDelete={handleDeleteTransaction}
+																/>
+															{/each}
+														</Table.Body>
+													</Table.Root>
+												</div>
+											</Collapsible.Content>
+										</Table.Cell>
+									</Table.Row>
+								{/if}
+
+								{#if recentTransactions.length === 0}
+									<Table.Row>
+										<Table.Cell colspan={5} class="py-6 text-center text-sm text-muted-foreground">
+											No posted transactions yet for this view.
+										</Table.Cell>
+									</Table.Row>
+								{:else}
+									{#each recentTransactions as tx (tx.id)}
+										<TransactionRow
+											{tx}
+											account={accounts.find((a) => a.id === tx.accountId) ?? null}
+											{deletingTransactionId}
+											onEdit={openEditDialog}
+											onDelete={handleDeleteTransaction}
+										/>
+									{/each}
+								{/if}
+							</Table.Body>
+						</Table.Root>
 					</div>
 				</Card.Content>
 			</Collapsible.Root>
