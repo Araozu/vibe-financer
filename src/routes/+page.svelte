@@ -802,19 +802,19 @@
 									</Table.Row>
 								{/if}
 
-								{#if postedTransactions.length === 0}
+								{#if postedTransactions.length === 0 && futureTransactions.length === 0}
 									<Table.Row>
 										<Table.Cell colspan={5} class="py-6 text-center text-sm text-muted-foreground">
 											No posted transactions yet for this view.
 										</Table.Cell>
 									</Table.Row>
-								{:else if recentTransactions.length === 0}
+								{:else if recentTransactions.length === 0 && upcomingTransactions.length === 0}
 									<Table.Row>
 										<Table.Cell colspan={5} class="py-6 text-center text-sm text-muted-foreground">
 											No transactions match your search or category filter.
 										</Table.Cell>
 									</Table.Row>
-								{:else}
+								{:else if recentTransactions.length > 0}
 									{#each recentTransactions as tx (tx.id)}
 										<TransactionRow
 											{tx}
