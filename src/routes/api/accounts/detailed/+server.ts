@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { listAccounts } from '$lib/application/account/list-accounts';
+import { listAccountsByUser } from '$lib/application/account/list-accounts';
 import { listTransactionsByAccount } from '$lib/application/transaction/list-transactions';
 import { toUTC } from '$lib/domain/date-formatter';
 
@@ -16,9 +16,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const targetMonth = monthParam ? parseInt(monthParam) : now.getUTCMonth();
 	const targetYear = yearParam ? parseInt(yearParam) : now.getUTCFullYear();
 
-	const allAccounts = await listAccounts();
-	// Filter accounts by user
-	const accounts = allAccounts.filter((acc) => acc.userId === locals.user!.id);
+	const accounts = await listAccountsByUser(locals.user.id);
 
 	const accountsWithData = await Promise.all(
 		accounts.map(async (account) => {

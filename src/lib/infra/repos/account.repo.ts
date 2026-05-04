@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { account, currency, goal } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import type { Account, CreateAccountDTO, UpdateAccountDTO, Goal } from '../../domain/account';
 
 export const accountRepo = {
@@ -78,7 +78,8 @@ export const accountRepo = {
 			.from(account)
 			.leftJoin(currency, eq(account.currencyId, currency.id))
 			.leftJoin(goal, eq(account.id, goal.accountId))
-			.where(eq(account.userId, userId));
+			.where(eq(account.userId, userId))
+			.orderBy(asc(account.name), asc(account.id));
 
 		return results.map((row) => ({
 			...row,

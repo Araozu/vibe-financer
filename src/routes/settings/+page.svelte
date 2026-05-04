@@ -91,7 +91,12 @@
 
 <!-- Content -->
 {#if user}
-	<div class="mx-auto max-w-5xl space-y-6 px-4 py-8">
+	<div class="space-y-6">
+		<div class="mb-8">
+			<h1 class="text-2xl font-bold">Settings</h1>
+			<p class="text-sm text-muted-foreground">Manage your profile and account preferences.</p>
+		</div>
+
 		<!-- Profile Information -->
 		<Card.Root>
 			<Card.Header>
@@ -377,7 +382,7 @@
 		</Card.Root>
 	</div>
 {:else}
-	<div class="mx-auto max-w-5xl px-4 py-8">
+	<div>
 		<Card.Root>
 			<Card.Content class="py-12 text-center">
 				<p class="text-muted-foreground">Loading user data...</p>

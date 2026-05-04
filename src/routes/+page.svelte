@@ -8,6 +8,7 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
@@ -154,6 +155,7 @@
 	const queryClient = useQueryClient();
 
 	let accounts = $derived(accountsQuery.data ?? []);
+	let isLoadingAccounts = $derived(accountsQuery.isPending && accounts.length === 0);
 	let transactions = $derived(transactionsQuery.data?.transactions ?? []);
 	let initialBalances = $derived(transactionsQuery.data?.initialBalances ?? {});
 	let budgets = $derived(
@@ -500,7 +502,25 @@
 
 <div class="grid gap-8 md:grid-cols-7">
 	<div class="space-y-8 md:col-span-4">
-		{#if accounts.length > 0}
+		{#if isLoadingAccounts}
+			<Card.Root class="border-dashed bg-muted/30">
+				<Card.Content class="space-y-5 py-10">
+					<div class="flex items-center gap-3">
+						<Skeleton class="h-10 w-10 rounded-full" />
+						<div class="space-y-2">
+							<Skeleton class="h-4 w-36" />
+							<Skeleton class="h-3 w-52 max-w-[60vw]" />
+						</div>
+					</div>
+					<div class="grid gap-3 sm:grid-cols-2">
+						<Skeleton class="h-10 w-full" />
+						<Skeleton class="h-10 w-full" />
+					</div>
+					<Skeleton class="h-24 w-full" />
+					<Skeleton class="h-10 w-full" />
+				</Card.Content>
+			</Card.Root>
+		{:else if accounts.length > 0}
 			<Card.Root class="overflow-hidden py-0">
 				<CreateTransactionForm {accounts} showCreateMore={false} />
 			</Card.Root>

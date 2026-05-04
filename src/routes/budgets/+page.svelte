@@ -124,24 +124,21 @@
 	<title>Budgets - {DASHBOARD_MONTHS[selectedMonth]} {selectedYear}</title>
 </svelte:head>
 
-<div class="container mx-auto py-8">
+<div>
 	<div class="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Manage Budgets</h1>
-			<p class="text-muted-foreground">
+			<h1 class="text-2xl font-bold">Budgets</h1>
+			<p class="text-sm text-muted-foreground">
 				Set spending limits for your categories in {DASHBOARD_MONTHS[selectedMonth]}
 				{selectedYear}
 			</p>
-		</div>
-		<div class="flex flex-col items-start gap-3 md:items-end">
-			<a href="/">
-				<Button variant="outline">Back to Dashboard</Button>
-			</a>
 		</div>
 	</div>
 
 	<div class="grid gap-8 lg:grid-cols-3">
 		<!-- Create Budget Form -->
+		<div>
+
 		<Card.Root class="lg:col-span-1">
 			<Card.Header>
 				<Card.Title>Create New Budget</Card.Title>
@@ -242,6 +239,7 @@
 				</form>
 			</Card.Content>
 		</Card.Root>
+		</div>
 
 		<!-- Budget List -->
 		<div class="space-y-4 lg:col-span-2">
@@ -255,7 +253,7 @@
 				{#each budgets as budget (budget.id)}
 					{@const spent = budget.periodSpent}
 					<Card.Root>
-						<Card.Content class="pt-6">
+						<Card.Content>
 							<div class="mb-4 flex items-start justify-between gap-4">
 								<div class="flex items-center gap-3">
 									<div class="rounded-full bg-primary/10 p-2 text-primary">

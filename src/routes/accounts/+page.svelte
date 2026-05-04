@@ -2,6 +2,7 @@
 	import { createQuery } from '@tanstack/svelte-query';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
 	import {
 		CreditCard,
@@ -40,6 +41,7 @@
 	}));
 
 	let accounts = $derived(accountsQuery.data ?? []);
+	let isLoadingAccounts = $derived(accountsQuery.isPending && accounts.length === 0);
 
 	const typeIcons: Record<AccountType, typeof CreditCard> = {
 		asset: CreditCard,
@@ -113,7 +115,10 @@
 
 <!-- Header -->
 <div class="mb-8 flex items-center justify-between">
-	<h1 class="text-2xl font-bold">My Accounts</h1>
+	<div>
+		<h1 class="text-2xl font-bold">Accounts</h1>
+		<p class="text-sm text-muted-foreground">Manage the accounts that track your balances.</p>
+	</div>
 	<CreateAccountDialog>
 		{#snippet trigger()}
 			<Button class="gap-2 rounded-full font-semibold">
@@ -125,7 +130,19 @@
 </div>
 
 <!-- Summary Cards -->
-{#if accounts.length > 0}
+{#if isLoadingAccounts}
+	<div class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+		{#each Array.from({ length: 3 }) as _}
+			<Card.Root class="shadow-sm">
+				<Card.Content class="space-y-3 p-6">
+					<Skeleton class="h-4 w-28" />
+					<Skeleton class="h-9 w-40" />
+					<Skeleton class="h-4 w-32" />
+				</Card.Content>
+			</Card.Root>
+		{/each}
+	</div>
+{:else if accounts.length > 0}
 	<div class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
 		<!-- Total Balance -->
 		<Card.Root class="overflow-hidden border-0 bg-primary text-primary-foreground shadow-lg">
@@ -170,7 +187,29 @@
 {/if}
 
 <!-- Account List -->
-{#if accounts.length === 0}
+{#if isLoadingAccounts}
+	<div class="flex flex-col gap-4">
+		{#each Array.from({ length: 4 }) as _}
+			<Card.Root class="shadow-sm">
+				<Card.Content class="p-5">
+					<div class="flex items-center justify-between gap-4">
+						<div class="flex min-w-0 items-center gap-4">
+							<Skeleton class="h-12 w-12 shrink-0 rounded-full" />
+							<div class="min-w-0 space-y-2">
+								<Skeleton class="h-4 w-36" />
+								<Skeleton class="h-3 w-48 max-w-[50vw]" />
+							</div>
+						</div>
+						<div class="flex shrink-0 flex-col items-end gap-2">
+							<Skeleton class="h-5 w-24" />
+							<Skeleton class="h-3 w-28" />
+						</div>
+					</div>
+				</Card.Content>
+			</Card.Root>
+		{/each}
+	</div>
+{:else if accounts.length === 0}
 	<Card.Root class="flex flex-col items-center justify-center border-dashed p-12 text-center">
 		<div class="mb-4 rounded-full bg-muted p-4">
 			<Wallet class="h-10 w-10 text-muted-foreground/40" />

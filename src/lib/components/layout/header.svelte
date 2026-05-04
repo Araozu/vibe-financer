@@ -257,7 +257,9 @@
 			</div>
 		</div>
 
-		<nav class="overflow-x-auto">
+		<nav
+			class="sticky top-0 z-20 overflow-x-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+		>
 			<div bind:this={navList} class="relative flex min-w-max items-center gap-1">
 				{#each navItems as item (item.href)}
 					<a
