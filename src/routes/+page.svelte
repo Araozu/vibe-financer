@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
@@ -25,7 +26,8 @@
 		Calendar,
 		CalendarClock,
 		ChevronDown,
-		Pencil
+		Pencil,
+		Search
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
@@ -70,6 +72,9 @@
 	};
 
 	let { data: _data } = $props();
+
+	const RECENT_TX_FILTER_ALL = 'all';
+	const RECENT_TX_FILTER_UNCATEGORIZED = '__uncategorized__';
 
 	// Month/Year selection for dashboard
 	const dashboardNow = new Date();
@@ -124,7 +129,7 @@
 	let initialBalances = $derived(transactionsQuery.data?.initialBalances ?? {});
 	let budgets = $derived(
 		[...(budgetsQuery.data ?? [])].sort((a, b) => {
-			if (a.limit !== b.limit) return a.limit - b.limit;
+			if (a.limit !== b.limit) return b.limit - a.limit;
 			const byCat = a.category.localeCompare(b.category, undefined, { sensitivity: 'base' });
 			if (byCat !== 0) return byCat;
 			return a.id.localeCompare(b.id);
@@ -137,6 +142,8 @@
 	let editDialogOpen = $state(false);
 	let deletingTransactionId = $state<string | null>(null);
 	let upcomingTransactionsOpen = $state(false);
+	let recentTxSearch = $state('');
+	let recentCategoryFilter = $state(RECENT_TX_FILTER_ALL);
 
 	let goalDialogOpen = $state(false);
 	let goalAccount = $state<SerializedAccount | null>(null);
@@ -216,9 +223,47 @@
 	const tomorrowStart = new Date();
 	tomorrowStart.setHours(24, 0, 0, 0);
 
-	let recentTransactions = $derived(
-		transactions.filter((tx) => new Date(tx.createdAt) < tomorrowStart).slice(0, 10)
+	let postedTransactions = $derived(
+		transactions.filter((tx) => new Date(tx.createdAt) < tomorrowStart)
 	);
+
+	let recentCategorySelectOptions = $derived.by(() => {
+		const seen = new Set<string>();
+		for (const tx of postedTransactions) {
+			const c = tx.category?.trim();
+			if (c) seen.add(c);
+		}
+		return [...seen].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+	});
+
+	let postedHasUncategorized = $derived(
+		postedTransactions.some((tx) => !tx.category?.trim())
+	);
+
+	let recentTransactions = $derived.by(() => {
+		const q = recentTxSearch.trim().toLowerCase();
+		const cat = recentCategoryFilter;
+		const filtered = postedTransactions.filter((tx) => {
+			if (cat !== RECENT_TX_FILTER_ALL) {
+				if (cat === RECENT_TX_FILTER_UNCATEGORIZED) {
+					if (tx.category?.trim()) return false;
+				} else if (tx.category !== cat) {
+					return false;
+				}
+			}
+			if (!q) return true;
+			const blob = [tx.name, tx.description, tx.payee, tx.category]
+				.map((s) => (s ?? '').toLowerCase())
+				.join('\n');
+			return blob.includes(q);
+		});
+		const sorted = [...filtered].sort(
+			(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+		);
+		const filtersActive =
+			recentTxSearch.trim() !== '' || recentCategoryFilter !== RECENT_TX_FILTER_ALL;
+		return filtersActive ? sorted.slice(0, 500) : sorted.slice(0, 10);
+	});
 
 	let upcomingTransactions = $derived(
 		transactions.filter((tx) => new Date(tx.createdAt) >= tomorrowStart).slice(0, 10)
@@ -661,6 +706,47 @@
 				</Card.Header>
 				<Card.Content>
 					<div class="space-y-4">
+						<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+							<div class="relative min-w-0 flex-1">
+								<Search
+									class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+								/>
+								<Input
+									type="search"
+									placeholder="Search name, payee, description, category…"
+									bind:value={recentTxSearch}
+									class="pl-9"
+									autocomplete="off"
+								/>
+							</div>
+							<Select.Root type="single" bind:value={recentCategoryFilter}>
+								<Select.Trigger class="w-full sm:w-[min(100%,220px)] sm:shrink-0">
+									{#if recentCategoryFilter === RECENT_TX_FILTER_ALL}
+										All categories
+									{:else if recentCategoryFilter === RECENT_TX_FILTER_UNCATEGORIZED}
+										Uncategorized
+									{:else}
+										{recentCategoryFilter}
+									{/if}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value={RECENT_TX_FILTER_ALL} label="All categories">
+										All categories
+									</Select.Item>
+									{#if postedHasUncategorized}
+										<Select.Item
+											value={RECENT_TX_FILTER_UNCATEGORIZED}
+											label="Uncategorized"
+										>
+											Uncategorized
+										</Select.Item>
+									{/if}
+									{#each recentCategorySelectOptions as cat (cat)}
+										<Select.Item value={cat} label={cat}>{cat}</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</div>
 						<Table.Root>
 							<Table.Header>
 								<Table.Row>
@@ -696,10 +782,16 @@
 									</Table.Row>
 								{/if}
 
-								{#if recentTransactions.length === 0}
+								{#if postedTransactions.length === 0}
 									<Table.Row>
 										<Table.Cell colspan={5} class="py-6 text-center text-sm text-muted-foreground">
 											No posted transactions yet for this view.
+										</Table.Cell>
+									</Table.Row>
+								{:else if recentTransactions.length === 0}
+									<Table.Row>
+										<Table.Cell colspan={5} class="py-6 text-center text-sm text-muted-foreground">
+											No transactions match your search or category filter.
 										</Table.Cell>
 									</Table.Row>
 								{:else}
