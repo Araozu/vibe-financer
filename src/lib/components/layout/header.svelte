@@ -48,7 +48,6 @@
 
 	let accounts = $derived(accountsQuery.data ?? []);
 	let user = $derived(userQuery.data);
-	let isOverview = $derived(page.url.pathname === '/');
 	let dashboardYears = $derived(createDashboardYears(dashboardPeriod.currentYear));
 	let userLabel = $derived(
 		[user?.firstName, user?.lastName].filter((part) => (part ?? '').trim().length > 0).join(' ')
@@ -91,7 +90,7 @@
 </script>
 
 <header class="w-full">
-	<div class="flex flex-col gap-4 pt-4">
+	<div class="flex flex-col gap-2 pt-4">
 		<div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 			<a href="/" class="flex min-w-0 items-center gap-3 transition-opacity hover:opacity-80">
 				<img src={logo} alt="Vibe Financer" class="h-8 w-8" />
@@ -102,64 +101,62 @@
 			</a>
 
 			<div class="flex flex-wrap items-center justify-end gap-2">
-				{#if isOverview}
-					<div
-						class="flex items-center gap-1 rounded-xl border border-border/60 bg-muted/20 px-2 py-1 shadow-sm"
+				<div
+					class="flex items-center gap-1 rounded-xl border border-border/60 bg-muted/20 px-2 py-1 shadow-sm"
+				>
+					<Calendar class="ml-1 h-4 w-4 text-muted-foreground" />
+
+					<Select.Root
+						type="single"
+						value={dashboardPeriod.month.toString()}
+						onValueChange={(value) => (dashboardPeriod.month = parseInt(value))}
 					>
-						<Calendar class="ml-1 h-4 w-4 text-muted-foreground" />
-
-						<Select.Root
-							type="single"
-							value={dashboardPeriod.month.toString()}
-							onValueChange={(value) => (dashboardPeriod.month = parseInt(value))}
+						<Select.Trigger
+							class="h-8 w-auto min-w-0 border-none bg-transparent px-2 text-sm font-medium shadow-none hover:bg-muted/60 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
 						>
-							<Select.Trigger
-								class="h-8 w-auto min-w-0 border-none bg-transparent px-2 text-sm font-medium shadow-none hover:bg-muted/60 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
-							>
-								{DASHBOARD_MONTHS[dashboardPeriod.month]}
-							</Select.Trigger>
-							<Select.Content>
-								{#each DASHBOARD_MONTHS as month, i (i)}
-									<Select.Item value={i.toString()} label={month}>{month}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
+							{DASHBOARD_MONTHS[dashboardPeriod.month]}
+						</Select.Trigger>
+						<Select.Content>
+							{#each DASHBOARD_MONTHS as month, i (i)}
+								<Select.Item value={i.toString()} label={month}>{month}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
 
-						<div class="mx-0.5 h-4 w-px bg-border"></div>
+					<div class="mx-0.5 h-4 w-px bg-border"></div>
 
-						<Select.Root
-							type="single"
-							value={dashboardPeriod.year.toString()}
-							onValueChange={(value) => (dashboardPeriod.year = parseInt(value))}
+					<Select.Root
+						type="single"
+						value={dashboardPeriod.year.toString()}
+						onValueChange={(value) => (dashboardPeriod.year = parseInt(value))}
+					>
+						<Select.Trigger
+							class="h-8 w-auto border-none bg-transparent px-2 text-sm font-medium shadow-none hover:bg-muted/60 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
 						>
-							<Select.Trigger
-								class="h-8 w-auto border-none bg-transparent px-2 text-sm font-medium shadow-none hover:bg-muted/60 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
-							>
-								{dashboardPeriod.year}
-							</Select.Trigger>
-							<Select.Content>
-								{#each dashboardYears as year (year)}
-									<Select.Item value={year.toString()} label={year.toString()}>{year}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-					</div>
+							{dashboardPeriod.year}
+						</Select.Trigger>
+						<Select.Content>
+							{#each dashboardYears as year (year)}
+								<Select.Item value={year.toString()} label={year.toString()}>{year}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
 
-					{#if dashboardPeriod.month !== dashboardPeriod.currentMonth || dashboardPeriod.year !== dashboardPeriod.currentYear}
-						<button
-							type="button"
-							class={cn(
-								buttonVariants({ variant: 'ghost', size: 'sm' }),
-								'h-9 rounded-full px-3 text-[11px] font-semibold tracking-[0.18em] uppercase'
-							)}
-							onclick={() => {
-								dashboardPeriod.month = dashboardPeriod.currentMonth;
-								dashboardPeriod.year = dashboardPeriod.currentYear;
-							}}
-						>
-							Today
-						</button>
-					{/if}
+				{#if dashboardPeriod.month !== dashboardPeriod.currentMonth || dashboardPeriod.year !== dashboardPeriod.currentYear}
+					<button
+						type="button"
+						class={cn(
+							buttonVariants({ variant: 'ghost', size: 'sm' }),
+							'h-9 rounded-full px-3 text-[11px] font-semibold tracking-[0.18em] uppercase'
+						)}
+						onclick={() => {
+							dashboardPeriod.month = dashboardPeriod.currentMonth;
+							dashboardPeriod.year = dashboardPeriod.currentYear;
+						}}
+					>
+						Today
+					</button>
 				{/if}
 
 				<CreateTransactionDialog {accounts}>
@@ -223,7 +220,7 @@
 						href={item.href}
 						aria-current={isActive(item.href) ? 'page' : undefined}
 						class={cn(
-							'inline-flex h-10 items-center border-b-2 px-3 text-sm font-medium transition-colors',
+							'inline-flex h-10 items-center border-b-2 px-3 text-sm font-medium transition-colors hover:bg-muted/75',
 							isActive(item.href)
 								? 'border-foreground text-foreground'
 								: 'border-transparent text-muted-foreground hover:text-foreground'

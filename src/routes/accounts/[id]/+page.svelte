@@ -21,8 +21,7 @@
 		Trash2,
 		LayoutGrid,
 		Search,
-		X,
-		Calendar
+		X
 	} from '@lucide/svelte';
 	import { useQueryClient } from '@tanstack/svelte-query';
 	import TransactionRow from '$lib/components/transaction/transaction-row.svelte';
@@ -32,6 +31,10 @@
 	import type { AccountType } from '$lib/domain/account';
 	import type { TransactionTimeframe } from '$lib/application/transaction/list-transactions';
 	import { goto } from '$app/navigation';
+	import {
+		DASHBOARD_MONTHS,
+		getDashboardPeriodContext
+	} from '$lib/components/layout/dashboard-period.js';
 
 	const queryClient = useQueryClient();
 
@@ -200,10 +203,9 @@
 	let transactions = $derived(allTransactions);
 
 	// Chart data query
-	const now = new Date();
-	let chartMonth = $state(now.getUTCMonth());
-	let chartYear = $state(now.getUTCFullYear());
-	const years = Array.from({ length: 5 }, (_, i) => now.getUTCFullYear() - 2 + i);
+	const dashboardPeriod = getDashboardPeriodContext();
+	let chartMonth = $derived(dashboardPeriod.month);
+	let chartYear = $derived(dashboardPeriod.year);
 
 	const chartQuery = createQuery(() => ({
 		queryKey: ['chart-transactions', account.id, chartMonth, chartYear],
@@ -277,21 +279,6 @@
 	}
 
 	const Icon = $derived(typeIcons[account.type as AccountType] ?? Wallet);
-
-	const months = [
-		'January',
-		'February',
-		'March',
-		'April',
-		'May',
-		'June',
-		'July',
-		'August',
-		'September',
-		'October',
-		'November',
-		'December'
-	];
 
 	const skeuBtn =
 		'rounded-md border border-border/40 bg-linear-to-b from-background to-accent/10 shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset,0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:to-accent/20 active:translate-y-px active:shadow-inner dark:from-muted/15 dark:to-muted/5 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_1.5px_3px_rgba(0,0,0,0.3)] dark:hover:to-muted/10';
@@ -416,60 +403,13 @@
 
 <!-- Balance History Chart -->
 <div class="mb-8">
-	<div class="mb-4 flex items-center gap-3">
-		<div class="flex h-10 items-center gap-1 rounded-xl border px-2 shadow-sm">
-			<Calendar class="ml-1 h-4 w-4 text-muted-foreground" />
-
-			<Select.Root
-				type="single"
-				value={chartMonth.toString()}
-				onValueChange={(v) => (chartMonth = parseInt(v))}
-			>
-				<Select.Trigger
-					class="h-8 border-none bg-transparent px-2 text-sm font-bold transition-colors hover:bg-muted/50 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
-				>
-					{months[chartMonth]}
-				</Select.Trigger>
-				<Select.Content>
-					{#each months as month, i (i)}
-						<Select.Item value={i.toString()} label={month}>{month}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-
-			<div class="mx-0.5 h-4 w-px bg-border"></div>
-
-			<Select.Root
-				type="single"
-				value={chartYear.toString()}
-				onValueChange={(v) => (chartYear = parseInt(v))}
-			>
-				<Select.Trigger
-					class="h-8 border-none bg-transparent px-2 text-sm font-bold transition-colors hover:bg-muted/50 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
-				>
-					{chartYear}
-				</Select.Trigger>
-				<Select.Content>
-					{#each years as year (year)}
-						<Select.Item value={year.toString()} label={year.toString()}>{year}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
+	<div class="mb-4 flex items-center justify-between gap-3">
+		<div>
+			<h2 class="text-lg font-bold tracking-tight">Balance History</h2>
+			<p class="text-sm text-muted-foreground">
+				{DASHBOARD_MONTHS[chartMonth]} {chartYear}
+			</p>
 		</div>
-
-		{#if chartMonth !== now.getUTCMonth() || chartYear !== now.getUTCFullYear()}
-			<Button
-				variant="ghost"
-				size="sm"
-				onclick={() => {
-					chartMonth = now.getUTCMonth();
-					chartYear = now.getUTCFullYear();
-				}}
-				class="text-[10px] font-bold tracking-widest uppercase"
-			>
-				Reset to Today
-			</Button>
-		{/if}
 	</div>
 
 	<MtdBalanceChart

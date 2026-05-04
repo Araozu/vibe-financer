@@ -6,10 +6,14 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
-	import { Plus, PiggyBank, Globe, Pencil, Loader2, Calendar } from '@lucide/svelte';
+	import { Plus, PiggyBank, Globe, Pencil, Loader2 } from '@lucide/svelte';
 	import { enhance } from '$app/forms';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { toast } from 'svelte-sonner';
+	import {
+		DASHBOARD_MONTHS,
+		getDashboardPeriodContext
+	} from '$lib/components/layout/dashboard-period.js';
 
 	type SerializedBudget = {
 		id: string;
@@ -28,27 +32,9 @@
 	};
 
 	const queryClient = useQueryClient();
-
-	const budgetsNow = new Date();
-	let selectedMonth = $state(budgetsNow.getUTCMonth());
-	let selectedYear = $state(budgetsNow.getUTCFullYear());
-
-	const months = [
-		'January',
-		'February',
-		'March',
-		'April',
-		'May',
-		'June',
-		'July',
-		'August',
-		'September',
-		'October',
-		'November',
-		'December'
-	];
-
-	const years = Array.from({ length: 5 }, (_, i) => budgetsNow.getUTCFullYear() - 2 + i);
+	const dashboardPeriod = getDashboardPeriodContext();
+	let selectedMonth = $derived(dashboardPeriod.month);
+	let selectedYear = $derived(dashboardPeriod.year);
 
 	const budgetsQuery = createQuery<SerializedBudget[]>(() => ({
 		queryKey: [
@@ -135,7 +121,7 @@
 </script>
 
 <svelte:head>
-	<title>Budgets - {months[selectedMonth]} {selectedYear}</title>
+	<title>Budgets - {DASHBOARD_MONTHS[selectedMonth]} {selectedYear}</title>
 </svelte:head>
 
 <div class="container mx-auto py-8">
@@ -143,67 +129,11 @@
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">Manage Budgets</h1>
 			<p class="text-muted-foreground">
-				Set spending limits for your categories in {months[selectedMonth]}
+				Set spending limits for your categories in {DASHBOARD_MONTHS[selectedMonth]}
 				{selectedYear}
 			</p>
 		</div>
 		<div class="flex flex-col items-start gap-3 md:items-end">
-			<div class="flex items-center gap-3">
-				<div class="flex h-10 items-center gap-1 rounded-xl border px-2 shadow-sm">
-					<Calendar class="ml-1 h-4 w-4 text-muted-foreground" />
-
-					<Select.Root
-						type="single"
-						value={selectedMonth.toString()}
-						onValueChange={(v) => (selectedMonth = parseInt(v))}
-					>
-						<Select.Trigger
-							class="h-8 border-none bg-transparent px-2 text-sm font-bold transition-colors hover:bg-muted/50 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
-						>
-							{months[selectedMonth]}
-						</Select.Trigger>
-						<Select.Content>
-							{#each months as month, i (i)}
-								<Select.Item value={i.toString()} label={month}>{month}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-
-					<div class="mx-0.5 h-4 w-px bg-border"></div>
-
-					<Select.Root
-						type="single"
-						value={selectedYear.toString()}
-						onValueChange={(v) => (selectedYear = parseInt(v))}
-					>
-						<Select.Trigger
-							class="h-8 border-none bg-transparent px-2 text-sm font-bold transition-colors hover:bg-muted/50 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
-						>
-							{selectedYear}
-						</Select.Trigger>
-						<Select.Content>
-							{#each years as year (year)}
-								<Select.Item value={year.toString()} label={year.toString()}>{year}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-
-				{#if selectedMonth !== budgetsNow.getUTCMonth() || selectedYear !== budgetsNow.getUTCFullYear()}
-					<Button
-						variant="ghost"
-						size="sm"
-						onclick={() => {
-							selectedMonth = budgetsNow.getUTCMonth();
-							selectedYear = budgetsNow.getUTCFullYear();
-						}}
-						class="text-[10px] font-bold tracking-widest uppercase"
-					>
-						Reset to Today
-					</Button>
-				{/if}
-			</div>
-
 			<a href="/">
 				<Button variant="outline">Back to Dashboard</Button>
 			</a>
