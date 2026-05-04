@@ -42,11 +42,13 @@
 
 <QueryClientProvider client={data.queryClient}>
 	{#if !isAuthRoute}
-		<div class="mx-auto max-w-7xl px-4 md:px-8">
-			<Header />
+		<div>
+			<div class="mx-auto max-w-7xl px-4 md:px-8">
+				<Header />
+			</div>
 		</div>
 	{/if}
-	<div class="mx-auto max-w-7xl px-4 pb-4 md:px-8 md:pb-8">
+	<div class="mx-auto max-w-7xl px-4 pb-4 pt-4 md:px-8 md:pb-8">
 		{@render children()}
 	</div>
 	<SvelteQueryDevtools initialIsOpen={false} />

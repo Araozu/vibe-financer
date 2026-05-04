@@ -4,7 +4,7 @@
 	import { Calendar, LogOut, Plus, Settings, User } from '@lucide/svelte';
 	import logo from '$lib/assets/plain_icon.svg';
 	import { cn } from '$lib/utils.js';
-	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import CreateTransactionDialog from '$lib/components/transaction/create-transaction-dialog.svelte';
@@ -90,14 +90,14 @@
 	}
 </script>
 
-<header class="w-full border-b border-border/60">
-	<div class="flex flex-col gap-4 py-4">
+<header class="w-full">
+	<div class="flex flex-col gap-4 pt-4">
 		<div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 			<a href="/" class="flex min-w-0 items-center gap-3 transition-opacity hover:opacity-80">
 				<img src={logo} alt="Vibe Financer" class="h-8 w-8" />
 				<div class="min-w-0">
 					<p class="truncate text-sm font-semibold tracking-tight text-foreground">Vibe Financer</p>
-					<p class="truncate text-xs text-muted-foreground">Personal finance operating system</p>
+					<p class="truncate text-xs text-muted-foreground">Diamond hands</p>
 				</div>
 			</a>
 
@@ -163,16 +163,15 @@
 				{/if}
 
 				<CreateTransactionDialog {accounts}>
-					{#snippet trigger()}
-						<div
-							class={cn(
-								buttonVariants({ variant: 'outline', size: 'sm' }),
-								'h-9 rounded-full border-border/60 bg-foreground px-3 text-background shadow-none hover:bg-foreground/90 hover:text-background'
-							)}
+					{#snippet trigger({ props })}
+						<Button
+							{...props}
+							class="text-sm font-medium shadow-none"
+							size="sm"
 						>
 							<Plus class="h-4 w-4" />
-							<span class="hidden sm:inline">Add Transaction</span>
-						</div>
+							<span>Add Transaction</span>
+						</Button>
 					{/snippet}
 				</CreateTransactionDialog>
 

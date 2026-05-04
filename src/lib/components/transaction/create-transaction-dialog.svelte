@@ -9,6 +9,14 @@
 	import type { Transaction } from '$lib/domain/transaction';
 	import type { Snippet } from 'svelte';
 
+	type TriggerSnippet = Snippet<
+		[
+			{
+				props: Record<string, unknown>;
+			}
+		]
+	>;
+
 	// Minimal account type for what this component needs
 	interface AccountLike {
 		id: string;
@@ -25,7 +33,7 @@
 	} = $props<{
 		open?: boolean;
 		accounts: AccountLike[];
-		trigger?: Snippet;
+		trigger?: TriggerSnippet;
 	}>();
 
 	const hasAccounts = $derived(accounts.length > 0);
@@ -57,9 +65,7 @@
 <Dialog.Root bind:open>
 	{#if hasAccounts}
 		{#if trigger}
-			<Dialog.Trigger>
-				{@render trigger()}
-			</Dialog.Trigger>
+			<Dialog.Trigger child={trigger} />
 		{:else}
 			<Dialog.Trigger class={cn(buttonVariants({ size: 'sm' }))}>
 				<Plus class="mr-2 h-4 w-4" />
@@ -69,10 +75,12 @@
 	{:else}
 		<Tooltip.Provider>
 			<Tooltip.Root>
-				<Tooltip.Trigger class={cn(buttonVariants({ size: 'sm' }))} disabled>
-					{#if trigger}
-						{@render trigger()}
-					{:else}
+				<Tooltip.Trigger
+					class={trigger ? undefined : cn(buttonVariants({ size: 'sm' }))}
+					disabled
+					child={trigger}
+				>
+					{#if !trigger}
 						<Plus class="mr-2 h-4 w-4" />
 						Add Transaction
 					{/if}
