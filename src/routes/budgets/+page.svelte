@@ -51,7 +51,12 @@
 	const years = Array.from({ length: 5 }, (_, i) => budgetsNow.getUTCFullYear() - 2 + i);
 
 	const budgetsQuery = createQuery<SerializedBudget[]>(() => ({
-		queryKey: ['budgets', selectedMonth, selectedYear, Intl.DateTimeFormat().resolvedOptions().timeZone],
+		queryKey: [
+			'budgets',
+			selectedMonth,
+			selectedYear,
+			Intl.DateTimeFormat().resolvedOptions().timeZone
+		],
 		queryFn: async () => {
 			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 			return (
@@ -138,7 +143,8 @@
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">Manage Budgets</h1>
 			<p class="text-muted-foreground">
-				Set spending limits for your categories in {months[selectedMonth]} {selectedYear}
+				Set spending limits for your categories in {months[selectedMonth]}
+				{selectedYear}
 			</p>
 		</div>
 		<div class="flex flex-col items-start gap-3 md:items-end">
@@ -357,7 +363,9 @@
 									class="h-3"
 								/>
 								<div class="flex justify-between text-xs text-muted-foreground">
-									<span>{budget.limit > 0 ? Math.round((spent / budget.limit) * 100) : 0}% spent</span>
+									<span
+										>{budget.limit > 0 ? Math.round((spent / budget.limit) * 100) : 0}% spent</span
+									>
 									{#if spent > budget.limit}
 										<span class="font-medium text-rose-500"
 											>Over budget by {budget.currencySymbol ?? '$'}{(
@@ -367,10 +375,7 @@
 										>
 									{:else}
 										<span
-											>{budget.currencySymbol ?? '$'}{(
-												(budget.limit - spent) /
-												100
-											).toFixed(2)} remaining</span
+											>{budget.currencySymbol ?? '$'}{((budget.limit - spent) / 100).toFixed(2)} remaining</span
 										>
 									{/if}
 								</div>

@@ -7,6 +7,7 @@
 	import EditTransactionDialog from './edit-transaction-dialog.svelte';
 	import { cn } from '$lib/utils.js';
 	import type { Transaction } from '$lib/domain/transaction';
+	import type { Snippet } from 'svelte';
 
 	// Minimal account type for what this component needs
 	interface AccountLike {
@@ -17,9 +18,14 @@
 		currencyCode: string;
 	}
 
-	let { open = $bindable(false), accounts = [] } = $props<{
+	let {
+		open = $bindable(false),
+		accounts = [],
+		trigger
+	} = $props<{
 		open?: boolean;
 		accounts: AccountLike[];
+		trigger?: Snippet;
 	}>();
 
 	const hasAccounts = $derived(accounts.length > 0);
@@ -50,16 +56,26 @@
 
 <Dialog.Root bind:open>
 	{#if hasAccounts}
-		<Dialog.Trigger class={cn(buttonVariants({ size: 'sm' }))}>
-			<Plus class="mr-2 h-4 w-4" />
-			Add Transaction
-		</Dialog.Trigger>
+		{#if trigger}
+			<Dialog.Trigger>
+				{@render trigger()}
+			</Dialog.Trigger>
+		{:else}
+			<Dialog.Trigger class={cn(buttonVariants({ size: 'sm' }))}>
+				<Plus class="mr-2 h-4 w-4" />
+				Add Transaction
+			</Dialog.Trigger>
+		{/if}
 	{:else}
 		<Tooltip.Provider>
 			<Tooltip.Root>
 				<Tooltip.Trigger class={cn(buttonVariants({ size: 'sm' }))} disabled>
-					<Plus class="mr-2 h-4 w-4" />
-					Add Transaction
+					{#if trigger}
+						{@render trigger()}
+					{:else}
+						<Plus class="mr-2 h-4 w-4" />
+						Add Transaction
+					{/if}
 				</Tooltip.Trigger>
 				<Tooltip.Content>
 					<p>You need to create an account first</p>

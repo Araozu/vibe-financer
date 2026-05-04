@@ -11,10 +11,20 @@
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import type { Snippet } from 'svelte';
+	import { setDashboardPeriodContext } from '$lib/components/layout/dashboard-period.js';
 
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
 	const isAuthRoute = $derived(page.route.id?.startsWith('/(auth)') ?? false);
+	const dashboardNow = new Date();
+	const dashboardPeriod = $state({
+		month: dashboardNow.getUTCMonth(),
+		year: dashboardNow.getUTCFullYear(),
+		currentMonth: dashboardNow.getUTCMonth(),
+		currentYear: dashboardNow.getUTCFullYear()
+	});
+
+	setDashboardPeriodContext(dashboardPeriod);
 
 	// Register service worker for PWA support
 	onMount(() => {
@@ -31,10 +41,12 @@
 <Toaster />
 
 <QueryClientProvider client={data.queryClient}>
-	<div class="mx-auto max-w-7xl space-y-8 p-4 md:p-8">
-		{#if !isAuthRoute}
+	{#if !isAuthRoute}
+		<div class="mx-auto max-w-7xl px-4 md:px-8">
 			<Header />
-		{/if}
+		</div>
+	{/if}
+	<div class="mx-auto max-w-7xl px-4 pb-4 md:px-8 md:pb-8">
 		{@render children()}
 	</div>
 	<SvelteQueryDevtools initialIsOpen={false} />

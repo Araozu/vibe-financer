@@ -62,9 +62,22 @@
 	}
 
 	const Icon = $derived(getCategoryIcon(tx.category));
+
+	function handleRowKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Enter' && event.key !== ' ') return;
+		event.preventDefault();
+		onEdit(tx);
+	}
 </script>
 
-<Table.Row>
+<Table.Row
+	tabindex={0}
+	role="button"
+	aria-label={`Edit transaction ${tx.name ?? 'Untitled'}`}
+	class="cursor-pointer focus-visible:outline-none focus-visible:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/70"
+	onclick={() => onEdit(tx)}
+	onkeydown={handleRowKeydown}
+>
 	<Table.Cell>
 		<div class="flex items-center gap-3">
 			<div class="rounded-full bg-muted p-2">
@@ -130,7 +143,7 @@
 	</Table.Cell>
 	<Table.Cell>
 		<DropdownMenu.Root>
-			<DropdownMenu.Trigger>
+			<DropdownMenu.Trigger onclick={(event) => event.stopPropagation()}>
 				<Button variant="ghost" size="icon" class="h-8 w-8">
 					<MoreVertical class="h-4 w-4" />
 					<span class="sr-only">Open menu</span>

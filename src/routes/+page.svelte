@@ -23,7 +23,6 @@
 		PiggyBank,
 		Plus,
 		Target,
-		Calendar,
 		CalendarClock,
 		ChevronDown,
 		Pencil,
@@ -32,6 +31,10 @@
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
 	import { DEFAULT_CURRENCY_SYMBOL } from '$lib/domain/currency';
+	import {
+		DASHBOARD_MONTHS,
+		getDashboardPeriodContext
+	} from '$lib/components/layout/dashboard-period.js';
 
 	type SerializedGoal = {
 		id: string;
@@ -95,10 +98,10 @@
 		return blob.includes(queryLower);
 	}
 
-	// Month/Year selection for dashboard
+	const dashboardPeriod = getDashboardPeriodContext();
 	const dashboardNow = new Date();
-	let selectedMonth = $state(dashboardNow.getUTCMonth());
-	let selectedYear = $state(dashboardNow.getUTCFullYear());
+	let selectedMonth = $derived(dashboardPeriod.month);
+	let selectedYear = $derived(dashboardPeriod.year);
 
 	// Query for accounts
 	const accountsQuery = createQuery<SerializedAccount[]>(() => ({
@@ -128,10 +131,17 @@
 
 	// Query for budgets
 	const budgetsQuery = createQuery<SerializedBudget[]>(() => ({
-		queryKey: ['budgets', selectedMonth, selectedYear, Intl.DateTimeFormat().resolvedOptions().timeZone],
+		queryKey: [
+			'budgets',
+			selectedMonth,
+			selectedYear,
+			Intl.DateTimeFormat().resolvedOptions().timeZone
+		],
 		queryFn: async () => {
 			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-			return (await fetch(`/api/budgets?month=${selectedMonth}&year=${selectedYear}&tz=${tz}`)).json();
+			return (
+				await fetch(`/api/budgets?month=${selectedMonth}&year=${selectedYear}&tz=${tz}`)
+			).json();
 		}
 	}));
 
@@ -166,23 +176,6 @@
 
 	let goalDialogOpen = $state(false);
 	let goalAccount = $state<SerializedAccount | null>(null);
-
-	const months = [
-		'January',
-		'February',
-		'March',
-		'April',
-		'May',
-		'June',
-		'July',
-		'August',
-		'September',
-		'October',
-		'November',
-		'December'
-	];
-
-	const years = Array.from({ length: 5 }, (_, i) => dashboardNow.getUTCFullYear() - 2 + i);
 
 	function openGoalDialog(account: SerializedAccount) {
 		goalAccount = account;
@@ -374,7 +367,7 @@
 	let currentBalanceForGoalAccount = $derived.by(() => {
 		if (!accountWithGoal) return 0;
 
-		const initialBalance = initialBalances[accountWithGoal.id] || 0;
+		const initialBalance = initialBalances[accountWithGoal.id] ?? 0;
 		const netChange = transactions
 			.filter(
 				(tx) => tx.accountId === accountWithGoal.id && new Date(tx.createdAt) <= effectiveEndDate
@@ -405,7 +398,7 @@
 		{
 			title: 'Projected (End of Month)',
 			amount: formattedProjectedEndOfMonthBalance,
-			subtitle: `Incl. upcoming · ${months[selectedMonth]}`,
+			subtitle: `Incl. upcoming · ${DASHBOARD_MONTHS[selectedMonth]}`,
 			icon: CalendarClock,
 			color: 'text-savings'
 		},
@@ -443,67 +436,8 @@
 </script>
 
 <svelte:head>
-	<title>Dashboard - {months[selectedMonth]} {selectedYear}</title>
+	<title>Dashboard - {DASHBOARD_MONTHS[selectedMonth]} {selectedYear}</title>
 </svelte:head>
-
-<!-- Summary Grid -->
-<div class="mb-8 flex flex-col items-center justify-between gap-4 md:flex-row">
-	<div class="flex items-center gap-3">
-		<div class="flex h-10 items-center gap-1 rounded-xl border px-2 shadow-sm">
-			<Calendar class="ml-1 h-4 w-4 text-muted-foreground" />
-
-			<Select.Root
-				type="single"
-				value={selectedMonth.toString()}
-				onValueChange={(v) => (selectedMonth = parseInt(v))}
-			>
-				<Select.Trigger
-					class="h-8 border-none bg-transparent px-2 text-sm font-bold transition-colors hover:bg-muted/50 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
-				>
-					{months[selectedMonth]}
-				</Select.Trigger>
-				<Select.Content>
-					{#each months as month, i (i)}
-						<Select.Item value={i.toString()} label={month}>{month}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-
-			<div class="mx-0.5 h-4 w-px bg-border"></div>
-
-			<Select.Root
-				type="single"
-				value={selectedYear.toString()}
-				onValueChange={(v) => (selectedYear = parseInt(v))}
-			>
-				<Select.Trigger
-					class="h-8 border-none bg-transparent px-2 text-sm font-bold transition-colors hover:bg-muted/50 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
-				>
-					{selectedYear}
-				</Select.Trigger>
-				<Select.Content>
-					{#each years as year (year)}
-						<Select.Item value={year.toString()} label={year.toString()}>{year}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-		</div>
-
-		{#if selectedMonth !== dashboardNow.getUTCMonth() || selectedYear !== dashboardNow.getUTCFullYear()}
-			<Button
-				variant="ghost"
-				size="sm"
-				onclick={() => {
-					selectedMonth = dashboardNow.getUTCMonth();
-					selectedYear = dashboardNow.getUTCFullYear();
-				}}
-				class="text-[10px] font-bold tracking-widest uppercase"
-			>
-				Reset to Today
-			</Button>
-		{/if}
-	</div>
-</div>
 
 {#if defaultAccount}
 	<!-- Mobile-only compact summary: keeps focus on the create transaction card -->
