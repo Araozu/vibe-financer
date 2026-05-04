@@ -1,7 +1,8 @@
 import { transactionRepo } from '$lib/infra/repos/transaction.repo';
 import type { Transaction, TransactionType } from '$lib/domain/transaction';
-import { startOfMonth, endOfMonth } from 'date-fns';
-import { fromZonedTime } from 'date-fns-tz';
+import { endOfMonth, endOfWeek, endOfYear, startOfMonth, startOfWeek, startOfYear } from 'date-fns';
+import { fromZonedTime, toZonedTime } from 'date-fns-tz';
+import { budgetRepo } from '$lib/infra/repos/budget.repo';
 
 export type TransactionTimeframe =
 	| 'all'
@@ -17,6 +18,17 @@ export interface TransactionListFilters {
 	category?: string;
 	type?: TransactionType | 'all';
 	timeframe?: TransactionTimeframe;
+}
+
+export interface BudgetPeriodRange {
+	start: Date;
+	end: Date;
+}
+
+export interface BudgetTransactionListOptions {
+	timezone: string;
+	referenceDate: Date;
+	search?: string;
 }
 
 export async function listTransactions(): Promise<Transaction[]> {
@@ -130,8 +142,90 @@ export async function listTransactionsByAccountPaginated(
 	});
 }
 
+export async function listTransactionsByBudgetPeriodPaginated(
+	budgetId: string,
+	userId: string,
+	limit: number,
+	offset: number,
+	options: BudgetTransactionListOptions
+): Promise<{
+	budget: NonNullable<Awaited<ReturnType<typeof budgetRepo.getById>>>;
+	transactions: Transaction[];
+	periodSpent: number;
+	periodStart: Date;
+	periodEnd: Date;
+	hasMore: boolean;
+}> {
+	const budget = await budgetRepo.getById(budgetId);
+	if (!budget || budget.userId !== userId) {
+		throw new Error('Budget not found');
+	}
+
+	const { start, end } = getBudgetPeriodRange(
+		budget.period,
+		options.referenceDate,
+		options.timezone
+	);
+	const transactions = await transactionRepo.findBudgetPeriodTransactionsPaginated({
+		userId,
+		currencyId: budget.currencyId,
+		category: budget.category,
+		start,
+		end,
+		limit,
+		offset,
+		search: options.search
+	});
+	const spentByCategory = await transactionRepo.sumExpensesByCategoryForUser(
+		userId,
+		budget.currencyId,
+		start,
+		end
+	);
+
+	return {
+		budget,
+		transactions,
+		periodSpent: spentByCategory.get(budget.category) ?? 0,
+		periodStart: start,
+		periodEnd: end,
+		hasMore: transactions.length === limit
+	};
+}
+
 export async function listTransactionCategoriesByAccount(accountId: string): Promise<string[]> {
 	return await transactionRepo.findCategoriesByAccountId(accountId);
+}
+
+export function getBudgetPeriodRange(
+	period: 'monthly' | 'weekly' | 'yearly',
+	referenceDate: Date,
+	timezone: string
+): BudgetPeriodRange {
+	const zonedNow = toZonedTime(referenceDate, timezone);
+	let startLocal: Date;
+	let endLocal: Date;
+
+	switch (period) {
+		case 'weekly':
+			startLocal = startOfWeek(zonedNow, { weekStartsOn: 1 });
+			endLocal = endOfWeek(zonedNow, { weekStartsOn: 1 });
+			break;
+		case 'yearly':
+			startLocal = startOfYear(zonedNow);
+			endLocal = endOfYear(zonedNow);
+			break;
+		case 'monthly':
+		default:
+			startLocal = startOfMonth(zonedNow);
+			endLocal = endOfMonth(zonedNow);
+			break;
+	}
+
+	return {
+		start: fromZonedTime(startLocal, timezone),
+		end: fromZonedTime(endLocal, timezone)
+	};
 }
 
 function getDateRangeForTimeframe(timeframe: TransactionTimeframe): {

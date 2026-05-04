@@ -46,7 +46,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			updatedAt:
 				tx.updatedAt instanceof Date
 					? tx.updatedAt.toISOString()
-					: new Date(tx.updatedAt).toISOString()
+					: new Date(tx.updatedAt).toISOString(),
+			deletedAt:
+				tx.deletedAt instanceof Date
+					? tx.deletedAt.toISOString()
+					: tx.deletedAt != null
+						? new Date(tx.deletedAt).toISOString()
+						: null
 		})),
 		categories
 	};

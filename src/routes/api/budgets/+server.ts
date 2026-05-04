@@ -3,37 +3,7 @@ import { transactionRepo } from '$lib/infra/repos/transaction.repo';
 import { createBudget } from '$lib/application/budget/create-budget';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfYear, endOfYear } from 'date-fns';
-import { fromZonedTime, toZonedTime } from 'date-fns-tz';
-
-function getPeriodRange(
-	period: 'monthly' | 'weekly' | 'yearly',
-	now: Date,
-	timezone: string
-): { start: Date; end: Date } {
-	const zonedNow = toZonedTime(now, timezone);
-	let startLocal: Date;
-	let endLocal: Date;
-	switch (period) {
-		case 'weekly':
-			startLocal = startOfWeek(zonedNow, { weekStartsOn: 1 });
-			endLocal = endOfWeek(zonedNow, { weekStartsOn: 1 });
-			break;
-		case 'yearly':
-			startLocal = startOfYear(zonedNow);
-			endLocal = endOfYear(zonedNow);
-			break;
-		case 'monthly':
-		default:
-			startLocal = startOfMonth(zonedNow);
-			endLocal = endOfMonth(zonedNow);
-			break;
-	}
-	return {
-		start: fromZonedTime(startLocal, timezone),
-		end: fromZonedTime(endLocal, timezone)
-	};
-}
+import { getBudgetPeriodRange } from '$lib/application/transaction/list-transactions';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -74,9 +44,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	// For each group, compute spending for the period
 	const periodSpentMap = new Map<string, number>();
+	const periodStartMap = new Map<string, Date>();
+	const periodEndMap = new Map<string, Date>();
 	for (const [key, group] of groupedBudgets) {
 		const [currencyId, period] = key.split('::') as [string, 'monthly' | 'weekly' | 'yearly'];
-		const { start, end } = getPeriodRange(period, referenceDate, timezone);
+		const { start, end } = getBudgetPeriodRange(period, referenceDate, timezone);
 		const spentByCategory = await transactionRepo.sumExpensesByCategoryForUser(
 			locals.user.id,
 			currencyId,
@@ -85,12 +57,16 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		);
 		for (const b of group) {
 			periodSpentMap.set(b.id, spentByCategory.get(b.category) ?? 0);
+			periodStartMap.set(b.id, start);
+			periodEndMap.set(b.id, end);
 		}
 	}
 
 	const result = budgets.map((b) => ({
 		...b,
-		periodSpent: periodSpentMap.get(b.id) ?? 0
+		periodSpent: periodSpentMap.get(b.id) ?? 0,
+		periodStart: periodStartMap.get(b.id)?.toISOString() ?? b.startDate.toISOString(),
+		periodEnd: periodEndMap.get(b.id)?.toISOString() ?? b.startDate.toISOString()
 	}));
 
 	return json(result);

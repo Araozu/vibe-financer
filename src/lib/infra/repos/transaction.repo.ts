@@ -25,6 +25,17 @@ interface TransactionQueryFilters {
 	endDate?: Date;
 }
 
+interface BudgetPeriodTransactionParams {
+	userId: string;
+	currencyId: string;
+	category: string;
+	start: Date;
+	end: Date;
+	limit: number;
+	offset: number;
+	search?: string;
+}
+
 export const transactionRepo = {
 	async create(data: CreateTransactionDTO): Promise<Transaction> {
 		const [result] = await db.insert(transaction).values(data).returning();
@@ -163,6 +174,55 @@ export const transactionRepo = {
 			.orderBy(desc(transaction.createdAt))
 			.limit(limit)
 			.offset(offset);
+	},
+
+	async findBudgetPeriodTransactionsPaginated(
+		params: BudgetPeriodTransactionParams
+	): Promise<Transaction[]> {
+		const conditions = [
+			eq(account.userId, params.userId),
+			eq(account.currencyId, params.currencyId),
+			eq(transaction.type, 'expense'),
+			eq(transaction.category, params.category),
+			isNull(transaction.deletedAt),
+			between(transaction.createdAt, params.start, params.end)
+		];
+
+		const normalizedSearch = params.search?.trim();
+		if (normalizedSearch) {
+			const searchTerm = `%${normalizedSearch}%`;
+			const searchConditions = [
+				ilike(transaction.name, searchTerm),
+				ilike(transaction.description, searchTerm),
+				ilike(transaction.category, searchTerm),
+				ilike(transaction.payee, searchTerm)
+			] as const;
+
+			conditions.push(or(...searchConditions) ?? searchConditions[0]);
+		}
+
+		return await db
+			.select({
+				id: transaction.id,
+				accountId: transaction.accountId,
+				type: transaction.type,
+				amount: transaction.amount,
+				name: transaction.name,
+				description: transaction.description,
+				category: transaction.category,
+				budgetId: transaction.budgetId,
+				payee: transaction.payee,
+				toAccountId: transaction.toAccountId,
+				deletedAt: transaction.deletedAt,
+				createdAt: transaction.createdAt,
+				updatedAt: transaction.updatedAt
+			})
+			.from(transaction)
+			.innerJoin(account, eq(transaction.accountId, account.id))
+			.where(and(...conditions))
+			.orderBy(desc(transaction.createdAt))
+			.limit(params.limit)
+			.offset(params.offset);
 	},
 
 	async findCategoriesByAccountId(accountId: string): Promise<string[]> {
