@@ -18,11 +18,18 @@
 	import EditAccountDialog from '$lib/components/account/edit-account-dialog.svelte';
 	import MtdBalanceChart from '$lib/components/dashboard/mtd-balance-chart.svelte';
 	import type { AccountType } from '$lib/domain/account';
+	import type { Transaction } from '$lib/domain/transaction';
 	import { goto } from '$app/navigation';
 	import {
 		DASHBOARD_MONTHS,
 		getDashboardPeriodContext
 	} from '$lib/components/layout/dashboard-period.js';
+
+	type SerializedTransaction = Omit<Transaction, 'createdAt' | 'updatedAt' | 'deletedAt'> & {
+		createdAt: string;
+		updatedAt: string;
+		deletedAt: string | null;
+	};
 
 	const queryClient = useQueryClient();
 
@@ -64,42 +71,77 @@
 	const categories = $derived(data.categories ?? []);
 	const initialTransactions = $derived(data.initialTransactions ?? []);
 
-	// Chart data query
 	const dashboardPeriod = getDashboardPeriodContext();
 	let chartMonth = $derived(dashboardPeriod.month);
 	let chartYear = $derived(dashboardPeriod.year);
+	const dashboardNow = new Date();
+
+	let isCurrentSelectedMonth = $derived(
+		chartMonth === dashboardPeriod.currentMonth && chartYear === dashboardPeriod.currentYear
+	);
 
 	const chartQuery = createQuery(() => ({
 		queryKey: ['chart-transactions', account.id, chartMonth, chartYear],
 		queryFn: async () => {
 			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 			const res = await fetch(`/api/transactions?month=${chartMonth}&year=${chartYear}&tz=${tz}`);
+			if (!res.ok) {
+				throw new Error('Failed to load account transactions');
+			}
 			return res.json();
 		}
 	}));
 
-	let chartTransactions = $derived(chartQuery.data?.transactions ?? []);
+	let chartTransactions = $derived(
+		(chartQuery.data?.transactions ?? []) as SerializedTransaction[]
+	);
 	let chartInitialBalances = $derived(chartQuery.data?.initialBalances ?? {});
+	let selectedMonthTransactions = $derived(
+		chartTransactions.filter(
+			(tx: SerializedTransaction) => tx.accountId === account.id || tx.toAccountId === account.id
+		)
+	);
+	let selectedMonthTransactionsForSummary = $derived(
+		isCurrentSelectedMonth
+			? selectedMonthTransactions.filter(
+					(tx: SerializedTransaction) => new Date(tx.createdAt) <= dashboardNow
+				)
+			: selectedMonthTransactions
+	);
 
-	// Compute monthly income/expenses from transaction data
 	let monthlyIncome = $derived(
-		initialTransactions
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			.filter((tx: any) => tx.type === 'income')
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			.reduce((sum: number, tx: any) => sum + tx.amount, 0)
+		selectedMonthTransactionsForSummary
+			.filter((tx: SerializedTransaction) => tx.accountId === account.id && tx.type === 'income')
+			.reduce((sum: number, tx: SerializedTransaction) => sum + tx.amount, 0)
 	);
 
 	let monthlyExpenses = $derived(
-		initialTransactions
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			.filter((tx: any) => tx.type === 'expense')
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			.reduce((sum: number, tx: any) => sum + tx.amount, 0)
+		selectedMonthTransactionsForSummary
+			.filter((tx: SerializedTransaction) => tx.accountId === account.id && tx.type === 'expense')
+			.reduce((sum: number, tx: SerializedTransaction) => sum + tx.amount, 0)
 	);
 
 	let monthlyNet = $derived(monthlyIncome - monthlyExpenses);
-	let totalTransactionCount = $derived(initialTransactions.length);
+	let selectedPeriodBalance = $derived(
+		(chartInitialBalances[account.id] ?? 0) +
+			selectedMonthTransactionsForSummary.reduce(
+				(balanceDelta: number, tx: SerializedTransaction) => {
+					if (tx.type === 'income' && tx.accountId === account.id) {
+						return balanceDelta + tx.amount;
+					}
+					if (tx.type === 'expense' && tx.accountId === account.id) {
+						return balanceDelta - tx.amount;
+					}
+					if (tx.type === 'transfer') {
+						if (tx.accountId === account.id) return balanceDelta - tx.amount;
+						if (tx.toAccountId === account.id) return balanceDelta + tx.amount;
+					}
+					return balanceDelta;
+				},
+				0
+			)
+	);
+	let totalTransactionCount = $derived(selectedMonthTransactionsForSummary.length);
 
 	const typeIcons: Record<AccountType, typeof CreditCard> = {
 		asset: CreditCard,
@@ -190,7 +232,7 @@
 		<div class="text-right">
 			<p class="text-xs text-muted-foreground">Current Balance</p>
 			<p class="text-3xl font-bold tracking-tight">
-				{formatAmount(account.currentBalance, account.currencySymbol ?? '$')}
+				{formatAmount(selectedPeriodBalance, account.currencySymbol ?? '$')}
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
