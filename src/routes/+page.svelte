@@ -76,6 +76,25 @@
 	const RECENT_TX_FILTER_ALL = 'all';
 	const RECENT_TX_FILTER_UNCATEGORIZED = '__uncategorized__';
 
+	function transactionMatchesTableFilters(
+		tx: SerializedTransaction,
+		queryLower: string,
+		categoryFilter: string
+	): boolean {
+		if (categoryFilter !== RECENT_TX_FILTER_ALL) {
+			if (categoryFilter === RECENT_TX_FILTER_UNCATEGORIZED) {
+				if (tx.category?.trim()) return false;
+			} else if (tx.category !== categoryFilter) {
+				return false;
+			}
+		}
+		if (!queryLower) return true;
+		const blob = [tx.name, tx.description, tx.payee, tx.category]
+			.map((s) => (s ?? '').toLowerCase())
+			.join('\n');
+		return blob.includes(queryLower);
+	}
+
 	// Month/Year selection for dashboard
 	const dashboardNow = new Date();
 	let selectedMonth = $state(dashboardNow.getUTCMonth());
@@ -227,36 +246,32 @@
 		transactions.filter((tx) => new Date(tx.createdAt) < tomorrowStart)
 	);
 
+	let futureTransactions = $derived(
+		transactions.filter((tx) => new Date(tx.createdAt) >= tomorrowStart)
+	);
+
 	let recentCategorySelectOptions = $derived.by(() => {
 		const seen = new Set<string>();
 		for (const tx of postedTransactions) {
 			const c = tx.category?.trim();
 			if (c) seen.add(c);
 		}
+		for (const tx of futureTransactions) {
+			const c = tx.category?.trim();
+			if (c) seen.add(c);
+		}
 		return [...seen].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 	});
 
-	let postedHasUncategorized = $derived(
-		postedTransactions.some((tx) => !tx.category?.trim())
+	let filterHasUncategorized = $derived(
+		postedTransactions.some((tx) => !tx.category?.trim()) ||
+			futureTransactions.some((tx) => !tx.category?.trim())
 	);
 
 	let recentTransactions = $derived.by(() => {
 		const q = recentTxSearch.trim().toLowerCase();
 		const cat = recentCategoryFilter;
-		const filtered = postedTransactions.filter((tx) => {
-			if (cat !== RECENT_TX_FILTER_ALL) {
-				if (cat === RECENT_TX_FILTER_UNCATEGORIZED) {
-					if (tx.category?.trim()) return false;
-				} else if (tx.category !== cat) {
-					return false;
-				}
-			}
-			if (!q) return true;
-			const blob = [tx.name, tx.description, tx.payee, tx.category]
-				.map((s) => (s ?? '').toLowerCase())
-				.join('\n');
-			return blob.includes(q);
-		});
+		const filtered = postedTransactions.filter((tx) => transactionMatchesTableFilters(tx, q, cat));
 		const sorted = [...filtered].sort(
 			(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 		);
@@ -265,9 +280,17 @@
 		return filtersActive ? sorted.slice(0, 500) : sorted.slice(0, 10);
 	});
 
-	let upcomingTransactions = $derived(
-		transactions.filter((tx) => new Date(tx.createdAt) >= tomorrowStart).slice(0, 10)
-	);
+	let upcomingTransactions = $derived.by(() => {
+		const q = recentTxSearch.trim().toLowerCase();
+		const cat = recentCategoryFilter;
+		const filtered = futureTransactions.filter((tx) => transactionMatchesTableFilters(tx, q, cat));
+		const sorted = [...filtered].sort(
+			(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+		);
+		const filtersActive =
+			recentTxSearch.trim() !== '' || recentCategoryFilter !== RECENT_TX_FILTER_ALL;
+		return filtersActive ? sorted.slice(0, 500) : sorted.slice(0, 10);
+	});
 
 	let defaultAccountTransactions = $derived(
 		defaultAccount ? transactions.filter((tx) => tx.accountId === defaultAccount.id) : []
@@ -693,7 +716,7 @@
 							>You have {transactions.length} transactions recorded.</Card.Description
 						>
 					</div>
-					{#if upcomingTransactions.length > 0}
+					{#if futureTransactions.length > 0}
 						<Collapsible.Trigger
 							class={`${buttonVariants({ variant: 'ghost', size: 'sm' })} h-7 px-2 text-xs text-muted-foreground hover:text-foreground`}
 						>
@@ -733,11 +756,8 @@
 									<Select.Item value={RECENT_TX_FILTER_ALL} label="All categories">
 										All categories
 									</Select.Item>
-									{#if postedHasUncategorized}
-										<Select.Item
-											value={RECENT_TX_FILTER_UNCATEGORIZED}
-											label="Uncategorized"
-										>
+									{#if filterHasUncategorized}
+										<Select.Item value={RECENT_TX_FILTER_UNCATEGORIZED} label="Uncategorized">
 											Uncategorized
 										</Select.Item>
 									{/if}
@@ -758,7 +778,7 @@
 								</Table.Row>
 							</Table.Header>
 							<Table.Body>
-								{#if upcomingTransactions.length > 0}
+								{#if futureTransactions.length > 0}
 									<Table.Row>
 										<Table.Cell colspan={5} class="p-0">
 											<Collapsible.Content>
