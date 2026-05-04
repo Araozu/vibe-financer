@@ -407,7 +407,8 @@
 		<div>
 			<h2 class="text-lg font-bold tracking-tight">Balance History</h2>
 			<p class="text-sm text-muted-foreground">
-				{DASHBOARD_MONTHS[chartMonth]} {chartYear}
+				{DASHBOARD_MONTHS[chartMonth]}
+				{chartYear}
 			</p>
 		</div>
 	</div>

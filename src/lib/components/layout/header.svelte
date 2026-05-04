@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { createQuery } from '@tanstack/svelte-query';
 	import { Calendar, LogOut, Plus, Settings, User } from '@lucide/svelte';
+	import { onMount, tick } from 'svelte';
 	import logo from '$lib/assets/plain_icon.svg';
 	import { cn } from '$lib/utils.js';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
@@ -53,6 +54,11 @@
 		[user?.firstName, user?.lastName].filter((part) => (part ?? '').trim().length > 0).join(' ')
 	);
 	let logoutForm: HTMLFormElement | null = null;
+	let navList: HTMLDivElement | null = null;
+	let navLinkRefs = $state<Record<string, HTMLAnchorElement | null>>({});
+	let navIndicatorLeft = $state(0);
+	let navIndicatorWidth = $state(0);
+	let navIndicatorVisible = $state(false);
 	let userInitials = $derived.by(() => {
 		const namedInitials = userLabel
 			.split(' ')
@@ -87,6 +93,48 @@
 
 		return page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
 	}
+
+	async function syncNavIndicator() {
+		await tick();
+
+		const activeItem = navItems.find((item) => isActive(item.href));
+		const activeLink = activeItem ? navLinkRefs[activeItem.href] : null;
+
+		if (!navList || !activeLink) {
+			navIndicatorVisible = false;
+			return;
+		}
+
+		navIndicatorLeft = activeLink.offsetLeft;
+		navIndicatorWidth = activeLink.offsetWidth;
+		navIndicatorVisible = true;
+	}
+
+	$effect(() => {
+		page.url.pathname;
+		void syncNavIndicator();
+	});
+
+	onMount(() => {
+		const handleResize = () => {
+			void syncNavIndicator();
+		};
+
+		void syncNavIndicator();
+		window.addEventListener('resize', handleResize);
+
+		const resizeObserver =
+			typeof ResizeObserver !== 'undefined' && navList ? new ResizeObserver(handleResize) : null;
+
+		if (resizeObserver && navList) {
+			resizeObserver.observe(navList);
+		}
+
+		return () => {
+			window.removeEventListener('resize', handleResize);
+			resizeObserver?.disconnect();
+		};
+	});
 </script>
 
 <header class="w-full">
@@ -161,11 +209,7 @@
 
 				<CreateTransactionDialog {accounts}>
 					{#snippet trigger({ props })}
-						<Button
-							{...props}
-							class="text-sm font-medium shadow-none"
-							size="sm"
-						>
+						<Button {...props} class="text-sm font-medium shadow-none" size="sm">
 							<Plus class="h-4 w-4" />
 							<span>Add Transaction</span>
 						</Button>
@@ -214,21 +258,28 @@
 		</div>
 
 		<nav class="overflow-x-auto">
-			<div class="flex min-w-max items-center gap-1">
+			<div bind:this={navList} class="relative flex min-w-max items-center gap-1">
 				{#each navItems as item (item.href)}
 					<a
+						bind:this={navLinkRefs[item.href]}
 						href={item.href}
 						aria-current={isActive(item.href) ? 'page' : undefined}
 						class={cn(
-							'inline-flex h-10 items-center border-b-2 px-3 text-sm font-medium transition-colors hover:bg-muted/75',
+							'inline-flex h-10 items-center px-3 text-sm font-medium transition-colors hover:bg-muted/75',
 							isActive(item.href)
-								? 'border-foreground text-foreground'
-								: 'border-transparent text-muted-foreground hover:text-foreground'
+								? 'text-foreground'
+								: 'text-muted-foreground hover:text-foreground'
 						)}
 					>
 						{item.label}
 					</a>
 				{/each}
+
+				<div
+					aria-hidden="true"
+					class="pointer-events-none absolute bottom-0 h-0.5 rounded-full bg-foreground transition-[transform,width,opacity] duration-300 ease-out"
+					style={`transform: translateX(${navIndicatorLeft}px); width: ${navIndicatorWidth}px; opacity: ${navIndicatorVisible ? 1 : 0};`}
+				></div>
 			</div>
 		</nav>
 	</div>
