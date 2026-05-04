@@ -128,10 +128,10 @@
 
 	// Query for budgets
 	const budgetsQuery = createQuery<SerializedBudget[]>(() => ({
-		queryKey: ['budgets'],
+		queryKey: ['budgets', selectedMonth, selectedYear, Intl.DateTimeFormat().resolvedOptions().timeZone],
 		queryFn: async () => {
 			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-			return (await fetch(`/api/budgets?tz=${tz}`)).json();
+			return (await fetch(`/api/budgets?month=${selectedMonth}&year=${selectedYear}&tz=${tz}`)).json();
 		}
 	}));
 

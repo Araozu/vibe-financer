@@ -41,8 +41,27 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	const timezone = url.searchParams.get('tz') ?? 'UTC';
+	const monthParam = url.searchParams.get('month');
+	const yearParam = url.searchParams.get('year');
+
+	if ((monthParam === null) !== (yearParam === null)) {
+		return json({ error: 'month and year must be provided together' }, { status: 400 });
+	}
+
+	let referenceDate = new Date();
+	if (monthParam !== null && yearParam !== null) {
+		const month = parseInt(monthParam);
+		const year = parseInt(yearParam);
+
+		if (!Number.isFinite(month) || !Number.isFinite(year) || month < 0 || month > 11) {
+			return json({ error: 'Invalid month or year' }, { status: 400 });
+		}
+
+		// Use noon UTC to avoid crossing calendar boundaries when converting to the target timezone.
+		referenceDate = new Date(Date.UTC(year, month, 1, 12));
+	}
+
 	const budgets = await budgetRepo.getByUser(locals.user.id);
-	const now = new Date();
 
 	// Group budgets by (currencyId, period) to batch queries
 	const groupedBudgets = new Map<string, typeof budgets>();
@@ -57,7 +76,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const periodSpentMap = new Map<string, number>();
 	for (const [key, group] of groupedBudgets) {
 		const [currencyId, period] = key.split('::') as [string, 'monthly' | 'weekly' | 'yearly'];
-		const { start, end } = getPeriodRange(period, now, timezone);
+		const { start, end } = getPeriodRange(period, referenceDate, timezone);
 		const spentByCategory = await transactionRepo.sumExpensesByCategoryForUser(
 			locals.user.id,
 			currencyId,

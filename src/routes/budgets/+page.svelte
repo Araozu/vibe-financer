@@ -6,19 +6,69 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
-	import { Plus, PiggyBank, Globe, Pencil, Loader2 } from '@lucide/svelte';
+	import { Plus, PiggyBank, Globe, Pencil, Loader2, Calendar } from '@lucide/svelte';
 	import { enhance } from '$app/forms';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { toast } from 'svelte-sonner';
 
+	type SerializedBudget = {
+		id: string;
+		userId: string;
+		category: string;
+		limit: number;
+		currencyId: string;
+		period: 'monthly' | 'weekly' | 'yearly';
+		startDate: string;
+		currentSpent: number;
+		periodSpent: number;
+		createdAt: string;
+		updatedAt: string;
+		currencyCode: string | null;
+		currencySymbol: string | null;
+	};
+
 	const queryClient = useQueryClient();
 
-	const budgetsQuery = createQuery(() => ({
-		queryKey: ['budgets'],
-		queryFn: async () => (await fetch('/api/budgets')).json()
+	const budgetsNow = new Date();
+	let selectedMonth = $state(budgetsNow.getUTCMonth());
+	let selectedYear = $state(budgetsNow.getUTCFullYear());
+
+	const months = [
+		'January',
+		'February',
+		'March',
+		'April',
+		'May',
+		'June',
+		'July',
+		'August',
+		'September',
+		'October',
+		'November',
+		'December'
+	];
+
+	const years = Array.from({ length: 5 }, (_, i) => budgetsNow.getUTCFullYear() - 2 + i);
+
+	const budgetsQuery = createQuery<SerializedBudget[]>(() => ({
+		queryKey: ['budgets', selectedMonth, selectedYear, Intl.DateTimeFormat().resolvedOptions().timeZone],
+		queryFn: async () => {
+			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+			return (
+				await fetch(`/api/budgets?month=${selectedMonth}&year=${selectedYear}&tz=${tz}`)
+			).json();
+		}
 	}));
 
-	let budgets = $derived(budgetsQuery.data ?? []);
+	let budgets = $derived(
+		[...(budgetsQuery.data ?? [])].sort((a, b) => {
+			const byCategory = a.category.localeCompare(b.category, undefined, {
+				sensitivity: 'base'
+			});
+			if (byCategory !== 0) return byCategory;
+			return a.id.localeCompare(b.id);
+		})
+	);
 
 	let isSubmitting = $state(false);
 
@@ -79,15 +129,79 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Budgets - {months[selectedMonth]} {selectedYear}</title>
+</svelte:head>
+
 <div class="container mx-auto py-8">
-	<div class="mb-8 flex items-center justify-between">
+	<div class="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">Manage Budgets</h1>
-			<p class="text-muted-foreground">Set spending limits for your categories</p>
+			<p class="text-muted-foreground">
+				Set spending limits for your categories in {months[selectedMonth]} {selectedYear}
+			</p>
 		</div>
-		<a href="/">
-			<Button variant="outline">Back to Dashboard</Button>
-		</a>
+		<div class="flex flex-col items-start gap-3 md:items-end">
+			<div class="flex items-center gap-3">
+				<div class="flex h-10 items-center gap-1 rounded-xl border px-2 shadow-sm">
+					<Calendar class="ml-1 h-4 w-4 text-muted-foreground" />
+
+					<Select.Root
+						type="single"
+						value={selectedMonth.toString()}
+						onValueChange={(v) => (selectedMonth = parseInt(v))}
+					>
+						<Select.Trigger
+							class="h-8 border-none bg-transparent px-2 text-sm font-bold transition-colors hover:bg-muted/50 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
+						>
+							{months[selectedMonth]}
+						</Select.Trigger>
+						<Select.Content>
+							{#each months as month, i (i)}
+								<Select.Item value={i.toString()} label={month}>{month}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+
+					<div class="mx-0.5 h-4 w-px bg-border"></div>
+
+					<Select.Root
+						type="single"
+						value={selectedYear.toString()}
+						onValueChange={(v) => (selectedYear = parseInt(v))}
+					>
+						<Select.Trigger
+							class="h-8 border-none bg-transparent px-2 text-sm font-bold transition-colors hover:bg-muted/50 focus:ring-0 focus:outline-none data-[placeholder]:text-foreground"
+						>
+							{selectedYear}
+						</Select.Trigger>
+						<Select.Content>
+							{#each years as year (year)}
+								<Select.Item value={year.toString()} label={year.toString()}>{year}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+
+				{#if selectedMonth !== budgetsNow.getUTCMonth() || selectedYear !== budgetsNow.getUTCFullYear()}
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={() => {
+							selectedMonth = budgetsNow.getUTCMonth();
+							selectedYear = budgetsNow.getUTCFullYear();
+						}}
+						class="text-[10px] font-bold tracking-widest uppercase"
+					>
+						Reset to Today
+					</Button>
+				{/if}
+			</div>
+
+			<a href="/">
+				<Button variant="outline">Back to Dashboard</Button>
+			</a>
+		</div>
 	</div>
 
 	<div class="grid gap-8 lg:grid-cols-3">
@@ -203,6 +317,7 @@
 				</div>
 			{:else}
 				{#each budgets as budget (budget.id)}
+					{@const spent = budget.periodSpent}
 					<Card.Root>
 						<Card.Content class="pt-6">
 							<div class="mb-4 flex items-start justify-between gap-4">
@@ -227,7 +342,7 @@
 									</Button>
 									<div class="text-right">
 										<div class="text-sm font-medium">
-											{budget.currencySymbol ?? '$'}{(budget.currentSpent / 100).toFixed(2)} /
+											{budget.currencySymbol ?? '$'}{(spent / 100).toFixed(2)} /
 											<span class="text-lg font-bold"
 												>{budget.currencySymbol ?? '$'}{(budget.limit / 100).toFixed(2)}</span
 											>
@@ -238,22 +353,22 @@
 
 							<div class="space-y-2">
 								<Progress
-									value={Math.min((budget.currentSpent / budget.limit) * 100, 100)}
+									value={budget.limit > 0 ? Math.min((spent / budget.limit) * 100, 100) : 0}
 									class="h-3"
 								/>
 								<div class="flex justify-between text-xs text-muted-foreground">
-									<span>{Math.round((budget.currentSpent / budget.limit) * 100)}% spent</span>
-									{#if budget.currentSpent > budget.limit}
+									<span>{budget.limit > 0 ? Math.round((spent / budget.limit) * 100) : 0}% spent</span>
+									{#if spent > budget.limit}
 										<span class="font-medium text-rose-500"
 											>Over budget by {budget.currencySymbol ?? '$'}{(
-												(budget.currentSpent - budget.limit) /
+												(spent - budget.limit) /
 												100
 											).toFixed(2)}</span
 										>
 									{:else}
 										<span
 											>{budget.currencySymbol ?? '$'}{(
-												(budget.limit - budget.currentSpent) /
+												(budget.limit - spent) /
 												100
 											).toFixed(2)} remaining</span
 										>
