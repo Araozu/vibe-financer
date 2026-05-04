@@ -122,7 +122,14 @@
 	let accounts = $derived(accountsQuery.data ?? []);
 	let transactions = $derived(transactionsQuery.data?.transactions ?? []);
 	let initialBalances = $derived(transactionsQuery.data?.initialBalances ?? {});
-	let budgets = $derived(budgetsQuery.data ?? []);
+	let budgets = $derived(
+		[...(budgetsQuery.data ?? [])].sort((a, b) => {
+			if (a.limit !== b.limit) return a.limit - b.limit;
+			const byCat = a.category.localeCompare(b.category, undefined, { sensitivity: 'base' });
+			if (byCat !== 0) return byCat;
+			return a.id.localeCompare(b.id);
+		})
+	);
 	let defaultAccountId = $derived(userQuery.data?.defaultAccountId ?? null);
 	let defaultAccount = $derived(accounts.find((a) => a.id === defaultAccountId) ?? null);
 
