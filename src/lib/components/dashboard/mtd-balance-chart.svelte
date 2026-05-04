@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { SvelteMap, SvelteDate, SvelteSet } from 'svelte/reactivity';
-	import { LineChart } from 'layerchart';
+	import { LineChart, Spline } from 'layerchart';
 	import { scaleTime } from 'd3-scale';
 	import { curveMonotoneX } from 'd3-shape';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -243,7 +243,20 @@
 						},
 						highlight: { points: { r: 3.5 } }
 					}}
-				/>
+				>
+					{#snippet spline({ props: splineProps })}
+						{@const todayKey = toLocalDateKey(new Date())}
+						<Spline
+							{...splineProps}
+							defined={(d: { date: Date }) => toLocalDateKey(d.date) <= todayKey}
+						/>
+						<Spline
+							{...splineProps}
+							defined={(d: { date: Date }) => toLocalDateKey(d.date) >= todayKey}
+							stroke-dasharray="6 4"
+						/>
+					{/snippet}
+				</LineChart>
 			</Chart.Container>
 
 			<div class="flex flex-wrap items-center gap-2">
