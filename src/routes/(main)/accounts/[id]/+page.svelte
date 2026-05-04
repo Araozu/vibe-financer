@@ -135,6 +135,7 @@
 		startDate: string;
 		endDate: string;
 		category: string;
+		accountId: string;
 	}) {
 		const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 		const queryParams = [
@@ -301,4 +302,5 @@
 	queryKeyBase={['accounts', account.id]}
 	fetchPage={fetchTransactionPage}
 	invalidateQueryKeys={[['accounts'], ['budgets']]}
+	showAccountFilter={false}
 />

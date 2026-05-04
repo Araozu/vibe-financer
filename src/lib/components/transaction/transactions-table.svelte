@@ -14,6 +14,7 @@
 		ChevronLeft,
 		ChevronRight,
 		Loader2,
+		Wallet,
 		Search,
 		X
 	} from '@lucide/svelte';
@@ -79,6 +80,7 @@
 		showTypeFilter = true,
 		showTimeframeFilter = true,
 		showCategoryFilter = true,
+		showAccountFilter = true,
 		emptyMessage = 'No transactions found.',
 		filteredEmptyMessage = 'No transactions match the current filters.'
 	}: {
@@ -95,11 +97,13 @@
 			startDate: string;
 			endDate: string;
 			category: string;
+			accountId: string;
 		}) => Promise<TransactionPage>;
 		invalidateQueryKeys?: unknown[][];
 		showTypeFilter?: boolean;
 		showTimeframeFilter?: boolean;
 		showCategoryFilter?: boolean;
+		showAccountFilter?: boolean;
 		emptyMessage?: string;
 		filteredEmptyMessage?: string;
 	} = $props();
@@ -112,6 +116,7 @@
 	let selectedDateRange = $state<DateRange | undefined>();
 	let selectedDatePreset = $state<DatePresetValue>('all');
 	let selectedCategory = $state('');
+	let selectedAccountId = $state('');
 	let deletingTransactionId = $state<string | null>(null);
 	let editingTransaction = $state<SerializedTransaction | null>(null);
 	let editDialogOpen = $state(false);
@@ -144,13 +149,22 @@
 		showTimeframeFilter ? (selectedDateRange?.end?.toString() ?? '') : ''
 	);
 	const activeCategory = $derived(showCategoryFilter ? selectedCategory : '');
+	const activeAccountId = $derived(showAccountFilter ? selectedAccountId : '');
 	const filtersKey = $derived(
-		[activeTypeFilter, activeStartDate, activeEndDate, activeCategory, debouncedSearch].join('::')
+		[
+			activeTypeFilter,
+			activeStartDate,
+			activeEndDate,
+			activeCategory,
+			activeAccountId,
+			debouncedSearch
+		].join('::')
 	);
 	const hasActiveFilters = $derived(
 		searchQuery.trim().length > 0 ||
 			(showTimeframeFilter && (activeStartDate !== '' || activeEndDate !== '')) ||
 			(showCategoryFilter && selectedCategory !== '') ||
+			(showAccountFilter && selectedAccountId !== '') ||
 			(showTypeFilter && txFilter !== 'all')
 	);
 	let previousFiltersKey = $state('');
@@ -172,6 +186,7 @@
 			activeStartDate,
 			activeEndDate,
 			activeCategory,
+			activeAccountId,
 			debouncedSearch
 		],
 		queryFn: () =>
@@ -182,7 +197,8 @@
 				type: activeTypeFilter,
 				startDate: activeStartDate,
 				endDate: activeEndDate,
-				category: activeCategory
+				category: activeCategory,
+				accountId: activeAccountId
 			}),
 		placeholderData: (previousData: TransactionPage | undefined) => previousData
 	}));
@@ -208,6 +224,7 @@
 		selectedDateRange = undefined;
 		selectedDatePreset = 'all';
 		selectedCategory = '';
+		selectedAccountId = '';
 		txFilter = 'all';
 	}
 
@@ -367,7 +384,7 @@
 				/>
 			</div>
 
-			{#if showTimeframeFilter || showCategoryFilter}
+			{#if showTimeframeFilter || showCategoryFilter || showAccountFilter}
 				<div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap lg:justify-end">
 					{#if showTimeframeFilter}
 						<Popover.Root bind:open={datePopoverOpen}>
@@ -423,6 +440,48 @@
 								{#each categories as category (category)}
 									<Select.Item value={category} label={category}>
 										{category}
+									</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					{/if}
+
+					{#if showAccountFilter}
+						<Select.Root type="single" bind:value={selectedAccountId}>
+							<Select.Trigger class="w-full sm:w-[190px]">
+								{#if selectedAccountId}
+									{@const selectedAccount = accountById.get(selectedAccountId)}
+									<span class="flex min-w-0 items-center gap-2">
+										<span
+											class="h-2.5 w-2.5 shrink-0 rounded-full"
+											style="background-color: {selectedAccount?.color ??
+												'var(--muted-foreground)'}"
+										></span>
+										<span class="truncate">{selectedAccount?.name ?? 'Account'}</span>
+									</span>
+								{:else}
+									<span class="flex min-w-0 items-center gap-2">
+										<Wallet class="h-4 w-4 shrink-0 text-muted-foreground" />
+										<span class="truncate">All accounts</span>
+									</span>
+								{/if}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="" label="All accounts">
+									<span class="flex items-center gap-2">
+										<Wallet class="h-4 w-4 text-muted-foreground" />
+										All accounts
+									</span>
+								</Select.Item>
+								{#each accounts as account (account.id)}
+									<Select.Item value={account.id} label={account.name}>
+										<span class="flex items-center gap-2">
+											<span
+												class="h-2.5 w-2.5 rounded-full"
+												style="background-color: {account.color}"
+											></span>
+											{account.name}
+										</span>
 									</Select.Item>
 								{/each}
 							</Select.Content>

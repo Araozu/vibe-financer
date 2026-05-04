@@ -31,6 +31,7 @@ export interface BudgetTransactionListOptions {
 	timezone: string;
 	referenceDate: Date;
 	search?: string;
+	accountId?: string;
 }
 
 export async function listTransactions(): Promise<Transaction[]> {
@@ -179,7 +180,8 @@ export async function listTransactionsByBudgetPeriodPaginated(
 		end,
 		limit,
 		offset,
-		search: options.search
+		search: options.search,
+		accountId: options.accountId
 	});
 	const spentByCategory = await transactionRepo.sumExpensesByCategoryForUser(
 		userId,

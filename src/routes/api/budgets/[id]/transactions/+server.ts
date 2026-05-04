@@ -55,7 +55,8 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 			{
 				timezone: url.searchParams.get('tz') ?? 'UTC',
 				referenceDate,
-				search: url.searchParams.get('search')?.trim() ?? ''
+				search: url.searchParams.get('search')?.trim() ?? '',
+				accountId: url.searchParams.get('accountId')?.trim() ?? ''
 			}
 		);
 

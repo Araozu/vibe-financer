@@ -45,7 +45,23 @@
 		selectedYear?: number;
 	} = $props();
 
-	let activeAccountIds = $state(new SvelteSet(accounts.map((a) => a.id)));
+	let activeAccountIds = $state(new SvelteSet<string>());
+
+	$effect(() => {
+		const accountIds = new Set(accounts.map((account) => account.id));
+
+		for (const account of accounts) {
+			if (!activeAccountIds.has(account.id)) {
+				activeAccountIds.add(account.id);
+			}
+		}
+
+		for (const accountId of activeAccountIds) {
+			if (!accountIds.has(accountId)) {
+				activeAccountIds.delete(accountId);
+			}
+		}
+	});
 
 	function toggleAccount(accountId: string) {
 		if (activeAccountIds.has(accountId)) {
@@ -225,7 +241,6 @@
 					axis={true}
 					series={chartSeries}
 					props={{
-						spline: { curve: curveMonotoneX, motion: 'tween', strokeWidth: 2.5 },
 						xAxis: {
 							format: (value: Date) => formatDayTick(value)
 						},
@@ -244,17 +259,25 @@
 						highlight: { points: { r: 3.5 } }
 					}}
 				>
-					{#snippet spline({ props: splineProps })}
+					{#snippet marks({ context }: { context: any })}
 						{@const todayKey = toLocalDateKey(new Date())}
-						<Spline
-							{...splineProps}
-							defined={(d: { date: Date }) => toLocalDateKey(d.date) <= todayKey}
-						/>
-						<Spline
-							{...splineProps}
-							defined={(d: { date: Date }) => toLocalDateKey(d.date) >= todayKey}
-							stroke-dasharray="6 4"
-						/>
+						{#each context.series.visibleSeries as series (series.key)}
+							<Spline
+								seriesKey={series.key}
+								curve={curveMonotoneX}
+								motion="tween"
+								strokeWidth={2.5}
+								defined={(d: { date: Date }) => toLocalDateKey(d.date) <= todayKey}
+							/>
+							<Spline
+								seriesKey={series.key}
+								curve={curveMonotoneX}
+								motion="tween"
+								strokeWidth={2.5}
+								defined={(d: { date: Date }) => toLocalDateKey(d.date) >= todayKey}
+								stroke-dasharray="6 4"
+							/>
+						{/each}
 					{/snippet}
 				</LineChart>
 			</Chart.Container>

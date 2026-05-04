@@ -101,6 +101,11 @@
 		limit: number;
 		offset: number;
 		search: string;
+		type: 'all' | 'income' | 'expense' | 'transfer';
+		startDate: string;
+		endDate: string;
+		category: string;
+		accountId: string;
 	}) {
 		const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 		const queryParams = [
@@ -109,7 +114,8 @@
 			`month=${encodeURIComponent(selectedMonth.toString())}`,
 			`year=${encodeURIComponent(selectedYear.toString())}`,
 			`tz=${encodeURIComponent(tz)}`,
-			...(params.search ? [`search=${encodeURIComponent(params.search)}`] : [])
+			...(params.search ? [`search=${encodeURIComponent(params.search)}`] : []),
+			...(params.accountId ? [`accountId=${encodeURIComponent(params.accountId)}`] : [])
 		].join('&');
 
 		const res = await fetch(`/api/budgets/${visibleBudget.id}/transactions?${queryParams}`);
@@ -244,7 +250,7 @@
 		showTimeframeFilter={true}
 		showCategoryFilter={false}
 		emptyMessage="No transactions counted toward this budget for this period."
-		filteredEmptyMessage="No transactions counted toward this budget match the current search."
+		filteredEmptyMessage="No transactions counted toward this budget match the current filters."
 	/>
 </div>
 

@@ -34,6 +34,7 @@ interface BudgetPeriodTransactionParams {
 	limit: number;
 	offset: number;
 	search?: string;
+	accountId?: string;
 }
 
 export const transactionRepo = {
@@ -199,6 +200,11 @@ export const transactionRepo = {
 			] as const;
 
 			conditions.push(or(...searchConditions) ?? searchConditions[0]);
+		}
+
+		const normalizedAccountId = params.accountId?.trim();
+		if (normalizedAccountId) {
+			conditions.push(eq(transaction.accountId, normalizedAccountId));
 		}
 
 		return await db
