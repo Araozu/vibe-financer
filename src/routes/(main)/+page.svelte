@@ -75,8 +75,6 @@
 		currencySymbol: string | null;
 	};
 
-	let { data: _data } = $props();
-
 	const RECENT_TX_FILTER_ALL = 'all';
 	const RECENT_TX_FILTER_UNCATEGORIZED = '__uncategorized__';
 
