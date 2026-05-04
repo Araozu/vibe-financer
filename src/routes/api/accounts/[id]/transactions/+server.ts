@@ -6,6 +6,7 @@ import {
 } from '$lib/application/transaction/list-transactions';
 import { getAccountState } from '$lib/application/account/list-accounts';
 import type { TransactionType } from '$lib/domain/transaction';
+import { fromZonedTime } from 'date-fns-tz';
 
 export const GET: RequestHandler = async ({ params, url, locals }) => {
 	if (!locals.user) {
@@ -31,6 +32,9 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 	const category = url.searchParams.get('category')?.trim() ?? '';
 	const requestedType = url.searchParams.get('type') ?? 'all';
 	const requestedTimeframe = url.searchParams.get('timeframe') ?? 'all';
+	const timezone = url.searchParams.get('tz') ?? 'UTC';
+	const startDate = parseDateBoundary(url.searchParams.get('startDate'), timezone, 'start');
+	const endDate = parseDateBoundary(url.searchParams.get('endDate'), timezone, 'end');
 
 	const type =
 		requestedType === 'income' ||
@@ -63,7 +67,9 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 		search,
 		category,
 		type,
-		timeframe
+		timeframe,
+		startDate,
+		endDate
 	});
 
 	return json({
@@ -77,3 +83,40 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 		hasMore: transactions.length === limit
 	});
 };
+
+function parseDateBoundary(
+	value: string | null,
+	timezone: string,
+	boundary: 'start' | 'end'
+): Date | undefined {
+	if (!value) return undefined;
+
+	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+	if (!match) return undefined;
+
+	const year = Number.parseInt(match[1] ?? '', 10);
+	const month = Number.parseInt(match[2] ?? '', 10);
+	const day = Number.parseInt(match[3] ?? '', 10);
+	if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+		return undefined;
+	}
+
+	const localDate =
+		boundary === 'start'
+			? new Date(year, month - 1, day, 0, 0, 0, 0)
+			: new Date(year, month - 1, day, 23, 59, 59, 999);
+
+	if (
+		localDate.getFullYear() !== year ||
+		localDate.getMonth() !== month - 1 ||
+		localDate.getDate() !== day
+	) {
+		return undefined;
+	}
+
+	try {
+		return fromZonedTime(localDate, timezone);
+	} catch {
+		return fromZonedTime(localDate, 'UTC');
+	}
+}

@@ -132,14 +132,18 @@
 		offset: number;
 		search: string;
 		type: 'all' | 'income' | 'expense' | 'transfer';
-		timeframe: string;
+		startDate: string;
+		endDate: string;
 		category: string;
 	}) {
+		const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 		const queryParams = [
 			`limit=${encodeURIComponent(params.limit.toString())}`,
 			`offset=${encodeURIComponent(params.offset.toString())}`,
 			`type=${encodeURIComponent(params.type)}`,
-			`timeframe=${encodeURIComponent(params.timeframe)}`,
+			`tz=${encodeURIComponent(tz)}`,
+			...(params.startDate ? [`startDate=${encodeURIComponent(params.startDate)}`] : []),
+			...(params.endDate ? [`endDate=${encodeURIComponent(params.endDate)}`] : []),
 			...(params.search ? [`search=${encodeURIComponent(params.search)}`] : []),
 			...(params.category ? [`category=${encodeURIComponent(params.category)}`] : [])
 		].join('&');

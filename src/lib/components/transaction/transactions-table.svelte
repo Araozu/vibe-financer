@@ -3,14 +3,25 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import * as Popover from '$lib/components/ui/popover/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { ChevronLeft, ChevronRight, Loader2, Search, X } from '@lucide/svelte';
+	import RangeCalendar from '$lib/components/ui/range-calendar/range-calendar.svelte';
+	import {
+		CalendarDays,
+		ChevronDown,
+		ChevronLeft,
+		ChevronRight,
+		Loader2,
+		Search,
+		X
+	} from '@lucide/svelte';
 	import TransactionRow from '$lib/components/transaction/transaction-row.svelte';
 	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
-	import type { TransactionTimeframe } from '$lib/application/transaction/list-transactions';
 	import { toast } from 'svelte-sonner';
+	import { CalendarDate, getLocalTimeZone, today } from '@internationalized/date';
+	import type { DateRange } from 'bits-ui';
 
 	export type SerializedTransaction = {
 		id: string;
@@ -43,9 +54,19 @@
 	};
 
 	type TransactionTypeFilter = 'all' | 'income' | 'expense' | 'transfer';
+	type DatePresetValue =
+		| 'all'
+		| '7d'
+		| '30d'
+		| '90d'
+		| 'this-month'
+		| 'last-month'
+		| 'this-year'
+		| 'custom';
 
 	const queryClient = useQueryClient();
 	const limit = 50;
+	const localTimeZone = getLocalTimeZone();
 
 	let {
 		title = 'Transactions',
@@ -71,7 +92,8 @@
 			offset: number;
 			search: string;
 			type: TransactionTypeFilter;
-			timeframe: TransactionTimeframe;
+			startDate: string;
+			endDate: string;
 			category: string;
 		}) => Promise<TransactionPage>;
 		invalidateQueryKeys?: unknown[][];
@@ -86,7 +108,9 @@
 	let txFilter = $state<TransactionTypeFilter>('all');
 	let searchQuery = $state('');
 	let debouncedSearch = $state('');
-	let selectedTimeframe = $state<TransactionTimeframe>('all');
+	let datePopoverOpen = $state(false);
+	let selectedDateRange = $state<DateRange | undefined>();
+	let selectedDatePreset = $state<DatePresetValue>('all');
 	let selectedCategory = $state('');
 	let deletingTransactionId = $state<string | null>(null);
 	let editingTransaction = $state<SerializedTransaction | null>(null);
@@ -102,7 +126,7 @@
 		return () => clearTimeout(timer);
 	});
 
-	const timeframeOptions: { value: TransactionTimeframe; label: string }[] = [
+	const datePresets: { value: Exclude<DatePresetValue, 'custom'>; label: string }[] = [
 		{ value: 'all', label: 'All time' },
 		{ value: '7d', label: 'Last 7 days' },
 		{ value: '30d', label: 'Last 30 days' },
@@ -113,14 +137,19 @@
 	];
 
 	const activeTypeFilter = $derived(showTypeFilter ? txFilter : 'all');
-	const activeTimeframe = $derived(showTimeframeFilter ? selectedTimeframe : 'all');
+	const activeStartDate = $derived(
+		showTimeframeFilter ? (selectedDateRange?.start?.toString() ?? '') : ''
+	);
+	const activeEndDate = $derived(
+		showTimeframeFilter ? (selectedDateRange?.end?.toString() ?? '') : ''
+	);
 	const activeCategory = $derived(showCategoryFilter ? selectedCategory : '');
 	const filtersKey = $derived(
-		[activeTypeFilter, activeTimeframe, activeCategory, debouncedSearch].join('::')
+		[activeTypeFilter, activeStartDate, activeEndDate, activeCategory, debouncedSearch].join('::')
 	);
 	const hasActiveFilters = $derived(
 		searchQuery.trim().length > 0 ||
-			(showTimeframeFilter && selectedTimeframe !== 'all') ||
+			(showTimeframeFilter && (activeStartDate !== '' || activeEndDate !== '')) ||
 			(showCategoryFilter && selectedCategory !== '') ||
 			(showTypeFilter && txFilter !== 'all')
 	);
@@ -140,7 +169,8 @@
 			'transactions',
 			offset,
 			activeTypeFilter,
-			activeTimeframe,
+			activeStartDate,
+			activeEndDate,
 			activeCategory,
 			debouncedSearch
 		],
@@ -150,7 +180,8 @@
 				offset,
 				search: debouncedSearch,
 				type: activeTypeFilter,
-				timeframe: activeTimeframe,
+				startDate: activeStartDate,
+				endDate: activeEndDate,
 				category: activeCategory
 			}),
 		placeholderData: (previousData: TransactionPage | undefined) => previousData
@@ -174,10 +205,83 @@
 
 	function clearFilters() {
 		searchQuery = '';
-		selectedTimeframe = 'all';
+		selectedDateRange = undefined;
+		selectedDatePreset = 'all';
 		selectedCategory = '';
 		txFilter = 'all';
 	}
+
+	function formatCalendarDate(date: DateRange['start']) {
+		return date?.toDate(localTimeZone).toLocaleDateString() ?? '';
+	}
+
+	function getDateFilterLabel() {
+		if (!selectedDateRange?.start && !selectedDateRange?.end) return 'All time';
+		if (selectedDateRange.start && selectedDateRange.end) {
+			return `${formatCalendarDate(selectedDateRange.start)} - ${formatCalendarDate(selectedDateRange.end)}`;
+		}
+
+		return selectedDateRange.start
+			? `From ${formatCalendarDate(selectedDateRange.start)}`
+			: `Until ${formatCalendarDate(selectedDateRange.end)}`;
+	}
+
+	function getLastMonthRange(todayDate: CalendarDate) {
+		const month = todayDate.month === 1 ? 12 : todayDate.month - 1;
+		const year = todayDate.month === 1 ? todayDate.year - 1 : todayDate.year;
+		const start = new CalendarDate(year, month, 1);
+
+		return {
+			start,
+			end: start.add({ months: 1, days: -1 })
+		};
+	}
+
+	function getPresetDateRange(preset: DatePresetValue): DateRange | undefined {
+		const todayDate = today(localTimeZone);
+
+		switch (preset) {
+			case '7d':
+				return { start: todayDate.add({ days: -6 }), end: todayDate };
+			case '30d':
+				return { start: todayDate.add({ days: -29 }), end: todayDate };
+			case '90d':
+				return { start: todayDate.add({ days: -89 }), end: todayDate };
+			case 'this-month':
+				return { start: new CalendarDate(todayDate.year, todayDate.month, 1), end: todayDate };
+			case 'last-month':
+				return getLastMonthRange(todayDate);
+			case 'this-year':
+				return { start: new CalendarDate(todayDate.year, 1, 1), end: todayDate };
+			default:
+				return undefined;
+		}
+	}
+
+	function selectDatePreset(preset: DatePresetValue) {
+		selectedDatePreset = preset;
+		selectedDateRange = getPresetDateRange(preset);
+		if (preset === 'all') {
+			datePopoverOpen = false;
+		}
+	}
+
+	$effect(() => {
+		if (!selectedDateRange?.start && !selectedDateRange?.end) {
+			selectedDatePreset = 'all';
+			return;
+		}
+
+		const matchingPreset = datePresets.find((preset) => {
+			const presetRange = getPresetDateRange(preset.value);
+			return (
+				presetRange?.start?.toString() === selectedDateRange?.start?.toString() &&
+				presetRange?.end?.toString() === selectedDateRange?.end?.toString()
+			);
+		});
+
+		selectedDatePreset = matchingPreset?.value ?? 'custom';
+	});
 
 	function openEditDialog(tx: SerializedTransaction) {
 		editingTransaction = tx;
@@ -266,19 +370,47 @@
 			{#if showTimeframeFilter || showCategoryFilter}
 				<div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap lg:justify-end">
 					{#if showTimeframeFilter}
-						<Select.Root type="single" bind:value={selectedTimeframe}>
-							<Select.Trigger class="w-full sm:w-[170px]">
-								{timeframeOptions.find((option) => option.value === selectedTimeframe)?.label ??
-									'All time'}
-							</Select.Trigger>
-							<Select.Content>
-								{#each timeframeOptions as option (option.value)}
-									<Select.Item value={option.value} label={option.label}>
-										{option.label}
-									</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
+						<Popover.Root bind:open={datePopoverOpen}>
+							<Popover.Trigger>
+								{#snippet child({ props })}
+									<Button
+										{...props}
+										variant="outline"
+										class="w-full justify-between font-normal sm:w-[260px]"
+									>
+										<span class="flex min-w-0 items-center gap-2">
+											<CalendarDays class="h-4 w-4 shrink-0 text-muted-foreground" />
+											<span class="truncate">{getDateFilterLabel()}</span>
+										</span>
+										<ChevronDown class="h-4 w-4 shrink-0 text-muted-foreground" />
+									</Button>
+								{/snippet}
+							</Popover.Trigger>
+							<Popover.Content class="w-auto overflow-hidden p-0" align="start">
+								<div class="flex flex-col">
+									<RangeCalendar
+										bind:value={selectedDateRange}
+										captionLayout="dropdown"
+										numberOfMonths={2}
+										pagedNavigation
+										class="bg-transparent"
+									/>
+									<div class="grid grid-cols-2 gap-2 border-t p-3 sm:grid-cols-4">
+										{#each datePresets as preset (preset.value)}
+											<Button
+												type="button"
+												variant={selectedDatePreset === preset.value ? 'default' : 'outline'}
+												size="sm"
+												class="justify-center"
+												onclick={() => selectDatePreset(preset.value)}
+											>
+												{preset.label}
+											</Button>
+										{/each}
+									</div>
+								</div>
+							</Popover.Content>
+						</Popover.Root>
 					{/if}
 
 					{#if showCategoryFilter}

@@ -18,6 +18,8 @@ export interface TransactionListFilters {
 	category?: string;
 	type?: TransactionType | 'all';
 	timeframe?: TransactionTimeframe;
+	startDate?: Date;
+	endDate?: Date;
 }
 
 export interface BudgetPeriodRange {
@@ -121,7 +123,10 @@ export async function listTransactionsByAccountPaginated(
 	const normalizedSearch = filters?.search?.trim();
 	const normalizedCategory = filters?.category?.trim();
 	const normalizedType = filters?.type && filters.type !== 'all' ? filters.type : undefined;
-	const dateRange = getDateRangeForTimeframe(filters?.timeframe ?? 'all');
+	const dateRange =
+		filters?.startDate || filters?.endDate
+			? { startDate: filters.startDate, endDate: filters.endDate }
+			: getDateRangeForTimeframe(filters?.timeframe ?? 'all');
 
 	if (
 		!normalizedSearch &&

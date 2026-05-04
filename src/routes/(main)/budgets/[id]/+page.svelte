@@ -240,8 +240,8 @@
 		queryKeyBase={['budgets', visibleBudget.id]}
 		fetchPage={fetchBudgetTransactionsPage}
 		invalidateQueryKeys={[['budgets'], ['accounts']]}
-		showTypeFilter={false}
-		showTimeframeFilter={false}
+		showTypeFilter={true}
+		showTimeframeFilter={true}
 		showCategoryFilter={false}
 		emptyMessage="No transactions counted toward this budget for this period."
 		filteredEmptyMessage="No transactions counted toward this budget match the current search."
