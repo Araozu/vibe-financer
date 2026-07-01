@@ -1,4 +1,13 @@
-import { pgTable, text, integer, timestamp, index, uniqueIndex, jsonb } from 'drizzle-orm/pg-core';
+import {
+	pgTable,
+	text,
+	integer,
+	timestamp,
+	index,
+	uniqueIndex,
+	jsonb,
+	boolean
+} from 'drizzle-orm/pg-core';
 import type { AccountType } from '$lib/domain/account';
 import type { TransactionType } from '$lib/domain/transaction';
 import type { EventType, StreamType } from '$lib/domain/events';
@@ -175,6 +184,31 @@ export const budget = pgTable('budget', {
 		.notNull()
 		.$defaultFn(() => new Date())
 });
+
+export const todoItem = pgTable(
+	'todo_item',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		title: text('title').notNull(),
+		completed: boolean('completed').notNull().default(false),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+			.notNull()
+			.$defaultFn(() => new Date()),
+		updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
+			.notNull()
+			.$defaultFn(() => new Date())
+	},
+	(table) => [
+		index('idx_todo_item_user').on(table.userId),
+		index('idx_todo_item_order').on(table.sortOrder)
+	]
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Snapshots - Periodic state captures for performance optimization
