@@ -1,5 +1,5 @@
 #!/bin/sh
-set -eu pipefail
+set -eu
 
 # Run migrations
 bun i drizzle-kit

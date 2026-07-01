@@ -55,9 +55,6 @@ COPY --from=builder --chown=bunuser:nodejs /app/package.json ./
 COPY --from=builder --chown=bunuser:nodejs /app/drizzle ./drizzle
 COPY --from=builder --chown=bunuser:nodejs /app/drizzle.config.ts ./
 
-# Switch to non-root user
-USER bunuser
-
 # Expose the port
 EXPOSE 3000
 
@@ -65,7 +62,10 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD bun --bun -e "fetch('http://localhost:3000').then(() => process.exit(0)).catch(() => process.exit(1))"
 
-COPY +devops/docker/docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY --chown=bunuser:nodejs +devops/docker/docker-entrypoint.sh /app/docker-entrypoint.sh
+
+# Switch to non-root user
+USER bunuser
 
 # Start the application with bun runtime
-CMD ["/app/docker-entrypoint.sh"]
+CMD ["sh", "/app/docker-entrypoint.sh"]
