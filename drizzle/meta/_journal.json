@@ -29,6 +29,13 @@
 			"when": 1777851798362,
 			"tag": "0003_nebulous_molly_hayes",
 			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1782909961375,
+			"tag": "0004_majestic_sprite",
+			"breakpoints": true
 		}
 	]
 }
