@@ -665,6 +665,8 @@ export const eventStoreRepo = {
 		category: string;
 		limit: number;
 		currencyId: string;
+		icon: string;
+		color: string;
 		period: 'monthly' | 'weekly' | 'yearly';
 		startDate: Date;
 		currentSpent: number;
@@ -680,6 +682,8 @@ export const eventStoreRepo = {
 		data: {
 			category?: string;
 			limit?: number;
+			icon?: string;
+			color?: string;
 			period?: 'monthly' | 'weekly' | 'yearly';
 			startDate?: Date;
 			currentSpent?: number;
@@ -711,6 +715,8 @@ export const eventStoreRepo = {
 			category: string;
 			limit: number;
 			currencyId: string;
+			icon: string;
+			color: string;
 			period: 'monthly' | 'weekly' | 'yearly';
 			startDate: Date;
 			currentSpent: number;

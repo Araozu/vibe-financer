@@ -33,6 +33,9 @@
 		description: string | null;
 		category: string | null;
 		budgetId: string | null;
+		budgetIcon?: string | null;
+		budgetColor?: string | null;
+		budgetCategory?: string | null;
 		payee: string | null;
 		toAccountId: string | null;
 		createdAt: string;

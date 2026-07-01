@@ -218,6 +218,8 @@ export interface BudgetCreatedPayload {
 	category: string;
 	limit: number;
 	currencyId: string;
+	icon: string;
+	color: string;
 	period: 'monthly' | 'weekly' | 'yearly';
 	startDate: Date;
 }
@@ -226,12 +228,16 @@ export interface BudgetUpdatedPayload {
 	changes: {
 		category?: string;
 		limit?: number;
+		icon?: string;
+		color?: string;
 		period?: 'monthly' | 'weekly' | 'yearly';
 		startDate?: Date;
 	};
 	previousValues: {
 		category?: string;
 		limit?: number;
+		icon?: string;
+		color?: string;
 		period?: 'monthly' | 'weekly' | 'yearly';
 		startDate?: Date;
 	};

@@ -89,6 +89,8 @@ export const actions: Actions = {
 		}
 
 		const category = formData.get('category') as string;
+		const icon = formData.get('icon') as string;
+		const color = formData.get('color') as string;
 		const limitStr = formData.get('limit') as string;
 		const periodRaw = formData.get('period') as string;
 		const startDateStr = formData.get('startDate') as string;
@@ -103,6 +105,8 @@ export const actions: Actions = {
 		try {
 			await updateBudget(budgetId.trim(), locals.user.id, {
 				category,
+				icon,
+				color,
 				limit,
 				period,
 				startDate

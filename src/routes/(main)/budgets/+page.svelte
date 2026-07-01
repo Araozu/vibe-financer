@@ -10,6 +10,9 @@
 	import { enhance } from '$app/forms';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { toast } from 'svelte-sonner';
+	import BudgetIcon from '$lib/components/budget/budget-icon.svelte';
+	import BudgetVisualPicker from '$lib/components/budget/budget-visual-picker.svelte';
+	import { DEFAULT_BUDGET_COLOR, DEFAULT_BUDGET_ICON } from '$lib/domain/budget-visuals';
 	import {
 		DASHBOARD_MONTHS,
 		getDashboardPeriodContext
@@ -21,6 +24,8 @@
 		category: string;
 		limit: number;
 		currencyId: string;
+		icon: string;
+		color: string;
 		period: 'monthly' | 'weekly' | 'yearly';
 		startDate: string;
 		currentSpent: number;
@@ -81,10 +86,14 @@
 
 	let selectedPeriod = $state('monthly');
 	let currencyId = $state('');
+	let createIcon = $state(DEFAULT_BUDGET_ICON);
+	let createColor = $state(DEFAULT_BUDGET_COLOR);
 
 	let editOpen = $state(false);
 	let editBudgetId = $state('');
 	let editCategory = $state('');
+	let editIcon = $state(DEFAULT_BUDGET_ICON);
+	let editColor = $state(DEFAULT_BUDGET_COLOR);
 	let editLimitStr = $state('');
 	let editPeriod = $state('monthly');
 	let editStartDate = $state('');
@@ -102,12 +111,16 @@
 		category: string;
 		limit: number;
 		period: 'monthly' | 'weekly' | 'yearly';
+		icon?: string | null;
+		color?: string | null;
 		startDate: string | Date;
 		currencyCode?: string | null;
 		currencySymbol?: string | null;
 	}) {
 		editBudgetId = b.id;
 		editCategory = b.category;
+		editIcon = b.icon ?? DEFAULT_BUDGET_ICON;
+		editColor = b.color ?? DEFAULT_BUDGET_COLOR;
 		editLimitStr = (b.limit / 100).toFixed(2);
 		editPeriod = b.period;
 		const sd = typeof b.startDate === 'string' ? new Date(b.startDate) : b.startDate;
@@ -162,6 +175,8 @@
 							<Label for="category">Category Name</Label>
 							<Input id="category" name="category" placeholder="e.g. Groceries, Rent" required />
 						</div>
+
+						<BudgetVisualPicker bind:icon={createIcon} bind:color={createColor} idPrefix="create-budget" />
 
 						<div class="space-y-2">
 							<Label for="limit">Monthly Limit</Label>
@@ -255,9 +270,7 @@
 						<Card.Content>
 							<div class="mb-4 flex items-start justify-between gap-4">
 								<div class="flex items-center gap-3">
-									<div class="rounded-full bg-primary/10 p-2 text-primary">
-										<PiggyBank class="h-5 w-5" />
-									</div>
+									<BudgetIcon icon={budget.icon} color={budget.color} />
 									<div>
 										<h3 class="text-lg font-semibold">
 											<a
@@ -371,6 +384,7 @@
 				<Label for="edit-category">Category</Label>
 				<Input id="edit-category" name="category" bind:value={editCategory} required />
 			</div>
+			<BudgetVisualPicker bind:icon={editIcon} bind:color={editColor} idPrefix="edit-budget" />
 			<div class="space-y-2">
 				<Label for="edit-limit">Limit</Label>
 				<div class="relative">

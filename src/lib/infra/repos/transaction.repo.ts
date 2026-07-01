@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { transaction, account } from '../db/schema';
+import { transaction, account, budget } from '../db/schema';
 import {
 	and,
 	asc,
@@ -37,6 +37,25 @@ interface BudgetPeriodTransactionParams {
 	accountId?: string;
 }
 
+const transactionWithBudgetColumns = {
+	id: transaction.id,
+	accountId: transaction.accountId,
+	type: transaction.type,
+	amount: transaction.amount,
+	name: transaction.name,
+	description: transaction.description,
+	category: transaction.category,
+	budgetId: transaction.budgetId,
+	budgetIcon: budget.icon,
+	budgetColor: budget.color,
+	budgetCategory: budget.category,
+	payee: transaction.payee,
+	toAccountId: transaction.toAccountId,
+	deletedAt: transaction.deletedAt,
+	createdAt: transaction.createdAt,
+	updatedAt: transaction.updatedAt
+};
+
 export const transactionRepo = {
 	async create(data: CreateTransactionDTO): Promise<Transaction> {
 		const [result] = await db.insert(transaction).values(data).returning();
@@ -44,14 +63,19 @@ export const transactionRepo = {
 	},
 
 	async findById(id: string): Promise<Transaction | undefined> {
-		const [result] = await db.select().from(transaction).where(eq(transaction.id, id));
+		const [result] = await db
+			.select(transactionWithBudgetColumns)
+			.from(transaction)
+			.leftJoin(budget, eq(transaction.budgetId, budget.id))
+			.where(eq(transaction.id, id));
 		return result;
 	},
 
 	async findByAccountId(accountId: string): Promise<Transaction[]> {
 		return await db
-			.select()
+			.select(transactionWithBudgetColumns)
 			.from(transaction)
+			.leftJoin(budget, eq(transaction.budgetId, budget.id))
 			.where(and(eq(transaction.accountId, accountId), isNull(transaction.deletedAt)))
 			.orderBy(desc(transaction.createdAt));
 	},
@@ -65,8 +89,9 @@ export const transactionRepo = {
 		if (accountIds.length === 0) return [];
 
 		const baseQuery = db
-			.select()
+			.select(transactionWithBudgetColumns)
 			.from(transaction)
+			.leftJoin(budget, eq(transaction.budgetId, budget.id))
 			.where(
 				and(
 					inArray(transaction.accountId, accountIds),
@@ -81,8 +106,9 @@ export const transactionRepo = {
 
 	async findByDateRange(accountId: string, start: Date, end: Date): Promise<Transaction[]> {
 		return await db
-			.select()
+			.select(transactionWithBudgetColumns)
 			.from(transaction)
+			.leftJoin(budget, eq(transaction.budgetId, budget.id))
 			.where(
 				and(
 					eq(transaction.accountId, accountId),
@@ -124,8 +150,9 @@ export const transactionRepo = {
 		offset: number
 	): Promise<Transaction[]> {
 		return await db
-			.select()
+			.select(transactionWithBudgetColumns)
 			.from(transaction)
+			.leftJoin(budget, eq(transaction.budgetId, budget.id))
 			.where(and(eq(transaction.accountId, accountId), isNull(transaction.deletedAt)))
 			.orderBy(desc(transaction.createdAt))
 			.limit(limit)
@@ -169,8 +196,9 @@ export const transactionRepo = {
 		}
 
 		return await db
-			.select()
+			.select(transactionWithBudgetColumns)
 			.from(transaction)
+			.leftJoin(budget, eq(transaction.budgetId, budget.id))
 			.where(and(...conditions))
 			.orderBy(desc(transaction.createdAt))
 			.limit(limit)
@@ -208,23 +236,10 @@ export const transactionRepo = {
 		}
 
 		return await db
-			.select({
-				id: transaction.id,
-				accountId: transaction.accountId,
-				type: transaction.type,
-				amount: transaction.amount,
-				name: transaction.name,
-				description: transaction.description,
-				category: transaction.category,
-				budgetId: transaction.budgetId,
-				payee: transaction.payee,
-				toAccountId: transaction.toAccountId,
-				deletedAt: transaction.deletedAt,
-				createdAt: transaction.createdAt,
-				updatedAt: transaction.updatedAt
-			})
+			.select(transactionWithBudgetColumns)
 			.from(transaction)
 			.innerJoin(account, eq(transaction.accountId, account.id))
+			.leftJoin(budget, eq(transaction.budgetId, budget.id))
 			.where(and(...conditions))
 			.orderBy(desc(transaction.createdAt))
 			.limit(params.limit)
@@ -253,8 +268,9 @@ export const transactionRepo = {
 
 	async findAll(): Promise<Transaction[]> {
 		return await db
-			.select()
+			.select(transactionWithBudgetColumns)
 			.from(transaction)
+			.leftJoin(budget, eq(transaction.budgetId, budget.id))
 			.where(isNull(transaction.deletedAt))
 			.orderBy(desc(transaction.createdAt));
 	},

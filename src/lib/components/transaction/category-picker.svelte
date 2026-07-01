@@ -11,6 +11,8 @@
 		id: string;
 		category: string;
 		currencyId: string;
+		icon?: string | null;
+		color?: string | null;
 	};
 
 	let {

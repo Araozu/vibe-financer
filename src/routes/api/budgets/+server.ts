@@ -100,6 +100,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!currencyId) {
 		return json({ error: 'currencyId is required' }, { status: 400 });
 	}
+	const icon = typeof o.icon === 'string' ? o.icon : undefined;
+	const color = typeof o.color === 'string' ? o.color : undefined;
 
 	const limit = typeof o.limit === 'number' && Number.isFinite(o.limit) ? Math.round(o.limit) : 0;
 	const periodRaw = typeof o.period === 'string' ? o.period : 'monthly';
@@ -124,6 +126,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			category,
 			limit,
 			currencyId,
+			icon,
+			color,
 			period,
 			startDate
 		});
@@ -133,6 +137,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			category: created.category,
 			limit: created.limit,
 			currencyId: created.currencyId,
+			icon: created.icon,
+			color: created.color,
 			period: created.period,
 			startDate: created.startDate,
 			currentSpent: created.currentSpent,

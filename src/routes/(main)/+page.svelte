@@ -18,6 +18,7 @@
 	import MtdBalanceChart from '$lib/components/dashboard/mtd-balance-chart.svelte';
 	import TodoListCard from '$lib/components/dashboard/todo-list-card.svelte';
 	import TransactionRow from '$lib/components/transaction/transaction-row.svelte';
+	import BudgetIcon from '$lib/components/budget/budget-icon.svelte';
 	import {
 		Wallet,
 		TrendingUp,
@@ -66,6 +67,8 @@
 		category: string;
 		limit: number;
 		currencyId: string;
+		icon: string;
+		color: string;
 		period: 'monthly' | 'weekly' | 'yearly';
 		startDate: string;
 		currentSpent: number;
@@ -426,14 +429,6 @@
 		}
 	]);
 
-	const budgetColors = [
-		'bg-blue-500',
-		'bg-income',
-		'bg-orange-500',
-		'bg-expense',
-		'bg-savings',
-		'bg-amber-500'
-	];
 </script>
 
 <svelte:head>
@@ -696,14 +691,16 @@
 				{#if budgets.length === 0}
 					<div class="py-4 text-center text-sm text-muted-foreground">No budgets set up yet.</div>
 				{:else}
-					{#each budgets as budget, i (budget.id)}
-						{@const _color = budgetColors[i % budgetColors.length]}
+					{#each budgets as budget (budget.id)}
 						{@const spent = budget.periodSpent}
 						<div class="space-y-2">
 							<div class="flex items-center justify-between text-sm">
-								<div class="flex items-center gap-2">
-									<span class="font-medium">{budget.category}</span>
-									<Badge variant="outline" class="text-[10px] capitalize">{budget.period}</Badge>
+								<div class="flex min-w-0 items-center gap-2">
+									<BudgetIcon icon={budget.icon} color={budget.color} size="sm" />
+									<div class="min-w-0">
+										<div class="truncate font-medium">{budget.category}</div>
+										<Badge variant="outline" class="text-[10px] capitalize">{budget.period}</Badge>
+									</div>
 								</div>
 								<span class="text-muted-foreground">
 									{budget.currencySymbol ?? '$'}{(spent / 100).toFixed(0)} /

@@ -2,10 +2,13 @@ import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { transactionRepo } from '$lib/infra/repos/transaction.repo';
 import { projectBudgetState } from '$lib/domain/budget-aggregate';
 import { createBudgetUpdatedEvent, type BudgetUpdatedPayload } from '$lib/domain/events';
+import { normalizeBudgetColor, normalizeBudgetIcon } from '$lib/domain/budget-visuals';
 
 export interface UpdateBudgetDTO {
 	category?: string;
 	limit?: number;
+	icon?: string;
+	color?: string;
 	period?: 'monthly' | 'weekly' | 'yearly';
 	startDate?: Date;
 }
@@ -48,6 +51,22 @@ export async function updateBudget(budgetId: string, userId: string, data: Updat
 		}
 	}
 
+	if (data.icon !== undefined) {
+		const icon = normalizeBudgetIcon(data.icon);
+		if (icon !== currentState.icon) {
+			changes.icon = icon;
+			previousValues.icon = currentState.icon;
+		}
+	}
+
+	if (data.color !== undefined) {
+		const color = normalizeBudgetColor(data.color);
+		if (color !== currentState.color) {
+			changes.color = color;
+			previousValues.color = currentState.color;
+		}
+	}
+
 	if (data.period !== undefined && data.period !== currentState.period) {
 		changes.period = data.period;
 		previousValues.period = currentState.period;
@@ -71,6 +90,8 @@ export async function updateBudget(budgetId: string, userId: string, data: Updat
 			category: currentState.category,
 			limit: currentState.limit,
 			currencyId: currentState.currencyId,
+			icon: currentState.icon,
+			color: currentState.color,
 			period: currentState.period,
 			startDate: currentState.startDate
 		};
@@ -94,11 +115,15 @@ export async function updateBudget(budgetId: string, userId: string, data: Updat
 	const projectionPatch: {
 		category?: string;
 		limit?: number;
+		icon?: string;
+		color?: string;
 		period?: 'monthly' | 'weekly' | 'yearly';
 		startDate?: Date;
 	} = {};
 	if (changes.category !== undefined) projectionPatch.category = changes.category;
 	if (changes.limit !== undefined) projectionPatch.limit = changes.limit;
+	if (changes.icon !== undefined) projectionPatch.icon = changes.icon;
+	if (changes.color !== undefined) projectionPatch.color = changes.color;
 	if (changes.period !== undefined) projectionPatch.period = changes.period;
 	if (changes.startDate !== undefined) projectionPatch.startDate = changes.startDate;
 
@@ -123,6 +148,8 @@ export async function updateBudget(budgetId: string, userId: string, data: Updat
 		category: effectiveCategory,
 		limit: changes.limit ?? currentState.limit,
 		currencyId: currentState.currencyId,
+		icon: changes.icon ?? currentState.icon,
+		color: changes.color ?? currentState.color,
 		period: changes.period ?? currentState.period,
 		startDate: effectiveStart
 	};

@@ -19,7 +19,10 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import TransactionsTable from '$lib/components/transaction/transactions-table.svelte';
+	import BudgetIcon from '$lib/components/budget/budget-icon.svelte';
+	import BudgetVisualPicker from '$lib/components/budget/budget-visual-picker.svelte';
 	import { formatLocalDate } from '$lib/domain/date-formatter';
+	import { DEFAULT_BUDGET_COLOR, DEFAULT_BUDGET_ICON } from '$lib/domain/budget-visuals';
 	import {
 		DASHBOARD_MONTHS,
 		getDashboardPeriodContext
@@ -31,6 +34,8 @@
 		category: string;
 		limit: number;
 		currencyId: string;
+		icon: string;
+		color: string;
 		period: 'monthly' | 'weekly' | 'yearly';
 		startDate: string;
 		currentSpent: number;
@@ -54,6 +59,8 @@
 
 	let editOpen = $state(false);
 	let editCategory = $state('');
+	let editIcon = $state(DEFAULT_BUDGET_ICON);
+	let editColor = $state(DEFAULT_BUDGET_COLOR);
 	let editLimitStr = $state('');
 	let editPeriod = $state<'monthly' | 'weekly' | 'yearly'>('monthly');
 	let editStartDate = $state('');
@@ -125,6 +132,8 @@
 	$effect(() => {
 		if (editOpen) {
 			editCategory = visibleBudget.category;
+			editIcon = visibleBudget.icon ?? DEFAULT_BUDGET_ICON;
+			editColor = visibleBudget.color ?? DEFAULT_BUDGET_COLOR;
 			editLimitStr = (visibleBudget.limit / 100).toFixed(2);
 			editPeriod = visibleBudget.period;
 			editStartDate = new Date(visibleBudget.startDate).toISOString().slice(0, 10);
@@ -148,11 +157,7 @@
 
 	<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 		<div class="flex items-center gap-4">
-			<div
-				class="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"
-			>
-				<PiggyBank class="h-7 w-7" />
-			</div>
+			<BudgetIcon icon={visibleBudget.icon} color={visibleBudget.color} size="lg" class="rounded-2xl" />
 			<div>
 				<h1 class="text-2xl font-bold">{visibleBudget.category}</h1>
 				<div class="flex items-center gap-2 text-sm">
@@ -299,6 +304,7 @@
 				<Label for="edit-category">Category</Label>
 				<Input id="edit-category" name="category" bind:value={editCategory} required />
 			</div>
+			<BudgetVisualPicker bind:icon={editIcon} bind:color={editColor} idPrefix="edit-budget-detail" />
 			<div class="space-y-2">
 				<Label for="edit-limit">Limit</Label>
 				<div class="relative">
