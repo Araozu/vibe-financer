@@ -22,6 +22,7 @@ import type {
 	CurrencyCreatedEvent,
 	CurrencyUpdatedEvent
 } from '$lib/domain/events';
+import { DEFAULT_BUDGET_COLOR, DEFAULT_BUDGET_ICON } from '$lib/domain/budget-visuals';
 import { invalidateSnapshots, forceCreateSnapshot } from './account-projection';
 
 export interface RebuildResult {
@@ -223,6 +224,8 @@ export async function rebuildBudgetProjections(userId?: string): Promise<number>
 		category: string;
 		limit: number;
 		currencyId: string;
+		icon: string;
+		color: string;
 		period: 'monthly' | 'weekly' | 'yearly';
 		startDate: Date;
 	}> = [];
@@ -237,6 +240,8 @@ export async function rebuildBudgetProjections(userId?: string): Promise<number>
 			category: string;
 			limit: number;
 			currencyId: string;
+			icon: string;
+			color: string;
 			period: 'monthly' | 'weekly' | 'yearly';
 			startDate: Date;
 			isDeleted: boolean;
@@ -251,6 +256,8 @@ export async function rebuildBudgetProjections(userId?: string): Promise<number>
 					category: e.payload.category,
 					limit: e.payload.limit,
 					currencyId: e.payload.currencyId,
+					icon: e.payload.icon ?? DEFAULT_BUDGET_ICON,
+					color: e.payload.color ?? DEFAULT_BUDGET_COLOR,
 					period: e.payload.period,
 					startDate: e.payload.startDate,
 					isDeleted: false
@@ -260,6 +267,8 @@ export async function rebuildBudgetProjections(userId?: string): Promise<number>
 				const changes = e.payload.changes;
 				if (changes.category !== undefined) budgetState.category = changes.category;
 				if (changes.limit !== undefined) budgetState.limit = changes.limit;
+				if (changes.icon !== undefined) budgetState.icon = changes.icon;
+				if (changes.color !== undefined) budgetState.color = changes.color;
 				if (changes.period !== undefined) budgetState.period = changes.period;
 				if (changes.startDate !== undefined) budgetState.startDate = changes.startDate;
 			} else if (event.eventType === 'BudgetDeleted') {
@@ -343,6 +352,8 @@ export async function rebuildBudgetProjections(userId?: string): Promise<number>
 			category: budgetState.category,
 			limit: budgetState.limit,
 			currencyId: budgetState.currencyId,
+			icon: budgetState.icon,
+			color: budgetState.color,
 			period: budgetState.period,
 			startDate: budgetState.startDate,
 			currentSpent

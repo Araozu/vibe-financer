@@ -174,6 +174,8 @@ export const budget = pgTable('budget', {
 	currencyId: text('currency_id')
 		.notNull()
 		.references(() => currency.id),
+	icon: text('icon').notNull().default('piggy-bank'),
+	color: text('color').notNull().default('#ff3b6b'),
 	period: text('period').$type<'monthly' | 'weekly' | 'yearly'>().notNull(),
 	startDate: timestamp('start_date', { withTimezone: true, mode: 'date' }).notNull(),
 	currentSpent: integer('current_spent').notNull().default(0),

@@ -11,6 +11,7 @@ import type {
 	BudgetDeletedEvent,
 	DomainEvent
 } from './events';
+import { DEFAULT_BUDGET_COLOR, DEFAULT_BUDGET_ICON } from './budget-visuals';
 
 export interface BudgetState {
 	id: string;
@@ -18,6 +19,8 @@ export interface BudgetState {
 	category: string;
 	limit: number;
 	currencyId: string;
+	icon: string;
+	color: string;
 	period: 'monthly' | 'weekly' | 'yearly';
 	startDate: Date;
 	createdAt: Date;
@@ -60,6 +63,8 @@ function applyEvent(state: BudgetState | null, event: DomainEvent): BudgetState 
 				category: e.payload.category,
 				limit: e.payload.limit,
 				currencyId: e.payload.currencyId,
+				icon: e.payload.icon ?? DEFAULT_BUDGET_ICON,
+				color: e.payload.color ?? DEFAULT_BUDGET_COLOR,
 				period: e.payload.period,
 				startDate: asDate(e.payload.startDate),
 				createdAt: asDate(e.occurredAt),
@@ -78,6 +83,8 @@ function applyEvent(state: BudgetState | null, event: DomainEvent): BudgetState 
 				...state,
 				category: changes.category ?? state.category,
 				limit: changes.limit ?? state.limit,
+				icon: changes.icon ?? state.icon,
+				color: changes.color ?? state.color,
 				period: changes.period ?? state.period,
 				startDate: changes.startDate !== undefined ? asDate(changes.startDate) : state.startDate,
 				updatedAt: asDate(e.occurredAt),

@@ -9,14 +9,10 @@
 		MoreVertical,
 		Pencil,
 		Trash2,
-		Tag,
-		Utensils,
-		Car,
-		Home,
-		ShoppingBag,
-		TrendingUp
+		Tag
 	} from '@lucide/svelte';
 	import { formatLocalDate, formatLocalDateTime, formatLocalTime } from '$lib/domain/date-formatter';
+	import BudgetIcon from '$lib/components/budget/budget-icon.svelte';
 
 	export interface Transaction {
 		id: string;
@@ -27,6 +23,9 @@
 		description: string | null;
 		category: string | null;
 		budgetId: string | null;
+		budgetIcon?: string | null;
+		budgetColor?: string | null;
+		budgetCategory?: string | null;
 		payee: string | null;
 		toAccountId: string | null;
 		createdAt: string;
@@ -51,18 +50,7 @@
 		isFuture?: boolean;
 	}>();
 
-	function getCategoryIcon(category: string | null) {
-		if (!category) return Tag;
-		const cat = category.toLowerCase();
-		if (cat.includes('food') || cat.includes('eat')) return Utensils;
-		if (cat.includes('car') || cat.includes('transport')) return Car;
-		if (cat.includes('home') || cat.includes('rent')) return Home;
-		if (cat.includes('shop')) return ShoppingBag;
-		if (cat.includes('income') || cat.includes('salary')) return TrendingUp;
-		return Tag;
-	}
-
-	const Icon = $derived(getCategoryIcon(tx.category));
+	const categoryLabel = $derived(tx.category && tx.category.trim() !== '' ? tx.category : 'None');
 
 	function handleRowKeydown(event: KeyboardEvent) {
 		if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -83,9 +71,13 @@
 >
 	<Table.Cell>
 		<div class="flex items-center gap-3">
-			<div class="rounded-full bg-muted p-2">
-				<Icon class="h-4 w-4" />
-			</div>
+			{#if tx.budgetColor}
+				<BudgetIcon icon={tx.budgetIcon} color={tx.budgetColor} size="sm" />
+			{:else}
+				<div class="rounded-full bg-muted p-2">
+					<Tag class="h-4 w-4" />
+				</div>
+			{/if}
 			<div>
 				<div class="font-medium">{tx.name ?? 'Untitled'}</div>
 				<Tooltip.Provider>
@@ -127,9 +119,16 @@
 		{/if}
 	</Table.Cell>
 	<Table.Cell class="hidden md:table-cell">
-		<Badge variant="secondary"
-			>{tx.category && tx.category.trim() !== '' ? tx.category : 'None'}</Badge
-		>
+		{#if tx.budgetColor}
+			<Badge
+				variant="secondary"
+				style="background-color: {tx.budgetColor}18; color: {tx.budgetColor}"
+			>
+				{categoryLabel}
+			</Badge>
+		{:else}
+			<Badge variant="secondary">{categoryLabel}</Badge>
+		{/if}
 	</Table.Cell>
 	<Table.Cell
 		class="text-right font-medium {tx.type === 'income'
