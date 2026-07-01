@@ -16,7 +16,7 @@
 		ShoppingBag,
 		TrendingUp
 	} from '@lucide/svelte';
-	import { formatLocalDate, formatLocalDateTime } from '$lib/domain/date-formatter';
+	import { formatLocalDate, formatLocalDateTime, formatLocalTime } from '$lib/domain/date-formatter';
 
 	export interface Transaction {
 		id: string;
@@ -42,12 +42,13 @@
 		currencySymbol?: string | null;
 	}
 
-	let { tx, account, deletingTransactionId, onEdit, onDelete } = $props<{
+	let { tx, account, deletingTransactionId, onEdit, onDelete, isFuture = false } = $props<{
 		tx: Transaction;
 		account: Account | null;
 		deletingTransactionId: string | null;
 		onEdit: (tx: Transaction) => void;
 		onDelete: (id: string) => void;
+		isFuture?: boolean;
 	}>();
 
 	function getCategoryIcon(category: string | null) {
@@ -74,7 +75,9 @@
 	tabindex={0}
 	role="button"
 	aria-label={`Edit transaction ${tx.name ?? 'Untitled'}`}
-	class="cursor-pointer focus-visible:outline-none focus-visible:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/70"
+	class="cursor-pointer focus-visible:outline-none focus-visible:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/70 {isFuture
+		? 'bg-muted/30 opacity-75 [&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/30 hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/50'
+		: ''}"
 	onclick={() => onEdit(tx)}
 	onkeydown={handleRowKeydown}
 >
@@ -89,7 +92,7 @@
 					<Tooltip.Root>
 						<Tooltip.Trigger>
 							<div class="text-xs text-muted-foreground">
-								{formatLocalDate(tx.createdAt)}
+								{formatLocalDate(tx.createdAt)} · {formatLocalTime(tx.createdAt)}
 							</div>
 						</Tooltip.Trigger>
 						<Tooltip.Content>

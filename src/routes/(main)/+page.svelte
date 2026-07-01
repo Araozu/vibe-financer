@@ -278,7 +278,7 @@
 		const cat = recentCategoryFilter;
 		const filtered = futureTransactions.filter((tx) => transactionMatchesTableFilters(tx, q, cat));
 		const sorted = [...filtered].sort(
-			(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+			(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 		);
 		const filtersActive =
 			recentTxSearch.trim() !== '' || recentCategoryFilter !== RECENT_TX_FILTER_ALL;
@@ -730,28 +730,17 @@
 								</Table.Row>
 							</Table.Header>
 							<Table.Body>
-								{#if futureTransactions.length > 0}
-									<Table.Row>
-										<Table.Cell colspan={5} class="p-0">
-											<Collapsible.Content>
-												<div class="opacity-75">
-													<Table.Root>
-														<Table.Body>
-															{#each upcomingTransactions as tx (tx.id)}
-																<TransactionRow
-																	{tx}
-																	account={accounts.find((a) => a.id === tx.accountId) ?? null}
-																	{deletingTransactionId}
-																	onEdit={openEditDialog}
-																	onDelete={handleDeleteTransaction}
-																/>
-															{/each}
-														</Table.Body>
-													</Table.Root>
-												</div>
-											</Collapsible.Content>
-										</Table.Cell>
-									</Table.Row>
+								{#if futureTransactions.length > 0 && upcomingTransactionsOpen}
+									{#each upcomingTransactions as tx (tx.id)}
+										<TransactionRow
+											{tx}
+											account={accounts.find((a) => a.id === tx.accountId) ?? null}
+											{deletingTransactionId}
+											isFuture
+											onEdit={openEditDialog}
+											onDelete={handleDeleteTransaction}
+										/>
+									{/each}
 								{/if}
 
 								{#if postedTransactions.length === 0 && futureTransactions.length === 0}

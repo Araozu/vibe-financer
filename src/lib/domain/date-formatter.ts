@@ -86,7 +86,7 @@ export function formatRelativeTime(date: Date | string | number): string {
  */
 export function formatLocalTime(date: Date | string | number): string {
 	const d = toDateObject(date);
-	return format(d, 'h:mm a');
+	return format(d, 'HH:mm');
 }
 
 /**
