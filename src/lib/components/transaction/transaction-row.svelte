@@ -4,14 +4,12 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Info, MoreVertical, Pencil, Trash2, Tag } from '@lucide/svelte';
 	import {
-		Info,
-		MoreVertical,
-		Pencil,
-		Trash2,
-		Tag
-	} from '@lucide/svelte';
-	import { formatLocalDate, formatLocalDateTime, formatLocalTime } from '$lib/domain/date-formatter';
+		formatLocalDate,
+		formatLocalDateTime,
+		formatLocalTime
+	} from '$lib/domain/date-formatter';
 	import BudgetIcon from '$lib/components/budget/budget-icon.svelte';
 
 	export interface Transaction {
@@ -41,13 +39,22 @@
 		currencySymbol?: string | null;
 	}
 
-	let { tx, account, deletingTransactionId, onEdit, onDelete, isFuture = false } = $props<{
+	let {
+		tx,
+		account,
+		deletingTransactionId,
+		onEdit,
+		onDelete,
+		isFuture = false,
+		showSeparator = true
+	} = $props<{
 		tx: Transaction;
 		account: Account | null;
 		deletingTransactionId: string | null;
 		onEdit: (tx: Transaction) => void;
 		onDelete: (id: string) => void;
 		isFuture?: boolean;
+		showSeparator?: boolean;
 	}>();
 
 	const categoryLabel = $derived(tx.category && tx.category.trim() !== '' ? tx.category : 'None');
@@ -63,7 +70,9 @@
 	tabindex={0}
 	role="button"
 	aria-label={`Edit transaction ${tx.name ?? 'Untitled'}`}
-	class="cursor-pointer focus-visible:outline-none focus-visible:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/70 {isFuture
+	class="cursor-pointer focus-visible:outline-none focus-visible:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/70 {showSeparator
+		? ''
+		: 'border-b-0'} {isFuture
 		? 'bg-muted/30 opacity-75 [&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/30 hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/50'
 		: ''}"
 	onclick={() => onEdit(tx)}

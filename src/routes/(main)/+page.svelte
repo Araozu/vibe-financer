@@ -34,6 +34,7 @@
 	import type { Account } from '$lib/domain/account';
 	import type { Transaction } from '$lib/domain/transaction';
 	import { DEFAULT_CURRENCY_SYMBOL } from '$lib/domain/currency';
+	import { formatLocalDate } from '$lib/domain/date-formatter';
 	import {
 		DASHBOARD_MONTHS,
 		getDashboardPeriodContext
@@ -99,6 +100,10 @@
 			.map((s) => (s ?? '').toLowerCase())
 			.join('\n');
 		return blob.includes(queryLower);
+	}
+
+	function isSameTransactionDay(a: SerializedTransaction, b: SerializedTransaction): boolean {
+		return formatLocalDate(a.createdAt) === formatLocalDate(b.createdAt);
 	}
 
 	const dashboardPeriod = getDashboardPeriodContext();
@@ -428,7 +433,6 @@
 			color: 'text-savings'
 		}
 	]);
-
 </script>
 
 <svelte:head>
@@ -629,12 +633,17 @@
 							</Table.Header>
 							<Table.Body>
 								{#if futureTransactions.length > 0 && upcomingTransactionsOpen}
-									{#each upcomingTransactions as tx (tx.id)}
+									{#each upcomingTransactions as tx, i (tx.id)}
 										<TransactionRow
 											{tx}
 											account={accounts.find((a) => a.id === tx.accountId) ?? null}
 											{deletingTransactionId}
 											isFuture
+											showSeparator={(i < upcomingTransactions.length - 1 &&
+												!isSameTransactionDay(tx, upcomingTransactions[i + 1])) ||
+												(i === upcomingTransactions.length - 1 &&
+													recentTransactions.length > 0 &&
+													!isSameTransactionDay(tx, recentTransactions[0]))}
 											onEdit={openEditDialog}
 											onDelete={handleDeleteTransaction}
 										/>
@@ -654,11 +663,13 @@
 										</Table.Cell>
 									</Table.Row>
 								{:else if recentTransactions.length > 0}
-									{#each recentTransactions as tx (tx.id)}
+									{#each recentTransactions as tx, i (tx.id)}
 										<TransactionRow
 											{tx}
 											account={accounts.find((a) => a.id === tx.accountId) ?? null}
 											{deletingTransactionId}
+											showSeparator={i < recentTransactions.length - 1 &&
+												!isSameTransactionDay(tx, recentTransactions[i + 1])}
 											onEdit={openEditDialog}
 											onDelete={handleDeleteTransaction}
 										/>
