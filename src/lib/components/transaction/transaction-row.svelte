@@ -17,6 +17,7 @@
 		accountId: string;
 		type: 'expense' | 'income' | 'transfer';
 		amount: number;
+		destinationAmount?: number | null;
 		name: string | null;
 		description: string | null;
 		category: string | null;
@@ -45,6 +46,7 @@
 		deletingTransactionId,
 		onEdit,
 		onDelete,
+		viewedAccountId,
 		isFuture = false,
 		showSeparator = true
 	} = $props<{
@@ -53,11 +55,21 @@
 		deletingTransactionId: string | null;
 		onEdit: (tx: Transaction) => void;
 		onDelete: (id: string) => void;
+		viewedAccountId?: string;
 		isFuture?: boolean;
 		showSeparator?: boolean;
 	}>();
 
 	const categoryLabel = $derived(tx.category && tx.category.trim() !== '' ? tx.category : 'None');
+	const isIncomingTransfer = $derived(
+		tx.type === 'transfer' && viewedAccountId != null && tx.toAccountId === viewedAccountId
+	);
+	const displayedAmount = $derived(
+		isIncomingTransfer ? (tx.destinationAmount ?? tx.amount) : tx.amount
+	);
+	const amountPrefix = $derived(
+		tx.type === 'income' ? '+' : isIncomingTransfer ? '+' : tx.type === 'transfer' ? '→' : '-'
+	);
 
 	function handleRowKeydown(event: KeyboardEvent) {
 		if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -146,8 +158,7 @@
 				? 'text-blue-500'
 				: 'text-expense'}"
 	>
-		{tx.type === 'income' ? '+' : tx.type === 'transfer' ? '→' : '-'}{account?.currencySymbol ??
-			'$'}{(tx.amount / 100).toLocaleString('en-US', {
+		{amountPrefix}{account?.currencySymbol ?? '$'}{(displayedAmount / 100).toLocaleString('en-US', {
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2
 		})}

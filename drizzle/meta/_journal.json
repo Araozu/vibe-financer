@@ -50,6 +50,20 @@
 			"when": 1782909961376,
 			"tag": "0006_repair_budget_visuals",
 			"breakpoints": true
+		},
+		{
+			"idx": 7,
+			"version": "7",
+			"when": 1785600000000,
+			"tag": "0007_add_transfer_destination_amount",
+			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "7",
+			"when": 1785600000001,
+			"tag": "0008_preserve_transfer_projections",
+			"breakpoints": true
 		}
 	]
 }

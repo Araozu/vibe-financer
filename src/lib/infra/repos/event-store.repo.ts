@@ -16,7 +16,7 @@ import {
 	currency
 } from '../db/schema';
 import { eq, and, asc, desc, lte, gt, sql } from 'drizzle-orm';
-import type { DomainEvent, StreamType, EventType } from '$lib/domain/events';
+import type { DomainEvent, StreamType, EventType, TransferCreatedEvent } from '$lib/domain/events';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
 import type { AccountState } from '$lib/domain/account-aggregate';
@@ -36,6 +36,21 @@ export interface StoredEvent {
 export interface AppendEventOptions {
 	expectedVersion?: number; // For optimistic concurrency
 }
+
+type TransactionProjectionData = {
+	id: string;
+	accountId: string;
+	type: 'expense' | 'income' | 'transfer';
+	amount: number;
+	destinationAmount?: number | null;
+	name: string | null;
+	description: string | null;
+	category: string | null;
+	budgetId?: string | null;
+	payee: string | null;
+	toAccountId: string | null;
+	createdAt: Date;
+};
 
 export class ConcurrencyError extends Error {
 	constructor(
@@ -412,8 +427,44 @@ export const eventStoreRepo = {
 		currentBalance: number;
 		currencyId: string;
 		color: string;
+		createdAt?: Date;
+		updatedAt?: Date;
 	}): Promise<void> {
 		await db.insert(account).values(data);
+	},
+
+	/** Rebuild an account projection without cascading related transactions. */
+	async upsertAccountProjection(data: {
+		id: string;
+		userId: string;
+		name: string;
+		description: string | null;
+		type: 'asset' | 'expense' | 'revenue' | 'liability' | 'savings';
+		initialBalance: number;
+		currentBalance: number;
+		currencyId: string;
+		color: string;
+		createdAt: Date;
+		updatedAt: Date;
+	}): Promise<void> {
+		await db
+			.insert(account)
+			.values(data)
+			.onConflictDoUpdate({
+				target: account.id,
+				set: {
+					userId: data.userId,
+					name: data.name,
+					description: data.description,
+					type: data.type,
+					initialBalance: data.initialBalance,
+					currentBalance: data.currentBalance,
+					currencyId: data.currencyId,
+					color: data.color,
+					createdAt: data.createdAt,
+					updatedAt: data.updatedAt
+				}
+			});
 	},
 
 	/**
@@ -421,24 +472,23 @@ export const eventStoreRepo = {
 	 * Accepts an optional transaction for atomic operations.
 	 */
 	async createTransactionProjection(
-		data: {
-			id: string;
-			accountId: string;
-			type: 'expense' | 'income' | 'transfer';
-			amount: number;
-			name: string | null;
-			description: string | null;
-			category: string | null;
-			budgetId?: string | null;
-			payee: string | null;
-			toAccountId: string | null;
-			createdAt: Date;
-		},
+		data: TransactionProjectionData,
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
 	): Promise<void> {
 		const dbInstance = externalTx ?? db;
 		await dbInstance.insert(transaction).values(data);
+	},
+
+	async upsertTransactionProjection(data: TransactionProjectionData): Promise<void> {
+		const { id, ...updateData } = data;
+		await db
+			.insert(transaction)
+			.values(data)
+			.onConflictDoUpdate({
+				target: transaction.id,
+				set: { ...updateData, updatedAt: new Date() }
+			});
 	},
 
 	/**
@@ -596,6 +646,37 @@ export const eventStoreRepo = {
 		await db.delete(transaction).where(eq(transaction.accountId, accountId));
 	},
 
+	async hasTransferEvent(transactionId: string): Promise<boolean> {
+		const [result] = await db
+			.select({ id: eventStore.id })
+			.from(eventStore)
+			.where(
+				and(
+					eq(eventStore.eventType, 'TransferCreated'),
+					sql`${eventStore.payload}->>'transactionId' = ${transactionId}`
+				)
+			)
+			.limit(1);
+		return result != null;
+	},
+
+	async getTransferEventByTransactionId(
+		transactionId: string
+	): Promise<TransferCreatedEvent | null> {
+		const [result] = await db
+			.select()
+			.from(eventStore)
+			.where(
+				and(
+					eq(eventStore.eventType, 'TransferCreated'),
+					sql`${eventStore.payload}->>'transactionId' = ${transactionId}`
+				)
+			)
+			.limit(1);
+
+		return result ? (toDomainEvent(result as StoredEvent) as TransferCreatedEvent) : null;
+	},
+
 	/**
 	 * Create read model (projection) for a new goal
 	 */
@@ -707,7 +788,9 @@ export const eventStoreRepo = {
 	 */
 	async getActiveBudgetsByCategory(
 		category: string,
-		date: Date
+		date: Date,
+		userId: string,
+		currencyId: string
 	): Promise<
 		Array<{
 			id: string;
@@ -728,7 +811,14 @@ export const eventStoreRepo = {
 		return db
 			.select()
 			.from(budget)
-			.where(and(eq(budget.category, category), lte(budget.startDate, date)));
+			.where(
+				and(
+					eq(budget.userId, userId),
+					eq(budget.currencyId, currencyId),
+					eq(budget.category, category),
+					lte(budget.startDate, date)
+				)
+			);
 	},
 
 	/**

@@ -1,8 +1,9 @@
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
+import { budgetRepo } from '$lib/infra/repos/budget.repo';
 import { getAccountState, getAccountVersion } from '../account/account-projection';
 import { calculateBalanceChange, canAcceptTransaction } from '$lib/domain/account-aggregate';
 import type { CreateTransactionDTO, Transaction } from '$lib/domain/transaction';
-import { validateExchangeRate } from '$lib/domain/transaction';
+import { validateExchangeRate, validateTransactionAmount } from '$lib/domain/transaction';
 import {
 	createTransactionCreatedEvent,
 	createTransferCreatedEvent,
@@ -27,10 +28,14 @@ export async function createTransaction(
 	data: CreateTransactionDTO,
 	userId: string
 ): Promise<Transaction> {
+	if (!Number.isFinite(data.amount) || !validateTransactionAmount(data.amount)) {
+		throw error(400, 'Transaction amount must be greater than zero');
+	}
+
 	// 1. Get the source account state from event stream
 	const sourceAccount = await getAccountState(data.accountId);
 
-	if (!sourceAccount || !canAcceptTransaction(sourceAccount)) {
+	if (!sourceAccount || !canAcceptTransaction(sourceAccount) || sourceAccount.userId !== userId) {
 		throw error(404, 'Account not found or deleted');
 	}
 
@@ -38,6 +43,12 @@ export async function createTransaction(
 	const transactionDate = toUTC(data.createdAt ?? new Date());
 	const sourceVersion = await getAccountVersion(data.accountId);
 	const budgetId = data.budgetId ?? null;
+	if (budgetId) {
+		const budget = await budgetRepo.getById(budgetId);
+		if (!budget || budget.userId !== userId || budget.currencyId !== sourceAccount.currencyId) {
+			throw error(400, 'Invalid budget');
+		}
+	}
 
 	// 2. Handle transfers specially (two accounts involved)
 	if (data.type === 'transfer') {
@@ -47,7 +58,7 @@ export async function createTransaction(
 
 		const destAccount = await getAccountState(data.toAccountId);
 
-		if (!destAccount || !canAcceptTransaction(destAccount)) {
+		if (!destAccount || !canAcceptTransaction(destAccount) || destAccount.userId !== userId) {
 			throw error(404, 'Destination account not found or deleted');
 		}
 
@@ -111,7 +122,8 @@ export async function createTransaction(
 			toAccountId: null,
 			balanceBefore: destAccount.currentBalance,
 			balanceAfter: toBalanceAfter,
-			transactionDate
+			transactionDate,
+			isTransferDestination: true
 		};
 
 		const destEvent = createTransactionCreatedEvent(
@@ -146,6 +158,7 @@ export async function createTransaction(
 						accountId: data.accountId,
 						type: 'transfer',
 						amount: data.amount,
+						destinationAmount,
 						name: data.name ?? null,
 						description: data.description ?? null,
 						category: data.category ?? null,
@@ -169,7 +182,9 @@ export async function createTransaction(
 		if (data.category) {
 			const activeBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
 				data.category,
-				transactionDate
+				transactionDate,
+				userId,
+				sourceAccount.currencyId
 			);
 			for (const b of activeBudgets) {
 				await eventStoreRepo.updateBudgetProjection(b.id, {
@@ -183,6 +198,7 @@ export async function createTransaction(
 			accountId: data.accountId,
 			type: 'transfer',
 			amount: data.amount,
+			destinationAmount,
 			name: data.name ?? null,
 			description: data.description ?? null,
 			category: data.category ?? null,
@@ -260,7 +276,9 @@ export async function createTransaction(
 	if (data.category && data.type === 'expense') {
 		const activeBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
 			data.category,
-			transactionDate
+			transactionDate,
+			userId,
+			sourceAccount.currencyId
 		);
 		for (const b of activeBudgets) {
 			await eventStoreRepo.updateBudgetProjection(b.id, {

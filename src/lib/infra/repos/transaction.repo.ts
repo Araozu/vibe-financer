@@ -15,7 +15,12 @@ import {
 	or,
 	sql
 } from 'drizzle-orm';
-import type { Transaction, CreateTransactionDTO, TransactionType } from '../../domain/transaction';
+import {
+	calculateAccountBalanceDelta,
+	type Transaction,
+	type CreateTransactionDTO,
+	type TransactionType
+} from '../../domain/transaction';
 
 interface TransactionQueryFilters {
 	search?: string;
@@ -42,6 +47,7 @@ const transactionWithBudgetColumns = {
 	accountId: transaction.accountId,
 	type: transaction.type,
 	amount: transaction.amount,
+	destinationAmount: transaction.destinationAmount,
 	name: transaction.name,
 	description: transaction.description,
 	category: transaction.category,
@@ -76,7 +82,12 @@ export const transactionRepo = {
 			.select(transactionWithBudgetColumns)
 			.from(transaction)
 			.leftJoin(budget, eq(transaction.budgetId, budget.id))
-			.where(and(eq(transaction.accountId, accountId), isNull(transaction.deletedAt)))
+			.where(
+				and(
+					or(eq(transaction.accountId, accountId), eq(transaction.toAccountId, accountId)),
+					isNull(transaction.deletedAt)
+				)
+			)
 			.orderBy(desc(transaction.createdAt));
 	},
 
@@ -94,7 +105,10 @@ export const transactionRepo = {
 			.leftJoin(budget, eq(transaction.budgetId, budget.id))
 			.where(
 				and(
-					inArray(transaction.accountId, accountIds),
+					or(
+						inArray(transaction.accountId, accountIds),
+						inArray(transaction.toAccountId, accountIds)
+					),
 					isNull(transaction.deletedAt),
 					between(transaction.createdAt, start, end)
 				)
@@ -111,7 +125,7 @@ export const transactionRepo = {
 			.leftJoin(budget, eq(transaction.budgetId, budget.id))
 			.where(
 				and(
-					eq(transaction.accountId, accountId),
+					or(eq(transaction.accountId, accountId), eq(transaction.toAccountId, accountId)),
 					isNull(transaction.deletedAt),
 					between(transaction.createdAt, start, end)
 				)
@@ -125,23 +139,16 @@ export const transactionRepo = {
 			.from(transaction)
 			.where(
 				and(
-					eq(transaction.accountId, accountId),
+					or(eq(transaction.accountId, accountId), eq(transaction.toAccountId, accountId)),
 					isNull(transaction.deletedAt),
 					lt(transaction.createdAt, date)
 				)
 			);
 
-		return transactionsBefore.reduce((sum, tx) => {
-			if (tx.type === 'income') return sum + tx.amount;
-			if (tx.type === 'expense') return sum - tx.amount;
-			if (tx.type === 'transfer') {
-				// If this is the source account, it's a deduction
-				if (tx.accountId === accountId) return sum - tx.amount;
-				// If this is the destination account, it's an addition
-				// (But wait, findByAccountId only finds where tx.accountId matches)
-			}
-			return sum;
-		}, 0);
+		return transactionsBefore.reduce(
+			(sum, tx) => sum + calculateAccountBalanceDelta(tx, accountId),
+			0
+		);
 	},
 
 	async findByAccountIdPaginated(
@@ -153,7 +160,12 @@ export const transactionRepo = {
 			.select(transactionWithBudgetColumns)
 			.from(transaction)
 			.leftJoin(budget, eq(transaction.budgetId, budget.id))
-			.where(and(eq(transaction.accountId, accountId), isNull(transaction.deletedAt)))
+			.where(
+				and(
+					or(eq(transaction.accountId, accountId), eq(transaction.toAccountId, accountId)),
+					isNull(transaction.deletedAt)
+				)
+			)
 			.orderBy(desc(transaction.createdAt))
 			.limit(limit)
 			.offset(offset);
@@ -165,7 +177,10 @@ export const transactionRepo = {
 		offset: number,
 		filters: TransactionQueryFilters
 	): Promise<Transaction[]> {
-		const conditions = [eq(transaction.accountId, accountId), isNull(transaction.deletedAt)];
+		const conditions = [
+			or(eq(transaction.accountId, accountId), eq(transaction.toAccountId, accountId)),
+			isNull(transaction.deletedAt)
+		];
 
 		if (filters.type) {
 			conditions.push(eq(transaction.type, filters.type));

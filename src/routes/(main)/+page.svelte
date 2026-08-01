@@ -32,7 +32,7 @@
 		Search
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
-	import type { Transaction } from '$lib/domain/transaction';
+	import { calculateAccountBalanceDelta, type Transaction } from '$lib/domain/transaction';
 	import { DEFAULT_CURRENCY_SYMBOL } from '$lib/domain/currency';
 	import { formatLocalDate } from '$lib/domain/date-formatter';
 	import {
@@ -107,9 +107,16 @@
 	}
 
 	const dashboardPeriod = getDashboardPeriodContext();
-	const dashboardNow = new Date();
+	let dashboardNow = $state(new Date());
 	let selectedMonth = $derived(dashboardPeriod.month);
 	let selectedYear = $derived(dashboardPeriod.year);
+
+	$effect(() => {
+		const interval = setInterval(() => {
+			dashboardNow = new Date();
+		}, 60_000);
+		return () => clearInterval(interval);
+	});
 
 	// Query for accounts
 	const accountsQuery = createQuery<SerializedAccount[]>(() => ({
@@ -217,9 +224,12 @@
 				throw new Error(error.error ?? 'Failed to delete transaction');
 			}
 
-			// Invalidate queries to refresh the UI
-			await queryClient.invalidateQueries({ queryKey: ['transactions'] });
-			await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+				queryClient.invalidateQueries({ queryKey: ['chart-transactions'] }),
+				queryClient.invalidateQueries({ queryKey: ['accounts'] }),
+				queryClient.invalidateQueries({ queryKey: ['budgets'] })
+			]);
 		} catch (error) {
 			console.error('Error deleting transaction:', error);
 			alert(error instanceof Error ? error.message : 'Failed to delete transaction');
@@ -229,20 +239,23 @@
 	}
 
 	// Calculate real stats (filtered for selected month and capped at today)
-	let firstDayOfSelectedMonth = $derived(new Date(Date.UTC(selectedYear, selectedMonth, 1)));
+	let firstDayOfSelectedMonth = $derived(new Date(selectedYear, selectedMonth, 1));
 	let lastDayOfSelectedMonth = $derived(
-		new Date(Date.UTC(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999))
+		new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999)
 	);
 
 	let isCurrentMonth = $derived(
-		selectedMonth === dashboardNow.getUTCMonth() && selectedYear === dashboardNow.getUTCFullYear()
+		selectedMonth === dashboardNow.getMonth() && selectedYear === dashboardNow.getFullYear()
 	);
 
 	let effectiveEndDate = $derived(isCurrentMonth ? dashboardNow : lastDayOfSelectedMonth);
 
 	let defaultCurrencySymbol = $derived(defaultAccount?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL);
-	const tomorrowStart = new Date();
-	tomorrowStart.setHours(24, 0, 0, 0);
+	let tomorrowStart = $derived.by(() => {
+		const tomorrow = new Date(dashboardNow);
+		tomorrow.setHours(24, 0, 0, 0);
+		return tomorrow;
+	});
 
 	let postedTransactions = $derived(
 		transactions.filter((tx) => new Date(tx.createdAt) < tomorrowStart)
@@ -295,21 +308,31 @@
 	});
 
 	let defaultAccountTransactions = $derived(
-		defaultAccount ? transactions.filter((tx) => tx.accountId === defaultAccount.id) : []
+		defaultAccount
+			? transactions.filter(
+					(tx) => tx.accountId === defaultAccount.id || tx.toAccountId === defaultAccount.id
+				)
+			: []
 	);
+
+	function getMidMonthOpeningBalance(
+		account: { createdAt: string | Date; initialBalance: number },
+		endDate: Date
+	): number {
+		const createdAt = new Date(account.createdAt);
+		return createdAt > firstDayOfSelectedMonth && createdAt <= endDate ? account.initialBalance : 0;
+	}
 
 	let totalBalance = $derived.by(() => {
 		if (!defaultAccount) return 0;
-		const initialBalance = initialBalances[defaultAccount.id] ?? 0;
+		const initialBalance =
+			(initialBalances[defaultAccount.id] ?? 0) +
+			getMidMonthOpeningBalance(defaultAccount, effectiveEndDate);
 		return (
 			initialBalance +
 			defaultAccountTransactions
 				.filter((tx) => new Date(tx.createdAt) <= effectiveEndDate)
-				.reduce((acc: number, tx) => {
-					if (tx.type === 'income') return acc + tx.amount;
-					if (tx.type === 'expense') return acc - tx.amount;
-					return acc;
-				}, 0)
+				.reduce((acc: number, tx) => acc + calculateAccountBalanceDelta(tx, defaultAccount.id), 0)
 		);
 	});
 
@@ -323,16 +346,14 @@
 	// within the selected month, e.g. scheduled bills or upcoming income).
 	let projectedEndOfMonthBalance = $derived.by(() => {
 		if (!defaultAccount) return 0;
-		const initialBalance = initialBalances[defaultAccount.id] ?? 0;
+		const initialBalance =
+			(initialBalances[defaultAccount.id] ?? 0) +
+			getMidMonthOpeningBalance(defaultAccount, lastDayOfSelectedMonth);
 		return (
 			initialBalance +
 			defaultAccountTransactions
 				.filter((tx) => new Date(tx.createdAt) <= lastDayOfSelectedMonth)
-				.reduce((acc: number, tx) => {
-					if (tx.type === 'income') return acc + tx.amount;
-					if (tx.type === 'expense') return acc - tx.amount;
-					return acc;
-				}, 0)
+				.reduce((acc: number, tx) => acc + calculateAccountBalanceDelta(tx, defaultAccount.id), 0)
 		);
 	});
 
@@ -376,16 +397,16 @@
 	let currentBalanceForGoalAccount = $derived.by(() => {
 		if (!accountWithGoal) return 0;
 
-		const initialBalance = initialBalances[accountWithGoal.id] ?? 0;
+		const initialBalance =
+			(initialBalances[accountWithGoal.id] ?? 0) +
+			getMidMonthOpeningBalance(accountWithGoal, effectiveEndDate);
 		const netChange = transactions
 			.filter(
-				(tx) => tx.accountId === accountWithGoal.id && new Date(tx.createdAt) <= effectiveEndDate
+				(tx) =>
+					(tx.accountId === accountWithGoal.id || tx.toAccountId === accountWithGoal.id) &&
+					new Date(tx.createdAt) <= effectiveEndDate
 			)
-			.reduce((acc, tx) => {
-				if (tx.type === 'income') return acc + tx.amount;
-				if (tx.type === 'expense') return acc - tx.amount;
-				return acc;
-			}, 0);
+			.reduce((acc, tx) => acc + calculateAccountBalanceDelta(tx, accountWithGoal.id), 0);
 
 		return initialBalance + netChange;
 	});

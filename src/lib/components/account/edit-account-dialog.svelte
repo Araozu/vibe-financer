@@ -4,6 +4,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { useQueryClient, createQuery } from '@tanstack/svelte-query';
 	import {
 		CreditCard,
@@ -108,6 +109,9 @@
 					if (result.type === 'success') {
 						toast.success('Account updated successfully');
 						queryClient.invalidateQueries({ queryKey: ['accounts'] });
+						queryClient.invalidateQueries({ queryKey: ['transactions'] });
+						queryClient.invalidateQueries({ queryKey: ['chart-transactions'] });
+						await invalidateAll();
 						open = false;
 					} else if (result.type === 'failure') {
 						const errorMessage =

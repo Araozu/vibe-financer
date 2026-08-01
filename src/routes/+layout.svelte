@@ -18,10 +18,10 @@
 	const isAuthRoute = $derived(page.route.id?.startsWith('/(auth)') ?? false);
 	const dashboardNow = new Date();
 	const dashboardPeriod = $state({
-		month: dashboardNow.getUTCMonth(),
-		year: dashboardNow.getUTCFullYear(),
-		currentMonth: dashboardNow.getUTCMonth(),
-		currentYear: dashboardNow.getUTCFullYear()
+		month: dashboardNow.getMonth(),
+		year: dashboardNow.getFullYear(),
+		currentMonth: dashboardNow.getMonth(),
+		currentYear: dashboardNow.getFullYear()
 	});
 
 	setDashboardPeriodContext(dashboardPeriod);

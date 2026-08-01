@@ -214,10 +214,13 @@
 				} else {
 					toast.success('Transaction created successfully');
 				}
-				// Invalidate queries to refetch updated data
-				queryClient.invalidateQueries({ queryKey: ['transactions'] });
-				queryClient.invalidateQueries({ queryKey: ['accounts'] });
-				queryClient.invalidateQueries({ queryKey: ['budgets'] });
+				// Wait for active views to refetch the updated projections.
+				await Promise.all([
+					queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+					queryClient.invalidateQueries({ queryKey: ['chart-transactions'] }),
+					queryClient.invalidateQueries({ queryKey: ['accounts'] }),
+					queryClient.invalidateQueries({ queryKey: ['budgets'] })
+				]);
 				resetForm();
 
 				if (onSuccess) {

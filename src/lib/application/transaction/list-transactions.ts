@@ -1,4 +1,5 @@
 import { transactionRepo } from '$lib/infra/repos/transaction.repo';
+import { accountRepo } from '$lib/infra/repos/account.repo';
 import type { Transaction, TransactionType } from '$lib/domain/transaction';
 import { endOfMonth, endOfWeek, endOfYear, startOfMonth, startOfWeek, startOfYear } from 'date-fns';
 import { fromZonedTime, toZonedTime } from 'date-fns-tz';
@@ -60,8 +61,8 @@ export async function listTransactionsForMonth(
 	// 3. Fetch transactions within this UTC range
 	const transactions = await transactionRepo.findByDateRange(accountId, monthStartUtc, monthEndUtc);
 
-	// 4. Calculate initial balance (sum of all transactions before monthStartUtc)
-	const balanceBefore = await transactionRepo.getSumBeforeDate(accountId, monthStartUtc);
+	// 4. Calculate the balance at the start of the selected month
+	const balanceBefore = await getBalanceBeforeDate(accountId, monthStartUtc);
 
 	return {
 		transactions,
@@ -96,7 +97,7 @@ export async function listTransactionsForMonthForAccounts(
 	// 4. Calculate initial balances for each account
 	const balances = await Promise.all(
 		accountIds.map(async (accountId) => {
-			const balance = await transactionRepo.getSumBeforeDate(accountId, monthStartUtc);
+			const balance = await getBalanceBeforeDate(accountId, monthStartUtc);
 			return { accountId, balance };
 		})
 	);
@@ -113,6 +114,16 @@ export async function listTransactionsForMonthForAccounts(
 		transactions,
 		initialBalances
 	};
+}
+
+async function getBalanceBeforeDate(accountId: string, date: Date): Promise<number> {
+	const [transactionBalance, account] = await Promise.all([
+		transactionRepo.getSumBeforeDate(accountId, date),
+		accountRepo.findById(accountId)
+	]);
+
+	const openingBalance = account && account.createdAt <= date ? account.initialBalance : 0;
+	return openingBalance + transactionBalance;
 }
 
 export async function listTransactionsByAccountPaginated(

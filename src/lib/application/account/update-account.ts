@@ -41,6 +41,9 @@ export async function updateAccount(
 	if (currentState.isDeleted) {
 		throw new Error('Account has been deleted');
 	}
+	if (currentState.userId !== userId) {
+		throw error(404, 'Account not found');
+	}
 
 	// Build the changes and previous values for the event
 	const changes: AccountUpdatedPayload['changes'] = {};

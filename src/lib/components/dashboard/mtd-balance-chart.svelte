@@ -12,6 +12,8 @@
 		name: string;
 		color: string;
 		currentBalance: number;
+		initialBalance: number;
+		createdAt: string;
 		currencySymbol?: string | null;
 	};
 
@@ -20,6 +22,7 @@
 		toAccountId: string | null;
 		type: 'income' | 'expense' | 'transfer';
 		amount: number;
+		destinationAmount?: number | null;
 		createdAt: string;
 		deletedAt: string | null;
 	};
@@ -131,7 +134,7 @@
 
 			if (tx.type === 'transfer') {
 				applyDelta(dayKey, tx.accountId, -tx.amount);
-				applyDelta(dayKey, tx.toAccountId, tx.amount);
+				applyDelta(dayKey, tx.toAccountId, tx.destinationAmount ?? tx.amount);
 				continue;
 			}
 
@@ -140,9 +143,12 @@
 
 		// Calculate balance at the start of the selected month
 		const runningBalanceByAccount = new SvelteMap<string, number>();
+		const openingBalanceApplied = new SvelteSet<string>();
 		for (const account of accounts) {
-			// Use the initial balance provided by the server
 			runningBalanceByAccount.set(account.id, initialBalances[account.id] ?? 0);
+			if (new Date(account.createdAt) <= monthStart) {
+				openingBalanceApplied.add(account.id);
+			}
 		}
 
 		const points: MonthToDateBalancePoint[] = [];
@@ -155,7 +161,13 @@
 
 			const balances: Record<string, number> = {};
 			for (const account of accounts) {
-				const currentBalance = runningBalanceByAccount.get(account.id) ?? 0;
+				let currentBalance = runningBalanceByAccount.get(account.id) ?? 0;
+				const dayEnd = new Date(dayDate);
+				dayEnd.setHours(23, 59, 59, 999);
+				if (!openingBalanceApplied.has(account.id) && new Date(account.createdAt) <= dayEnd) {
+					currentBalance += account.initialBalance;
+					openingBalanceApplied.add(account.id);
+				}
 				const dayDelta = dayDeltaMap?.get(account.id) ?? 0;
 				const endOfDayBalance = currentBalance + dayDelta;
 				runningBalanceByAccount.set(account.id, endOfDayBalance);

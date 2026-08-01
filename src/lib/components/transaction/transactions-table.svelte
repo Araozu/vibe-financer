@@ -29,6 +29,7 @@
 		accountId: string;
 		type: 'expense' | 'income' | 'transfer';
 		amount: number;
+		destinationAmount?: number | null;
 		name: string | null;
 		description: string | null;
 		category: string | null;
@@ -77,6 +78,7 @@
 		initialTransactions,
 		accounts,
 		categories = [],
+		viewedAccountId,
 		queryKeyBase,
 		fetchPage,
 		invalidateQueryKeys = [],
@@ -91,6 +93,7 @@
 		initialTransactions: SerializedTransaction[];
 		accounts: TransactionTableAccount[];
 		categories?: string[];
+		viewedAccountId?: string;
 		queryKeyBase: unknown[];
 		fetchPage: (params: {
 			limit: number;
@@ -208,7 +211,7 @@
 
 	const transactions = $derived(
 		!hasActiveFilters && offset === 0
-			? initialTransactions
+			? (transactionsQuery.data?.transactions ?? initialTransactions)
 			: (transactionsQuery.data?.transactions ?? [])
 	);
 	const hasMore = $derived(transactionsQuery.data?.hasMore ?? transactions.length === limit);
@@ -310,6 +313,7 @@
 
 	async function invalidateRelatedQueries() {
 		await Promise.all([
+			queryClient.invalidateQueries({ queryKey: ['transactions'] }),
 			queryClient.invalidateQueries({ queryKey: queryKeyBase }),
 			queryClient.invalidateQueries({ queryKey: ['budgets'] }),
 			...invalidateQueryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey }))
@@ -551,6 +555,7 @@
 							<TransactionRow
 								tx={{ ...tx, deletedAt: tx.deletedAt ?? null }}
 								account={accountById.get(tx.accountId) ?? accounts[0] ?? null}
+								{viewedAccountId}
 								{deletingTransactionId}
 								onEdit={openEditDialog}
 								onDelete={handleDeleteTransaction}

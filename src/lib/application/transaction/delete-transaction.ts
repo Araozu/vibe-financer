@@ -36,7 +36,7 @@ export async function deleteTransaction(
 	// 2. Get the account state to validate and calculate balance adjustment
 	const account = await getAccountState(tx.accountId);
 
-	if (!account || !canAcceptTransaction(account)) {
+	if (!account || !canAcceptTransaction(account) || account.userId !== userId) {
 		throw error(404, 'Account not found or deleted');
 	}
 
@@ -70,10 +70,13 @@ export async function deleteTransaction(
 	// For transfers, we need to wrap source + destination appends atomically
 	if (tx.type === 'transfer' && tx.toAccountId) {
 		const destAccount = await getAccountState(tx.toAccountId);
-		if (destAccount && canAcceptTransaction(destAccount)) {
+		if (destAccount && destAccount.userId !== userId) {
+			throw error(404, 'Destination account not found');
+		}
+		if (destAccount && canAcceptTransaction(destAccount) && destAccount.userId === userId) {
 			const destVersion = await getAccountVersion(tx.toAccountId);
 
-			const destBalanceAdjustment = -tx.amount;
+			const destBalanceAdjustment = -(tx.destinationAmount ?? tx.amount);
 			const destPayload: TransactionDeletedPayload = {
 				transactionId: tx.id,
 				reason: reason ? `${reason} (Transfer reversal)` : 'Transfer reversal',
@@ -176,7 +179,9 @@ export async function deleteTransaction(
 	if (tx.category && tx.type === 'expense') {
 		const activeBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
 			tx.category,
-			tx.createdAt
+			tx.createdAt,
+			userId,
+			account.currencyId
 		);
 		for (const b of activeBudgets) {
 			await eventStoreRepo.updateBudgetProjection(b.id, {

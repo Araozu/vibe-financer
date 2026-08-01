@@ -5,6 +5,7 @@ export interface Transaction {
 	accountId: string;
 	type: TransactionType;
 	amount: number; // in cents
+	destinationAmount?: number | null; // Destination amount in cents for transfers
 	name: string | null;
 	description: string | null;
 	category: string | null;
@@ -61,4 +62,27 @@ export function calculateNewBalance(
 		return currentBalance - amount;
 	}
 	return currentBalance - amount;
+}
+
+/**
+ * Calculate a transaction's balance delta for one related account.
+ * Transfers use the destination amount when currencies differ.
+ */
+export function calculateAccountBalanceDelta(
+	transaction: Pick<
+		Transaction,
+		'accountId' | 'toAccountId' | 'type' | 'amount' | 'destinationAmount'
+	>,
+	accountId: string
+): number {
+	if (transaction.type === 'transfer') {
+		if (transaction.accountId === accountId) return -transaction.amount;
+		if (transaction.toAccountId === accountId) {
+			return transaction.destinationAmount ?? transaction.amount;
+		}
+		return 0;
+	}
+
+	if (transaction.accountId !== accountId) return 0;
+	return transaction.type === 'income' ? transaction.amount : -transaction.amount;
 }

@@ -147,12 +147,13 @@ export const transaction = pgTable('transaction', {
 		.references(() => account.id, { onDelete: 'cascade' }),
 	type: text('type').$type<TransactionType>().notNull(),
 	amount: integer('amount').notNull(),
+	destinationAmount: integer('destination_amount'),
 	name: text('name'),
 	description: text('description'),
 	category: text('category'),
 	budgetId: text('budget_id').references(() => budget.id, { onDelete: 'set null' }),
 	payee: text('payee'),
-	toAccountId: text('to_account_id').references(() => account.id, { onDelete: 'cascade' }),
+	toAccountId: text('to_account_id').references(() => account.id, { onDelete: 'set null' }),
 	deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'date' }), // Soft delete for audit trail
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
 		.notNull()

@@ -75,19 +75,19 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 			};
 		}
 
-		// 4. Delete existing projections
+		// 4. Delete transaction projections owned by this account. Keep the account
+		// row so transfer projections are not removed by foreign-key cascades.
 		await eventStoreRepo.deleteTransactionProjectionsByAccount(accountId);
 
-		// Only delete account projection if it's not deleted in the event stream
-		if (!state.isDeleted) {
-			try {
-				await eventStoreRepo.deleteAccountProjection(accountId);
-			} catch {
-				// Account might not exist in projection yet
-			}
+		// Disabled accounts are intentionally absent from the read model.
+		if (state.isDeleted) {
+			await eventStoreRepo.deleteAccountProjection(accountId);
+		}
 
+		// Only rebuild the account projection if it's not deleted in the event stream.
+		if (!state.isDeleted) {
 			// 5. Recreate account projection
-			await eventStoreRepo.createAccountProjection({
+			await eventStoreRepo.upsertAccountProjection({
 				id: state.id,
 				userId: state.userId,
 				name: state.name,
@@ -96,8 +96,18 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 				initialBalance: state.initialBalance,
 				currentBalance: state.currentBalance,
 				currencyId: state.currencyId,
-				color: state.color
+				color: state.color,
+				createdAt: state.createdAt,
+				updatedAt: state.updatedAt
 			});
+		} else {
+			// The account row was removed above, so its transactions cannot be
+			// recreated without violating the account foreign key.
+			return {
+				success: true,
+				accountId,
+				transactionsRebuilt: 0
+			};
 		}
 
 		// 6. Recreate transaction projections from events
@@ -105,6 +115,34 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 		for (const event of events) {
 			if (event.eventType === 'TransactionCreated') {
 				const e = event as TransactionCreatedEvent;
+				const isTransferDestination =
+					e.payload.type === 'income' &&
+					e.payload.toAccountId === null &&
+					(e.payload.isTransferDestination === true ||
+						(await eventStoreRepo.hasTransferEvent(e.payload.transactionId)));
+				if (isTransferDestination) {
+					const transferEvent = await eventStoreRepo.getTransferEventByTransactionId(
+						e.payload.transactionId
+					);
+					if (transferEvent) {
+						await eventStoreRepo.upsertTransactionProjection({
+							id: e.payload.transactionId,
+							accountId: transferEvent.payload.fromAccountId,
+							type: 'transfer',
+							amount: transferEvent.payload.amount,
+							destinationAmount: transferEvent.payload.destinationAmount,
+							name: transferEvent.payload.name,
+							description: transferEvent.payload.description,
+							category: transferEvent.payload.category,
+							budgetId: transferEvent.payload.budgetId ?? null,
+							payee: null,
+							toAccountId: transferEvent.payload.toAccountId,
+							createdAt: transferEvent.payload.transactionDate
+						});
+						transactionsRebuilt++;
+					}
+					continue;
+				}
 				await eventStoreRepo.createTransactionProjection({
 					id: e.payload.transactionId,
 					accountId: e.payload.accountId,
@@ -132,11 +170,15 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 				 * This prevents duplicate transaction projections.
 				 */
 				if (e.streamId === accountId) {
+					// A destination stream may have been rebuilt first. Replace any
+					// companion row with the canonical source transfer projection.
+					await eventStoreRepo.deleteTransactionProjection(e.payload.transactionId);
 					await eventStoreRepo.createTransactionProjection({
 						id: e.payload.transactionId,
 						accountId: e.payload.fromAccountId,
 						type: 'transfer',
 						amount: e.payload.amount,
+						destinationAmount: e.payload.destinationAmount,
 						name: e.payload.name,
 						description: e.payload.description,
 						category: e.payload.category,

@@ -123,9 +123,12 @@
 					isLoading = false;
 					if (result.type === 'success') {
 						toast.success('Transaction updated successfully');
-						queryClient.invalidateQueries({ queryKey: ['transactions'] });
-						queryClient.invalidateQueries({ queryKey: ['accounts'] });
-						queryClient.invalidateQueries({ queryKey: ['budgets'] });
+						await Promise.all([
+							queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+							queryClient.invalidateQueries({ queryKey: ['chart-transactions'] }),
+							queryClient.invalidateQueries({ queryKey: ['accounts'] }),
+							queryClient.invalidateQueries({ queryKey: ['budgets'] })
+						]);
 						open = false;
 					} else if (result.type === 'failure') {
 						const errorMessage =

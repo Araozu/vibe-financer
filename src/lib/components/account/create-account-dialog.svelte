@@ -90,6 +90,7 @@
 						toast.success('Account created successfully');
 						// Invalidate accounts queries to refetch
 						queryClient.invalidateQueries({ queryKey: ['accounts'] });
+						queryClient.invalidateQueries({ queryKey: ['transactions'] });
 						if (!createMore) {
 							open = false;
 						}

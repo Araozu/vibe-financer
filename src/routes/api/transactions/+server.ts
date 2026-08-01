@@ -52,7 +52,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const allTransactions = await listTransactions();
 	const accountIdSet = new Set(accountIds);
-	const transactions = allTransactions.filter((tx) => accountIdSet.has(tx.accountId));
+	const transactions = allTransactions.filter(
+		(tx) =>
+			accountIdSet.has(tx.accountId) || (tx.toAccountId != null && accountIdSet.has(tx.toAccountId))
+	);
 
 	const serializedTransactions = transactions.map((tx) => ({
 		...tx,

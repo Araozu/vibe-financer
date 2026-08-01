@@ -40,7 +40,9 @@ export async function createAccount(data: CreateAccountDTO): Promise<Account> {
 		initialBalance,
 		currentBalance: initialBalance,
 		currencyId: data.currencyId,
-		color: data.color
+		color: data.color,
+		createdAt: event.occurredAt,
+		updatedAt: event.occurredAt
 	});
 
 	// Return the created account

@@ -74,7 +74,14 @@
 	const dashboardPeriod = getDashboardPeriodContext();
 	let chartMonth = $derived(dashboardPeriod.month);
 	let chartYear = $derived(dashboardPeriod.year);
-	const dashboardNow = new Date();
+	let dashboardNow = $state(new Date());
+
+	$effect(() => {
+		const interval = setInterval(() => {
+			dashboardNow = new Date();
+		}, 60_000);
+		return () => clearInterval(interval);
+	});
 
 	let isCurrentSelectedMonth = $derived(
 		chartMonth === dashboardPeriod.currentMonth && chartYear === dashboardPeriod.currentYear
@@ -122,8 +129,18 @@
 	);
 
 	let monthlyNet = $derived(monthlyIncome - monthlyExpenses);
+	let midMonthOpeningBalance = $derived.by(() => {
+		const monthStart = new Date(chartYear, chartMonth, 1);
+		const periodEnd = isCurrentSelectedMonth
+			? dashboardNow
+			: new Date(chartYear, chartMonth + 1, 0, 23, 59, 59, 999);
+		const createdAt = new Date(account.createdAt);
+
+		return createdAt > monthStart && createdAt <= periodEnd ? account.initialBalance : 0;
+	});
 	let selectedPeriodBalance = $derived(
 		(chartInitialBalances[account.id] ?? 0) +
+			midMonthOpeningBalance +
 			selectedMonthTransactionsForSummary.reduce(
 				(balanceDelta: number, tx: SerializedTransaction) => {
 					if (tx.type === 'income' && tx.accountId === account.id) {
@@ -134,7 +151,9 @@
 					}
 					if (tx.type === 'transfer') {
 						if (tx.accountId === account.id) return balanceDelta - tx.amount;
-						if (tx.toAccountId === account.id) return balanceDelta + tx.amount;
+						if (tx.toAccountId === account.id) {
+							return balanceDelta + (tx.destinationAmount ?? tx.amount);
+						}
 					}
 					return balanceDelta;
 				},
@@ -342,7 +361,8 @@
 	accounts={[account]}
 	{categories}
 	queryKeyBase={['accounts', account.id]}
+	viewedAccountId={account.id}
 	fetchPage={fetchTransactionPage}
-	invalidateQueryKeys={[['accounts'], ['budgets']]}
+	invalidateQueryKeys={[['accounts'], ['budgets'], ['chart-transactions']]}
 	showAccountFilter={false}
 />

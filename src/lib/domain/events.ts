@@ -100,6 +100,7 @@ export interface TransactionCreatedPayload {
 	balanceBefore: number;
 	balanceAfter: number;
 	transactionDate: Date; // When the transaction actually occurred
+	isTransferDestination?: boolean;
 }
 
 export interface TransactionDeletedPayload {

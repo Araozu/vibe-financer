@@ -1,4 +1,5 @@
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
+import { budgetRepo } from '$lib/infra/repos/budget.repo';
 import { transactionRepo } from '$lib/infra/repos/transaction.repo';
 import { getAccountState, getAccountVersion } from '../account/account-projection';
 import { canAcceptTransaction } from '$lib/domain/account-aggregate';
@@ -45,8 +46,26 @@ export async function editTransaction(
 		throw error(404, 'Transaction not found');
 	}
 
+	const finalBudgetId =
+		updates.budgetId !== undefined ? updates.budgetId : currentTransaction.budgetId;
+	if (finalBudgetId) {
+		const [targetAccount, budget] = await Promise.all([
+			getAccountState(updates.accountId ?? currentTransaction.accountId),
+			budgetRepo.getById(finalBudgetId)
+		]);
+		if (
+			!targetAccount ||
+			targetAccount.userId !== userId ||
+			!budget ||
+			budget.userId !== userId ||
+			budget.currencyId !== targetAccount.currencyId
+		) {
+			throw error(400, 'Invalid budget');
+		}
+	}
+
 	// 1b. Validate inputs
-	if (updates.amount !== undefined && updates.amount <= 0) {
+	if (updates.amount !== undefined && (!Number.isFinite(updates.amount) || updates.amount <= 0)) {
 		throw error(400, 'Transaction amount must be greater than zero');
 	}
 
@@ -161,7 +180,7 @@ export async function editTransaction(
 	}
 
 	// Update budget projections
-	await updateBudgetProjections(currentTransaction, updates);
+	await updateBudgetProjections(currentTransaction, updates, userId);
 
 	return updated;
 }
@@ -188,18 +207,21 @@ async function handleSameAccountEdit(
 	const accountVersion = await getAccountVersion(currentTransaction.accountId);
 
 	// Reverse old transaction impact, then apply new
-	let balanceAfterReverse = account.currentBalance;
-	if (currentTransaction.type === 'income') {
-		balanceAfterReverse -= currentTransaction.amount;
-	} else if (currentTransaction.type === 'expense') {
-		balanceAfterReverse += currentTransaction.amount;
-	}
+	let balanceAfter = account.currentBalance;
+	if (currentTransaction.type !== 'transfer' && finalType !== 'transfer') {
+		let balanceAfterReverse = account.currentBalance;
+		if (currentTransaction.type === 'income') {
+			balanceAfterReverse -= currentTransaction.amount;
+		} else if (currentTransaction.type === 'expense') {
+			balanceAfterReverse += currentTransaction.amount;
+		}
 
-	const balanceAfter = calculateNewBalance(
-		balanceAfterReverse,
-		finalAmount,
-		finalType as 'expense' | 'income' | 'transfer'
-	);
+		balanceAfter = calculateNewBalance(
+			balanceAfterReverse,
+			finalAmount,
+			finalType as 'expense' | 'income' | 'transfer'
+		);
+	}
 	const balanceAdjustment = balanceAfter - account.currentBalance;
 
 	const payload: TransactionUpdatedPayload = {
@@ -440,8 +462,12 @@ function buildUpdatedTransaction(current: Transaction, changes: UpdateTransactio
  */
 async function updateBudgetProjections(
 	currentTransaction: Transaction,
-	updates: UpdateTransactionDTO
+	updates: UpdateTransactionDTO,
+	userId: string
 ): Promise<void> {
+	const account = await getAccountState(currentTransaction.accountId);
+	if (!account) return;
+
 	const oldCategory = currentTransaction.category;
 	const newCategory =
 		updates.category !== undefined ? updates.category : currentTransaction.category;
@@ -456,7 +482,9 @@ async function updateBudgetProjections(
 		if (oldCategory && oldType === 'expense') {
 			const oldActiveBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
 				oldCategory,
-				currentTransaction.createdAt
+				currentTransaction.createdAt,
+				userId,
+				account.currencyId
 			);
 			for (const b of oldActiveBudgets) {
 				await eventStoreRepo.updateBudgetProjection(b.id, {
@@ -470,7 +498,12 @@ async function updateBudgetProjections(
 			const txDate = updates.transactionDate
 				? toUTC(updates.transactionDate)
 				: currentTransaction.createdAt;
-			const newActiveBudgets = await eventStoreRepo.getActiveBudgetsByCategory(newCategory, txDate);
+			const newActiveBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
+				newCategory,
+				txDate,
+				userId,
+				account.currencyId
+			);
 			for (const b of newActiveBudgets) {
 				await eventStoreRepo.updateBudgetProjection(b.id, {
 					currentSpent: b.currentSpent + newAmount
