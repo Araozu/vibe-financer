@@ -5,11 +5,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Info, MoreVertical, Pencil, Trash2, Tag } from '@lucide/svelte';
-	import {
-		formatLocalDate,
-		formatLocalDateTime,
-		formatLocalTime
-	} from '$lib/domain/date-formatter';
+	import { formatLocalDateTime, formatLocalTime } from '$lib/domain/date-formatter';
 	import BudgetIcon from '$lib/components/budget/budget-icon.svelte';
 
 	export interface Transaction {
@@ -105,7 +101,7 @@
 					<Tooltip.Root>
 						<Tooltip.Trigger>
 							<div class="text-xs text-muted-foreground">
-								{formatLocalDate(tx.createdAt)} · {formatLocalTime(tx.createdAt)}
+								{formatLocalTime(tx.createdAt)}
 							</div>
 						</Tooltip.Trigger>
 						<Tooltip.Content>

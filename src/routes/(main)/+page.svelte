@@ -102,8 +102,57 @@
 		return blob.includes(queryLower);
 	}
 
-	function isSameTransactionDay(a: SerializedTransaction, b: SerializedTransaction): boolean {
-		return formatLocalDate(a.createdAt) === formatLocalDate(b.createdAt);
+	type TransactionDayGroup = {
+		date: string;
+		transactions: SerializedTransaction[];
+		totals: TransactionDayTotal[];
+	};
+
+	type TransactionDayTotal = {
+		amount: number;
+		currencyId: string;
+		currencyCode: string;
+		currencySymbol: string;
+	};
+
+	function groupTransactionsByDay(
+		transactions: SerializedTransaction[],
+		totalTransactions: SerializedTransaction[],
+		accounts: SerializedAccount[],
+		fallbackCurrencyId: string,
+		fallbackCurrencySymbol: string
+	): TransactionDayGroup[] {
+		const groups: TransactionDayGroup[] = [];
+
+		for (const tx of transactions) {
+			const date = formatLocalDate(tx.createdAt);
+			const existingGroup = groups.find((group) => group.date === date);
+			const group = existingGroup ?? { date, transactions: [], totals: [] };
+
+			group.transactions.push(tx);
+			if (existingGroup == null) groups.push(group);
+		}
+
+		for (const tx of totalTransactions) {
+			if (tx.type !== 'expense') continue;
+
+			const group = groups.find((candidate) => candidate.date === formatLocalDate(tx.createdAt));
+			if (group == null) continue;
+
+			const account = accounts.find((candidate) => candidate.id === tx.accountId);
+			const currencyId = account?.currencyId ?? fallbackCurrencyId;
+			const currencyCode = account?.currencyCode ?? currencyId;
+			const currencySymbol = account?.currencySymbol ?? fallbackCurrencySymbol;
+			const existingTotal = group.totals.find((total) => total.currencyId === currencyId);
+
+			if (existingTotal) {
+				existingTotal.amount += tx.amount;
+			} else {
+				group.totals.push({ amount: tx.amount, currencyId, currencyCode, currencySymbol });
+			}
+		}
+
+		return groups;
 	}
 
 	const dashboardPeriod = getDashboardPeriodContext();
@@ -283,29 +332,76 @@
 			futureTransactions.some((tx) => !tx.category?.trim())
 	);
 
-	let recentTransactions = $derived.by(() => {
+	let filteredRecentTransactions = $derived.by(() => {
 		const q = recentTxSearch.trim().toLowerCase();
 		const cat = recentCategoryFilter;
 		const filtered = postedTransactions.filter((tx) => transactionMatchesTableFilters(tx, q, cat));
-		const sorted = [...filtered].sort(
+		return [...filtered].sort(
 			(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 		);
-		const filtersActive =
-			recentTxSearch.trim() !== '' || recentCategoryFilter !== RECENT_TX_FILTER_ALL;
-		return filtersActive ? sorted.slice(0, 500) : sorted.slice(0, 10);
 	});
 
-	let upcomingTransactions = $derived.by(() => {
+	let recentTransactions = $derived.by(() => {
+		const filtersActive =
+			recentTxSearch.trim() !== '' || recentCategoryFilter !== RECENT_TX_FILTER_ALL;
+		return filtersActive
+			? filteredRecentTransactions.slice(0, 500)
+			: filteredRecentTransactions.slice(0, 10);
+	});
+
+	let filteredUpcomingTransactions = $derived.by(() => {
 		const q = recentTxSearch.trim().toLowerCase();
 		const cat = recentCategoryFilter;
 		const filtered = futureTransactions.filter((tx) => transactionMatchesTableFilters(tx, q, cat));
-		const sorted = [...filtered].sort(
+		return [...filtered].sort(
 			(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 		);
+	});
+
+	let upcomingTransactions = $derived.by(() => {
 		const filtersActive =
 			recentTxSearch.trim() !== '' || recentCategoryFilter !== RECENT_TX_FILTER_ALL;
-		return filtersActive ? sorted.slice(0, 500) : sorted.slice(0, 10);
+		return filtersActive
+			? filteredUpcomingTransactions.slice(0, 500)
+			: filteredUpcomingTransactions.slice(0, 10);
 	});
+
+	let recentTransactionGroups = $derived(
+		groupTransactionsByDay(
+			recentTransactions,
+			filteredRecentTransactions,
+			accounts,
+			defaultAccount?.currencyId ?? 'default',
+			defaultCurrencySymbol
+		)
+	);
+	let upcomingTransactionGroups = $derived(
+		groupTransactionsByDay(
+			upcomingTransactions,
+			filteredUpcomingTransactions,
+			accounts,
+			defaultAccount?.currencyId ?? 'default',
+			defaultCurrencySymbol
+		)
+	);
+
+	function formatDayTotal(totals: TransactionDayTotal[]): string {
+		if (totals.length === 0) return `${defaultCurrencySymbol}0.00`;
+		const hasDuplicateSymbol = totals.some(
+			(total, index) =>
+				totals.findIndex((candidate) => candidate.currencySymbol === total.currencySymbol) !== index
+		);
+
+		return totals
+			.map(
+				({ amount, currencyCode, currencySymbol }) =>
+					`-${currencySymbol}${(amount / 100).toLocaleString('en-US', {
+						minimumFractionDigits: 2,
+						maximumFractionDigits: 2
+					})}${hasDuplicateSymbol ? ` ${currencyCode}` : ''}`
+			)
+			.join(' · ');
+	}
 
 	let defaultAccountTransactions = $derived(
 		defaultAccount
@@ -652,51 +748,88 @@
 									<Table.Head class="w-12"></Table.Head>
 								</Table.Row>
 							</Table.Header>
-							<Table.Body>
-								{#if futureTransactions.length > 0 && upcomingTransactionsOpen}
-									{#each upcomingTransactions as tx, i (tx.id)}
-										<TransactionRow
-											{tx}
-											account={accounts.find((a) => a.id === tx.accountId) ?? null}
-											{deletingTransactionId}
-											isFuture
-											showSeparator={(i < upcomingTransactions.length - 1 &&
-												!isSameTransactionDay(tx, upcomingTransactions[i + 1])) ||
-												(i === upcomingTransactions.length - 1 &&
-													recentTransactions.length > 0 &&
-													!isSameTransactionDay(tx, recentTransactions[0]))}
-											onEdit={openEditDialog}
-											onDelete={handleDeleteTransaction}
-										/>
-									{/each}
-								{/if}
+							{#if futureTransactions.length > 0 && upcomingTransactionsOpen}
+								{#each upcomingTransactionGroups as group (group.date)}
+									<Table.Body>
+										<Table.Row class="border-b-0 hover:bg-transparent">
+											<Table.Head
+												colspan={3}
+												scope="rowgroup"
+												class="h-auto border-b-0 pt-3 pb-1 text-xs text-muted-foreground"
+											>
+												{group.date}
+											</Table.Head>
+											<Table.Head
+												class="h-auto border-b-0 pt-3 pb-1 text-right text-xs text-muted-foreground"
+											>
+												<span class="sr-only">Total spent </span>
+												{formatDayTotal(group.totals)}
+											</Table.Head>
+											<Table.Head class="h-auto border-b-0 pt-3 pb-1" aria-hidden="true" />
+										</Table.Row>
+										{#each group.transactions as tx, i (tx.id)}
+											<TransactionRow
+												{tx}
+												account={accounts.find((a) => a.id === tx.accountId) ?? null}
+												{deletingTransactionId}
+												isFuture
+												showSeparator={i === group.transactions.length - 1}
+												onEdit={openEditDialog}
+												onDelete={handleDeleteTransaction}
+											/>
+										{/each}
+									</Table.Body>
+								{/each}
+							{/if}
 
-								{#if postedTransactions.length === 0 && futureTransactions.length === 0}
+							{#if postedTransactions.length === 0 && futureTransactions.length === 0}
+								<Table.Body>
 									<Table.Row>
 										<Table.Cell colspan={5} class="py-6 text-center text-sm text-muted-foreground">
 											No posted transactions yet for this view.
 										</Table.Cell>
 									</Table.Row>
-								{:else if recentTransactions.length === 0 && upcomingTransactions.length === 0}
+								</Table.Body>
+							{:else if recentTransactions.length === 0 && upcomingTransactions.length === 0}
+								<Table.Body>
 									<Table.Row>
 										<Table.Cell colspan={5} class="py-6 text-center text-sm text-muted-foreground">
 											No transactions match your search or category filter.
 										</Table.Cell>
 									</Table.Row>
-								{:else if recentTransactions.length > 0}
-									{#each recentTransactions as tx, i (tx.id)}
-										<TransactionRow
-											{tx}
-											account={accounts.find((a) => a.id === tx.accountId) ?? null}
-											{deletingTransactionId}
-											showSeparator={i < recentTransactions.length - 1 &&
-												!isSameTransactionDay(tx, recentTransactions[i + 1])}
-											onEdit={openEditDialog}
-											onDelete={handleDeleteTransaction}
-										/>
-									{/each}
-								{/if}
-							</Table.Body>
+								</Table.Body>
+							{:else if recentTransactions.length > 0}
+								{#each recentTransactionGroups as group (group.date)}
+									<Table.Body>
+										<Table.Row class="border-b-0 hover:bg-transparent">
+											<Table.Head
+												colspan={3}
+												scope="rowgroup"
+												class="h-auto border-b-0 pt-3 pb-1 text-xs text-muted-foreground"
+											>
+												{group.date}
+											</Table.Head>
+											<Table.Head
+												class="h-auto border-b-0 pt-3 pb-1 text-right text-xs text-muted-foreground"
+											>
+												<span class="sr-only">Total spent </span>
+												{formatDayTotal(group.totals)}
+											</Table.Head>
+											<Table.Head class="h-auto border-b-0 pt-3 pb-1" aria-hidden="true" />
+										</Table.Row>
+										{#each group.transactions as tx, i (tx.id)}
+											<TransactionRow
+												{tx}
+												account={accounts.find((a) => a.id === tx.accountId) ?? null}
+												{deletingTransactionId}
+												showSeparator={i === group.transactions.length - 1}
+												onEdit={openEditDialog}
+												onDelete={handleDeleteTransaction}
+											/>
+										{/each}
+									</Table.Body>
+								{/each}
+							{/if}
 						</Table.Root>
 					</div>
 				</Card.Content>
