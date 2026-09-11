@@ -32,6 +32,10 @@ export async function createTransaction(
 		throw error(400, 'Transaction amount must be greater than zero');
 	}
 
+	if (data.type !== 'expense' && data.type !== 'income' && data.type !== 'transfer') {
+		throw error(400, `Invalid transaction type: ${data.type}`);
+	}
+
 	// 1. Get the source account state from event stream
 	const sourceAccount = await getAccountState(data.accountId);
 
@@ -42,7 +46,12 @@ export async function createTransaction(
 	const transactionId = crypto.randomUUID();
 	const transactionDate = toUTC(data.createdAt ?? new Date());
 	const sourceVersion = await getAccountVersion(data.accountId);
-	const budgetId = data.budgetId ?? null;
+	// Transfers never participate in budgets: they are movements of money, not spend.
+	// This keeps create/edit/delete/rebuild/list consistent (all budget queries are expense-only).
+	const budgetId = data.type === 'transfer' ? null : (data.budgetId ?? null);
+	if (data.type === 'transfer' && data.budgetId) {
+		throw error(400, 'Transfers cannot be linked to a budget');
+	}
 	if (budgetId) {
 		const budget = await budgetRepo.getById(budgetId);
 		if (!budget || budget.userId !== userId || budget.currencyId !== sourceAccount.currencyId) {
@@ -117,7 +126,8 @@ export async function createTransaction(
 			name: data.name ?? null,
 			description: `Transfer from ${sourceAccount.name}`,
 			category: data.category ?? null,
-			budgetId,
+			// Destination leg never carries a budget link (budgets are expense-only).
+			budgetId: null,
 			payee: null,
 			toAccountId: null,
 			balanceBefore: destAccount.currentBalance,
@@ -151,7 +161,7 @@ export async function createTransaction(
 					tx
 				);
 
-				// Create transaction read model
+				// Create transaction read model (transfers never carry budget/payee links)
 				await eventStoreRepo.createTransactionProjection(
 					{
 						id: transactionId,
@@ -162,8 +172,8 @@ export async function createTransaction(
 						name: data.name ?? null,
 						description: data.description ?? null,
 						category: data.category ?? null,
-						budgetId,
-						payee: data.payee ?? null,
+						budgetId: null,
+						payee: null,
 						toAccountId: data.toAccountId,
 						createdAt: transactionDate
 					},
@@ -178,21 +188,6 @@ export async function createTransaction(
 			throw err;
 		}
 
-		// Update active budgets for this category (transfers are often treated as expenses for the source account)
-		if (data.category) {
-			const activeBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
-				data.category,
-				transactionDate,
-				userId,
-				sourceAccount.currencyId
-			);
-			for (const b of activeBudgets) {
-				await eventStoreRepo.updateBudgetProjection(b.id, {
-					currentSpent: b.currentSpent + data.amount
-				});
-			}
-		}
-
 		return {
 			id: transactionId,
 			accountId: data.accountId,
@@ -202,8 +197,8 @@ export async function createTransaction(
 			name: data.name ?? null,
 			description: data.description ?? null,
 			category: data.category ?? null,
-			budgetId,
-			payee: data.payee ?? null,
+			budgetId: null,
+			payee: null,
 			toAccountId: data.toAccountId,
 			createdAt: transactionDate,
 			updatedAt: transactionDate,
@@ -233,6 +228,17 @@ export async function createTransaction(
 
 	const event = createTransactionCreatedEvent(data.accountId, userId, payload, sourceVersion + 1);
 
+	// Resolve active budgets before the write so the increment list is stable.
+	const budgetsToIncrement =
+		data.category && data.type === 'expense'
+			? await eventStoreRepo.getActiveBudgetsByCategory(
+					data.category,
+					transactionDate,
+					userId,
+					sourceAccount.currencyId
+				)
+			: [];
+
 	// Append event and update projections atomically with optimistic concurrency
 	try {
 		await eventStoreRepo.runInTransaction(async (tx) => {
@@ -260,6 +266,9 @@ export async function createTransaction(
 				},
 				tx
 			);
+			for (const b of budgetsToIncrement) {
+				await eventStoreRepo.incrementBudgetSpent(b.id, data.amount, tx);
+			}
 		});
 	} catch (err: unknown) {
 		// Handle concurrent transaction creation gracefully
@@ -270,21 +279,6 @@ export async function createTransaction(
 		}
 
 		throw err;
-	}
-
-	// Update active budgets for this category
-	if (data.category && data.type === 'expense') {
-		const activeBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
-			data.category,
-			transactionDate,
-			userId,
-			sourceAccount.currencyId
-		);
-		for (const b of activeBudgets) {
-			await eventStoreRepo.updateBudgetProjection(b.id, {
-				currentSpent: b.currentSpent + data.amount
-			});
-		}
 	}
 
 	return {

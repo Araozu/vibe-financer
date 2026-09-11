@@ -46,8 +46,34 @@ export async function editTransaction(
 		throw error(404, 'Transaction not found');
 	}
 
-	const finalBudgetId =
+	const isAccountChangeEarly =
+		updates.accountId !== undefined && updates.accountId !== currentTransaction.accountId;
+
+	// Transfers never participate in budgets. Reject attempts to link them.
+	const finalTypeEarly = updates.type ?? currentTransaction.type;
+	if (finalTypeEarly === 'transfer' && updates.budgetId) {
+		throw error(400, 'Transfers cannot be linked to a budget');
+	}
+
+	let finalBudgetId =
 		updates.budgetId !== undefined ? updates.budgetId : currentTransaction.budgetId;
+	// Moving a transaction to an account with a different currency invalidates
+	// a carried-over budget link (budgets are currency-scoped). Auto-clear it
+	// instead of rejecting an otherwise valid account-only move.
+	if (isAccountChangeEarly && updates.budgetId === undefined && finalBudgetId) {
+		const [oldAccountForBudgetCheck, newAccountForBudgetCheck] = await Promise.all([
+			getAccountState(currentTransaction.accountId),
+			getAccountState(updates.accountId!)
+		]);
+		if (
+			oldAccountForBudgetCheck &&
+			newAccountForBudgetCheck &&
+			oldAccountForBudgetCheck.currencyId !== newAccountForBudgetCheck.currencyId
+		) {
+			updates.budgetId = null;
+			finalBudgetId = null;
+		}
+	}
 	if (finalBudgetId) {
 		const [targetAccount, budget] = await Promise.all([
 			getAccountState(updates.accountId ?? currentTransaction.accountId),
@@ -179,9 +205,6 @@ export async function editTransaction(
 		);
 	}
 
-	// Update budget projections
-	await updateBudgetProjections(currentTransaction, updates, userId);
-
 	return updated;
 }
 
@@ -240,9 +263,82 @@ async function handleSameAccountEdit(
 		accountVersion + 1
 	);
 
+	// Budget deltas (expense-only; transfers never touch budgets).
+	// Resolved before the write so the increment list is stable.
+	const oldCategory = currentTransaction.category;
+	const newCategory =
+		changes.category !== undefined ? changes.category : currentTransaction.category;
+	const oldAmount = currentTransaction.amount;
+	const newAmount = changes.amount ?? currentTransaction.amount;
+	const oldType = currentTransaction.type;
+	const newType = (changes.type ?? currentTransaction.type) as string;
+	const oldTxDate = currentTransaction.createdAt;
+	const newTxDate =
+		changes.transactionDate !== undefined ? toUTC(changes.transactionDate) : oldTxDate;
+
+	const oldBudgets =
+		oldCategory && oldType === 'expense'
+			? await eventStoreRepo.getActiveBudgetsByCategory(
+					oldCategory,
+					oldTxDate,
+					userId,
+					account.currencyId
+				)
+			: [];
+	const newBudgets =
+		newCategory && newType === 'expense'
+			? await eventStoreRepo.getActiveBudgetsByCategory(
+					newCategory,
+					newTxDate,
+					userId,
+					account.currencyId
+				)
+			: [];
+
+	// Transfer audit: keep the destination stream in sync for non-financial edits.
+	// The destination leg has no separate projection row, but its event stream
+	// should still record the edit so both sides share the same audit trail.
+	let destEvent: ReturnType<typeof createTransactionUpdatedEvent> | null = null;
+	let destVersion = 0;
+	let destAccountId: string | null = null;
+	if (currentTransaction.type === 'transfer' && currentTransaction.toAccountId) {
+		destAccountId = currentTransaction.toAccountId;
+		const destAccount = await getAccountState(destAccountId);
+		if (destAccount && canAcceptTransaction(destAccount) && destAccount.userId === userId) {
+			destVersion = await getAccountVersion(destAccountId);
+			const destChanges: UpdateTransactionDTO = {};
+			if (changes.name !== undefined) destChanges.name = changes.name;
+			if (changes.description !== undefined) destChanges.description = changes.description;
+			if (changes.category !== undefined) destChanges.category = changes.category;
+			if (changes.transactionDate !== undefined)
+				destChanges.transactionDate = toUTC(changes.transactionDate);
+			if (Object.keys(destChanges).length > 0) {
+				destEvent = createTransactionUpdatedEvent(
+					destAccountId,
+					userId,
+					{
+						transactionId,
+						changes: destChanges,
+						previousValues,
+						balanceAdjustment: 0,
+						balanceBefore: destAccount.currentBalance,
+						balanceAfter: destAccount.currentBalance,
+						...(changes.transactionDate !== undefined
+							? { transactionDate: toUTC(changes.transactionDate) }
+							: {})
+					},
+					destVersion + 1
+				);
+			}
+		}
+	}
+
 	try {
 		await eventStoreRepo.runInTransaction(async (tx) => {
 			await eventStoreRepo.append(event, { expectedVersion: accountVersion }, tx);
+			if (destEvent && destAccountId) {
+				await eventStoreRepo.append(destEvent, { expectedVersion: destVersion }, tx);
+			}
 			await eventStoreRepo.updateAccountProjection(
 				currentTransaction.accountId,
 				{ currentBalance: balanceAfter },
@@ -253,6 +349,12 @@ async function handleSameAccountEdit(
 				buildTransactionProjectionData(changes),
 				tx
 			);
+			for (const b of oldBudgets) {
+				await eventStoreRepo.incrementBudgetSpent(b.id, -oldAmount, tx);
+			}
+			for (const b of newBudgets) {
+				await eventStoreRepo.incrementBudgetSpent(b.id, newAmount, tx);
+			}
 		});
 	} catch (err: unknown) {
 		const e = err as { name?: string };
@@ -349,6 +451,37 @@ async function handleAccountChange(
 		newAccountVersion + 1
 	);
 
+	// Budget deltas use each side's own currency + date (expense-only).
+	const oldCategory = currentTransaction.category;
+	const newCategory =
+		changes.category !== undefined ? changes.category : currentTransaction.category;
+	const oldAmount = currentTransaction.amount;
+	const newAmount = changes.amount ?? currentTransaction.amount;
+	const oldType = currentTransaction.type;
+	const newType = (changes.type ?? currentTransaction.type) as string;
+	const oldTxDate = currentTransaction.createdAt;
+	const newTxDate =
+		changes.transactionDate !== undefined ? toUTC(changes.transactionDate) : oldTxDate;
+
+	const oldBudgets =
+		oldCategory && oldType === 'expense'
+			? await eventStoreRepo.getActiveBudgetsByCategory(
+					oldCategory,
+					oldTxDate,
+					userId,
+					oldAccount.currencyId
+				)
+			: [];
+	const newBudgets =
+		newCategory && newType === 'expense'
+			? await eventStoreRepo.getActiveBudgetsByCategory(
+					newCategory,
+					newTxDate,
+					userId,
+					newAccount.currencyId
+				)
+			: [];
+
 	// C. Append events and update projections atomically
 	try {
 		await eventStoreRepo.runInTransaction(async (tx) => {
@@ -371,6 +504,12 @@ async function handleAccountChange(
 				{ accountId: newAccountId, ...buildTransactionProjectionData(changes) },
 				tx
 			);
+			for (const b of oldBudgets) {
+				await eventStoreRepo.incrementBudgetSpent(b.id, -oldAmount, tx);
+			}
+			for (const b of newBudgets) {
+				await eventStoreRepo.incrementBudgetSpent(b.id, newAmount, tx);
+			}
 		});
 	} catch (err: unknown) {
 		const e = err as { name?: string };
@@ -445,70 +584,6 @@ function buildUpdatedTransaction(current: Transaction, changes: UpdateTransactio
 		toAccountId: changes.toAccountId !== undefined ? changes.toAccountId : current.toAccountId,
 		createdAt:
 			changes.transactionDate !== undefined ? toUTC(changes.transactionDate) : current.createdAt,
-		updatedAt: new Date()
+		updatedAt: toUTC(new Date())
 	};
-}
-
-/**
- * Update budget projections when a transaction is edited.
- *
- * Strategy: reverse the old impact (if it was an expense with a category),
- * then apply the new impact (if it is an expense with a category).
- * This correctly handles:
- * - Category changes (old budget loses spend, new budget gains spend)
- * - Type changes (expense→income removes from budget; income→expense adds to budget)
- * - Amount changes
- * - Combined changes (type + category + amount all at once)
- */
-async function updateBudgetProjections(
-	currentTransaction: Transaction,
-	updates: UpdateTransactionDTO,
-	userId: string
-): Promise<void> {
-	const account = await getAccountState(currentTransaction.accountId);
-	if (!account) return;
-
-	const oldCategory = currentTransaction.category;
-	const newCategory =
-		updates.category !== undefined ? updates.category : currentTransaction.category;
-	const oldAmount = currentTransaction.amount;
-	const newAmount = updates.amount !== undefined ? updates.amount : currentTransaction.amount;
-	const oldType = currentTransaction.type;
-	const newType = updates.type !== undefined ? updates.type : currentTransaction.type;
-
-	// Only touch budgets if the transaction is/was an expense with a category
-	if ((oldCategory && oldType === 'expense') || (newCategory && newType === 'expense')) {
-		// 1. Reverse the old impact if it was an expense with a category
-		if (oldCategory && oldType === 'expense') {
-			const oldActiveBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
-				oldCategory,
-				currentTransaction.createdAt,
-				userId,
-				account.currencyId
-			);
-			for (const b of oldActiveBudgets) {
-				await eventStoreRepo.updateBudgetProjection(b.id, {
-					currentSpent: b.currentSpent - oldAmount
-				});
-			}
-		}
-
-		// 2. Apply the new impact if it is an expense with a category
-		if (newCategory && newType === 'expense') {
-			const txDate = updates.transactionDate
-				? toUTC(updates.transactionDate)
-				: currentTransaction.createdAt;
-			const newActiveBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
-				newCategory,
-				txDate,
-				userId,
-				account.currencyId
-			);
-			for (const b of newActiveBudgets) {
-				await eventStoreRepo.updateBudgetProjection(b.id, {
-					currentSpent: b.currentSpent + newAmount
-				});
-			}
-		}
-	}
 }

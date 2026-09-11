@@ -784,13 +784,38 @@ export const eventStoreRepo = {
 	},
 
 	/**
+	 * Atomically increment/decrement a budget's spent total.
+	 * Uses SQL arithmetic to avoid read-modify-write lost updates.
+	 * Accepts an optional transaction so callers can include budget updates
+	 * in the same atomic unit as events + projections.
+	 */
+	async incrementBudgetSpent(
+		budgetId: string,
+		delta: number,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
+	): Promise<void> {
+		if (!Number.isFinite(delta) || delta === 0) return;
+		const dbInstance = externalTx ?? db;
+		await dbInstance
+			.update(budget)
+			.set({
+				currentSpent: sql`${budget.currentSpent} + ${delta}`,
+				updatedAt: sql`NOW()`
+			})
+			.where(eq(budget.id, budgetId));
+	},
+
+	/**
 	 * Get active budgets for a category and date
 	 */
 	async getActiveBudgetsByCategory(
 		category: string,
 		date: Date,
 		userId: string,
-		currencyId: string
+		currencyId: string,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
 	): Promise<
 		Array<{
 			id: string;
@@ -808,7 +833,8 @@ export const eventStoreRepo = {
 		}>
 	> {
 		// This is a simplified check - in a real app we'd handle periods more robustly
-		return db
+		const dbInstance = externalTx ?? db;
+		return dbInstance
 			.select()
 			.from(budget)
 			.where(

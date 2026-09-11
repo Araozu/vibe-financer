@@ -3,6 +3,7 @@ import { transactionRepo } from '$lib/infra/repos/transaction.repo';
 import { getAccountState, getAccountVersion } from '../account/account-projection';
 import { canAcceptTransaction } from '$lib/domain/account-aggregate';
 import { createTransactionDeletedEvent, type TransactionDeletedPayload } from '$lib/domain/events';
+import { toUTC } from '$lib/domain/date-formatter';
 import { error } from '@sveltejs/kit';
 
 /**
@@ -36,11 +37,37 @@ export async function deleteTransaction(
 	// 2. Get the account state to validate and calculate balance adjustment
 	const account = await getAccountState(tx.accountId);
 
-	if (!account || !canAcceptTransaction(account) || account.userId !== userId) {
+	if (!account || !canAcceptTransaction(account)) {
 		throw error(404, 'Account not found or deleted');
+	}
+	if (account.userId !== userId) {
+		// For transfers the receiver may own the destination leg; give a clear
+		// forbidden instead of leaking existence via 404.
+		if (tx.type === 'transfer' && tx.toAccountId) {
+			const destOwnerCheck = await getAccountState(tx.toAccountId);
+			if (destOwnerCheck && destOwnerCheck.userId === userId) {
+				throw error(
+					403,
+					'Only the source account owner can delete a transfer. Please delete it from the source account.'
+				);
+			}
+		}
+		throw error(403, 'Forbidden');
 	}
 
 	const accountVersion = await getAccountVersion(tx.accountId);
+	const deletedAt = toUTC(new Date());
+
+	// Budgets are expense-only; resolve the decrement list before the write.
+	const budgetsToDecrement =
+		tx.category && tx.type === 'expense'
+			? await eventStoreRepo.getActiveBudgetsByCategory(
+					tx.category,
+					tx.createdAt,
+					userId,
+					account.currencyId
+				)
+			: [];
 
 	// 3. Calculate the inverse balance adjustment
 	// For income: we added money, so adjustment is negative (remove it)
@@ -71,7 +98,7 @@ export async function deleteTransaction(
 	if (tx.type === 'transfer' && tx.toAccountId) {
 		const destAccount = await getAccountState(tx.toAccountId);
 		if (destAccount && destAccount.userId !== userId) {
-			throw error(404, 'Destination account not found');
+			throw error(403, 'Destination account access denied');
 		}
 		if (destAccount && canAcceptTransaction(destAccount) && destAccount.userId === userId) {
 			const destVersion = await getAccountVersion(tx.toAccountId);
@@ -112,7 +139,7 @@ export async function deleteTransaction(
 					// Update transaction projection to mark as deleted
 					await eventStoreRepo.updateTransactionProjection(
 						transactionId,
-						{ deletedAt: new Date() },
+						{ deletedAt },
 						dbTx
 					);
 				});
@@ -136,7 +163,7 @@ export async function deleteTransaction(
 					);
 					await eventStoreRepo.updateTransactionProjection(
 						transactionId,
-						{ deletedAt: new Date() },
+						{ deletedAt },
 						dbTx
 					);
 				});
@@ -161,9 +188,12 @@ export async function deleteTransaction(
 				);
 				await eventStoreRepo.updateTransactionProjection(
 					transactionId,
-					{ deletedAt: new Date() },
+					{ deletedAt },
 					dbTx
 				);
+				for (const b of budgetsToDecrement) {
+					await eventStoreRepo.incrementBudgetSpent(b.id, -tx.amount, dbTx);
+				}
 			});
 		} catch (err: unknown) {
 			const e = err as { name?: string };
@@ -171,22 +201,6 @@ export async function deleteTransaction(
 				throw error(409, 'Concurrent update detected while deleting transaction. Please retry.');
 			}
 			throw err;
-		}
-	}
-
-	// 8. Update budget projections
-	// If the transaction was an expense and had a category, we need to reverse its impact
-	if (tx.category && tx.type === 'expense') {
-		const activeBudgets = await eventStoreRepo.getActiveBudgetsByCategory(
-			tx.category,
-			tx.createdAt,
-			userId,
-			account.currencyId
-		);
-		for (const b of activeBudgets) {
-			await eventStoreRepo.updateBudgetProjection(b.id, {
-				currentSpent: b.currentSpent - tx.amount
-			});
 		}
 	}
 }
