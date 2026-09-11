@@ -1,10 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { listAccounts } from '$lib/application/account/list-accounts';
-import {
-	listTransactions,
-	listTransactionsForMonthForAccounts
-} from '$lib/application/transaction/list-transactions';
+import { listAccountsByUser } from '$lib/application/account/list-accounts';
+import { listTransactionsByAccountIds } from '$lib/application/transaction/list-transactions';
+import { listTransactionsForMonthForAccounts } from '$lib/application/transaction/list-transactions';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -16,8 +14,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const limitParam = url.searchParams.get('limit');
 	const timezone = url.searchParams.get('tz') ?? 'UTC';
 
-	const allAccounts = await listAccounts();
-	const accounts = allAccounts.filter((acc) => acc.userId === locals.user!.id);
+	const accounts = await listAccountsByUser(locals.user.id);
 	const accountIds = accounts.map((acc) => acc.id);
 
 	if (monthParam !== null && yearParam !== null) {
@@ -50,12 +47,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		});
 	}
 
-	const allTransactions = await listTransactions();
-	const accountIdSet = new Set(accountIds);
-	const transactions = allTransactions.filter(
-		(tx) =>
-			accountIdSet.has(tx.accountId) || (tx.toAccountId != null && accountIdSet.has(tx.toAccountId))
-	);
+	const transactions = await listTransactionsByAccountIds(accountIds);
 
 	const serializedTransactions = transactions.map((tx) => ({
 		...tx,

@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { deleteTransaction } from '$lib/application/transaction/delete-transaction';
 import { transactionRepo } from '$lib/infra/repos/transaction.repo';
+import { accountRepo } from '$lib/infra/repos/account.repo';
 
 /**
  * DELETE /api/transactions/[id]
@@ -21,12 +22,19 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		// First verify the transaction exists and user owns it
 		const tx = await transactionRepo.findById(transactionId);
 
-		if (!tx) {
+		if (!tx || tx.deletedAt) {
 			return json({ error: 'Transaction not found' }, { status: 404 });
 		}
 
-		// TODO: Add ownership verification by checking if transaction's account belongs to user
-		// For now, we trust that the application layer handles this
+		const [sourceAccount, destAccount] = await Promise.all([
+			accountRepo.findById(tx.accountId),
+			tx.toAccountId ? accountRepo.findById(tx.toAccountId) : Promise.resolve(null)
+		]);
+		const ownsSource = sourceAccount?.userId === locals.user.id;
+		const ownsDest = destAccount?.userId === locals.user.id;
+		if (!ownsSource && !ownsDest) {
+			return json({ error: 'Transaction not found' }, { status: 404 });
+		}
 
 		// Delete the transaction
 		await deleteTransaction(transactionId, locals.user.id);

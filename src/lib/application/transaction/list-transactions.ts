@@ -43,6 +43,11 @@ export async function listTransactionsByAccount(accountId: string): Promise<Tran
 	return await transactionRepo.findByAccountId(accountId);
 }
 
+export async function listTransactionsByAccountIds(accountIds: string[]): Promise<Transaction[]> {
+	if (accountIds.length === 0) return [];
+	return await transactionRepo.findByAccountIds(accountIds);
+}
+
 export async function listTransactionsForMonth(
 	accountId: string,
 	month: number,

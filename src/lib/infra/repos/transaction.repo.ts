@@ -16,7 +16,6 @@ import {
 	sql
 } from 'drizzle-orm';
 import {
-	calculateAccountBalanceDelta,
 	type Transaction,
 	type CreateTransactionDTO,
 	type TransactionType
@@ -91,6 +90,24 @@ export const transactionRepo = {
 			.orderBy(desc(transaction.createdAt));
 	},
 
+	async findByAccountIds(accountIds: string[]): Promise<Transaction[]> {
+		if (accountIds.length === 0) return [];
+		return await db
+			.select(transactionWithBudgetColumns)
+			.from(transaction)
+			.leftJoin(budget, eq(transaction.budgetId, budget.id))
+			.where(
+				and(
+					or(
+						inArray(transaction.accountId, accountIds),
+						inArray(transaction.toAccountId, accountIds)
+					),
+					isNull(transaction.deletedAt)
+				)
+			)
+			.orderBy(desc(transaction.createdAt));
+	},
+
 	async findByAccountIdsAndDateRange(
 		accountIds: string[],
 		start: Date,
@@ -134,8 +151,15 @@ export const transactionRepo = {
 	},
 
 	async getSumBeforeDate(accountId: string, date: Date): Promise<number> {
-		const transactionsBefore = await db
-			.select()
+		const [row] = await db
+			.select({
+				total: sql<number>`COALESCE(SUM(CASE
+					WHEN ${transaction.type} = 'transfer' AND ${transaction.accountId} = ${accountId} THEN -${transaction.amount}
+					WHEN ${transaction.type} = 'transfer' AND ${transaction.toAccountId} = ${accountId} THEN COALESCE(${transaction.destinationAmount}, ${transaction.amount})
+					WHEN ${transaction.type} = 'income' AND ${transaction.accountId} = ${accountId} THEN ${transaction.amount}
+					WHEN ${transaction.type} = 'expense' AND ${transaction.accountId} = ${accountId} THEN -${transaction.amount}
+					ELSE 0 END), 0)`
+			})
 			.from(transaction)
 			.where(
 				and(
@@ -145,10 +169,7 @@ export const transactionRepo = {
 				)
 			);
 
-		return transactionsBefore.reduce(
-			(sum, tx) => sum + calculateAccountBalanceDelta(tx, accountId),
-			0
-		);
+		return Number(row?.total ?? 0);
 	},
 
 	async findByAccountIdPaginated(
