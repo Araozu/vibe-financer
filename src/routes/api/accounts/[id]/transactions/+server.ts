@@ -69,7 +69,8 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 		type,
 		timeframe,
 		startDate,
-		endDate
+		endDate,
+		timezone
 	});
 
 	return json({

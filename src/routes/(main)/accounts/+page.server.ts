@@ -126,14 +126,30 @@ export const actions: Actions = {
 		const toAccountId = formData.get('toAccountId') as string | null;
 		const exchangeRateStr = formData.get('exchangeRate') as string | null;
 		const dateStr = formData.get('date') as string;
+		const timeStr = formData.get('time') as string | null;
+		const timezone = formData.get('timezone') as string | null;
+
+		if (!timeStr && dateStr?.includes('T')) {
+			// ISO datetime passed directly (back-compat); otherwise time is required
+		} else if (!timeStr) {
+			return fail(400, { error: 'Time is required' });
+		}
 
 		const parsedAmount = parseFloat(amountStr);
 		const amount = isNaN(parsedAmount) ? 0 : Math.round(parsedAmount * 100);
 
 		const exchangeRate = parseExchangeRate(exchangeRateStr);
 
-		// If it's a date-only string (YYYY-MM-DD), parse it as local midnight
-		const createdAt = dateStr ? parseDateLocal(dateStr) : new Date();
+		// Combine date and time in the user's timezone, then convert to UTC.
+		// Matches (main)/+page.server.ts so all entry points produce the same instant.
+		const createdAt =
+			dateStr && timeStr
+				? timezone
+					? fromZonedTime(`${dateStr}T${timeStr}:00`, timezone)
+					: parseDateLocal(`${dateStr}T${timeStr}:00`)
+				: dateStr
+					? parseDateLocal(dateStr)
+					: new Date();
 
 		try {
 			await createTransaction(

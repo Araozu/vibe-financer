@@ -111,6 +111,22 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 		}
 
 		// 6. Recreate transaction projections from events
+		// Preload transfer legs in one batch to avoid N+1 lookups for legacy
+		// destination events that predate the isTransferDestination flag.
+		const candidateTransferIds = events
+			.filter(
+				(event) =>
+					event.eventType === 'TransactionCreated' &&
+					(event as TransactionCreatedEvent).payload.type === 'income' &&
+					(event as TransactionCreatedEvent).payload.toAccountId === null &&
+					(event as TransactionCreatedEvent).payload.isTransferDestination !== true
+			)
+			.map((event) => (event as TransactionCreatedEvent).payload.transactionId);
+		const legacyTransferMap =
+			candidateTransferIds.length > 0
+				? await eventStoreRepo.getTransferEventsByTransactionIds(candidateTransferIds)
+				: new Map();
+
 		let transactionsRebuilt = 0;
 		for (const event of events) {
 			if (event.eventType === 'TransactionCreated') {
@@ -119,11 +135,12 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 					e.payload.type === 'income' &&
 					e.payload.toAccountId === null &&
 					(e.payload.isTransferDestination === true ||
-						(await eventStoreRepo.hasTransferEvent(e.payload.transactionId)));
+						legacyTransferMap.has(e.payload.transactionId));
 				if (isTransferDestination) {
-					const transferEvent = await eventStoreRepo.getTransferEventByTransactionId(
-						e.payload.transactionId
-					);
+					const transferEvent =
+						(e.payload.isTransferDestination === true
+							? await eventStoreRepo.getTransferEventByTransactionId(e.payload.transactionId)
+							: legacyTransferMap.get(e.payload.transactionId)) ?? null;
 					if (transferEvent) {
 						await eventStoreRepo.upsertTransactionProjection({
 							id: e.payload.transactionId,
@@ -134,7 +151,8 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 							name: transferEvent.payload.name,
 							description: transferEvent.payload.description,
 							category: transferEvent.payload.category,
-							budgetId: transferEvent.payload.budgetId ?? null,
+							// Transfers never carry budget links (expense-only budgets).
+							budgetId: null,
 							payee: null,
 							toAccountId: transferEvent.payload.toAccountId,
 							createdAt: transferEvent.payload.transactionDate
@@ -182,7 +200,8 @@ export async function rebuildAccountProjection(accountId: string): Promise<Rebui
 						name: e.payload.name,
 						description: e.payload.description,
 						category: e.payload.category,
-						budgetId: e.payload.budgetId ?? null,
+						// Enforce the transfer-has-no-budget invariant for legacy data.
+						budgetId: null,
 						payee: null,
 						toAccountId: e.payload.toAccountId,
 						createdAt: e.payload.transactionDate
@@ -712,6 +731,30 @@ export async function verifyProjectionIntegrity(
 		discrepancies.push(
 			`Initial balance mismatch: projection=${projection.initialBalance}, events=${eventState.initialBalance}`
 		);
+	}
+
+	// Transaction projection checks: every created/transfer event should have a
+	// live projection unless a later delete event removed it.
+	const { transactionRepo } = await import('$lib/infra/repos/transaction.repo');
+	const createdIds = new Set<string>();
+	const deletedIds = new Set<string>();
+	for (const event of events) {
+		if (event.eventType === 'TransactionCreated') {
+			createdIds.add((event as TransactionCreatedEvent).payload.transactionId);
+		} else if (event.eventType === 'TransferCreated') {
+			createdIds.add((event as TransferCreatedEvent).payload.transactionId);
+		} else if (event.eventType === 'TransactionDeleted') {
+			deletedIds.add((event as TransactionDeletedEvent).payload.transactionId);
+		}
+	}
+	for (const id of createdIds) {
+		if (deletedIds.has(id)) continue;
+		const tx = await transactionRepo.findById(id);
+		if (!tx) {
+			discrepancies.push(`Transaction projection missing for ${id}`);
+		} else if (tx.type === 'transfer' && tx.budgetId) {
+			discrepancies.push(`Transfer ${id} should not carry a budget link`);
+		}
 	}
 
 	return {

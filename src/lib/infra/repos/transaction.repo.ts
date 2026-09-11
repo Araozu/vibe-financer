@@ -288,7 +288,7 @@ export const transactionRepo = {
 			.from(transaction)
 			.where(
 				and(
-					eq(transaction.accountId, accountId),
+					or(eq(transaction.accountId, accountId), eq(transaction.toAccountId, accountId)),
 					isNull(transaction.deletedAt),
 					sql`${transaction.category} IS NOT NULL`,
 					sql`TRIM(${transaction.category}) <> ''`

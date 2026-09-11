@@ -15,7 +15,7 @@ import {
 	budget,
 	currency
 } from '../db/schema';
-import { eq, and, asc, desc, lte, gt, sql } from 'drizzle-orm';
+import { eq, and, asc, desc, lte, gt, sql, inArray } from 'drizzle-orm';
 import type { DomainEvent, StreamType, EventType, TransferCreatedEvent } from '$lib/domain/events';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
@@ -675,6 +675,36 @@ export const eventStoreRepo = {
 			.limit(1);
 
 		return result ? (toDomainEvent(result as StoredEvent) as TransferCreatedEvent) : null;
+	},
+
+	/**
+	 * Batch-fetch transfer events for a set of transaction IDs.
+	 * Avoids N+1 lookups during projection rebuilds.
+	 */
+	async getTransferEventsByTransactionIds(
+		transactionIds: string[]
+	): Promise<Map<string, TransferCreatedEvent>> {
+		const result = new Map<string, TransferCreatedEvent>();
+		if (transactionIds.length === 0) return result;
+		// Chunk to avoid oversized IN lists.
+		const CHUNK_SIZE = 200;
+		for (let i = 0; i < transactionIds.length; i += CHUNK_SIZE) {
+			const chunk = transactionIds.slice(i, i + CHUNK_SIZE);
+			const rows = await db
+				.select()
+				.from(eventStore)
+				.where(
+					and(
+						eq(eventStore.eventType, 'TransferCreated'),
+						inArray(sql`${eventStore.payload}->>'transactionId'`, chunk)
+					)
+				);
+			for (const row of rows) {
+				const event = toDomainEvent(row as StoredEvent) as TransferCreatedEvent;
+				result.set(event.payload.transactionId, event);
+			}
+		}
+		return result;
 	},
 
 	/**

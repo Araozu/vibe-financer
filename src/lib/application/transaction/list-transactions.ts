@@ -1,7 +1,17 @@
 import { transactionRepo } from '$lib/infra/repos/transaction.repo';
 import { accountRepo } from '$lib/infra/repos/account.repo';
 import type { Transaction, TransactionType } from '$lib/domain/transaction';
-import { endOfMonth, endOfWeek, endOfYear, startOfMonth, startOfWeek, startOfYear } from 'date-fns';
+import {
+	endOfDay,
+	endOfMonth,
+	endOfWeek,
+	endOfYear,
+	startOfDay,
+	startOfMonth,
+	startOfWeek,
+	startOfYear,
+	subDays
+} from 'date-fns';
 import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { budgetRepo } from '$lib/infra/repos/budget.repo';
 
@@ -21,6 +31,7 @@ export interface TransactionListFilters {
 	timeframe?: TransactionTimeframe;
 	startDate?: Date;
 	endDate?: Date;
+	timezone?: string;
 }
 
 export interface BudgetPeriodRange {
@@ -143,7 +154,7 @@ export async function listTransactionsByAccountPaginated(
 	const dateRange =
 		filters?.startDate || filters?.endDate
 			? { startDate: filters.startDate, endDate: filters.endDate }
-			: getDateRangeForTimeframe(filters?.timeframe ?? 'all');
+			: getDateRangeForTimeframe(filters?.timeframe ?? 'all', filters?.timezone ?? 'UTC');
 
 	if (
 		!normalizedSearch &&
@@ -251,56 +262,60 @@ export function getBudgetPeriodRange(
 	};
 }
 
-function getDateRangeForTimeframe(timeframe: TransactionTimeframe): {
+function getDateRangeForTimeframe(
+	timeframe: TransactionTimeframe,
+	timezone = 'UTC'
+): {
 	startDate?: Date;
 	endDate?: Date;
 } {
 	const now = new Date();
-
-	// Compute today's start/end in UTC to avoid server-local timezone shifts.
-	const utcTodayStart = new Date(
-		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-	);
-	const utcTodayEnd = new Date(
-		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999)
-	);
+	const zonedNow = toZonedTime(now, timezone);
+	const zonedTodayStart = startOfDay(zonedNow);
+	const zonedTodayEnd = endOfDay(zonedNow);
 
 	switch (timeframe) {
 		case '7d': {
-			// Last 7 days in UTC (today and the previous 6 days).
-			const start = new Date(utcTodayStart);
-			start.setUTCDate(start.getUTCDate() - 6);
-			return { startDate: start, endDate: utcTodayEnd };
+			// Last 7 days in the user's timezone (today + previous 6 days).
+			return {
+				startDate: fromZonedTime(subDays(zonedTodayStart, 6), timezone),
+				endDate: fromZonedTime(zonedTodayEnd, timezone)
+			};
 		}
 		case '30d': {
-			// Last 30 days in UTC (today and the previous 29 days).
-			const start = new Date(utcTodayStart);
-			start.setUTCDate(start.getUTCDate() - 29);
-			return { startDate: start, endDate: utcTodayEnd };
+			return {
+				startDate: fromZonedTime(subDays(zonedTodayStart, 29), timezone),
+				endDate: fromZonedTime(zonedTodayEnd, timezone)
+			};
 		}
 		case '90d': {
-			// Last 90 days in UTC (today and the previous 89 days).
-			const start = new Date(utcTodayStart);
-			start.setUTCDate(start.getUTCDate() - 89);
-			return { startDate: start, endDate: utcTodayEnd };
+			return {
+				startDate: fromZonedTime(subDays(zonedTodayStart, 89), timezone),
+				endDate: fromZonedTime(zonedTodayEnd, timezone)
+			};
 		}
 		case 'this-month': {
-			// From the first day of this month (UTC) through the end of today (UTC).
-			const startOfThisMonthUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-			return { startDate: startOfThisMonthUtc, endDate: utcTodayEnd };
+			return {
+				startDate: fromZonedTime(startOfMonth(zonedNow), timezone),
+				endDate: fromZonedTime(zonedTodayEnd, timezone)
+			};
 		}
 		case 'last-month': {
-			// Entire previous calendar month in UTC.
-			const year = now.getUTCFullYear();
-			const month = now.getUTCMonth();
-			const startOfLastMonthUtc = new Date(Date.UTC(year, month - 1, 1));
-			const endOfLastMonthUtc = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
-			return { startDate: startOfLastMonthUtc, endDate: endOfLastMonthUtc };
+			// Entire previous calendar month in the user's timezone.
+			const year = zonedNow.getFullYear();
+			const month = zonedNow.getMonth();
+			const startLocal = new Date(year, month - 1, 1, 0, 0, 0, 0);
+			const endLocal = endOfMonth(new Date(year, month - 1, 1));
+			return {
+				startDate: fromZonedTime(startLocal, timezone),
+				endDate: fromZonedTime(endLocal, timezone)
+			};
 		}
 		case 'this-year': {
-			// From the first day of this year (UTC) through the end of today (UTC).
-			const startOfThisYearUtc = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
-			return { startDate: startOfThisYearUtc, endDate: utcTodayEnd };
+			return {
+				startDate: fromZonedTime(startOfYear(zonedNow), timezone),
+				endDate: fromZonedTime(zonedTodayEnd, timezone)
+			};
 		}
 		default:
 			return {};
