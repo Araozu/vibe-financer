@@ -14,6 +14,15 @@ export const sessionRepo = {
 		return result;
 	},
 
+	async updateExpiration(id: string, expiresAt: Date): Promise<Session | undefined> {
+		const [result] = await db
+			.update(session)
+			.set({ expiresAt })
+			.where(eq(session.id, id))
+			.returning();
+		return result;
+	},
+
 	async deleteById(id: string): Promise<void> {
 		await db.delete(session).where(eq(session.id, id));
 	},

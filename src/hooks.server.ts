@@ -15,6 +15,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (session && user) {
 		event.locals.session = session;
 		event.locals.user = user;
+		event.cookies.set('session', sessionToken, {
+			path: '/',
+			httpOnly: true,
+			sameSite: 'lax',
+			secure: process.env.NODE_ENV === 'production',
+			expires: session.expiresAt
+		});
 	} else {
 		event.locals.session = null;
 		event.locals.user = null;

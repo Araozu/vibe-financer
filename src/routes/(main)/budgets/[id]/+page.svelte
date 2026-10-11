@@ -157,7 +157,12 @@
 
 	<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 		<div class="flex items-center gap-4">
-			<BudgetIcon icon={visibleBudget.icon} color={visibleBudget.color} size="lg" class="rounded-2xl" />
+			<BudgetIcon
+				icon={visibleBudget.icon}
+				color={visibleBudget.color}
+				size="lg"
+				class="rounded-2xl"
+			/>
 			<div>
 				<h1 class="text-2xl font-bold">{visibleBudget.category}</h1>
 				<div class="flex items-center gap-2 text-sm">
@@ -304,7 +309,11 @@
 				<Label for="edit-category">Category</Label>
 				<Input id="edit-category" name="category" bind:value={editCategory} required />
 			</div>
-			<BudgetVisualPicker bind:icon={editIcon} bind:color={editColor} idPrefix="edit-budget-detail" />
+			<BudgetVisualPicker
+				bind:icon={editIcon}
+				bind:color={editColor}
+				idPrefix="edit-budget-detail"
+			/>
 			<div class="space-y-2">
 				<Label for="edit-limit">Limit</Label>
 				<div class="relative">

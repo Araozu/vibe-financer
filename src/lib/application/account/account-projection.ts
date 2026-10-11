@@ -85,7 +85,8 @@ export async function getAccountState(accountId: string): Promise<AccountState |
 
 		// If no new events, return snapshot state directly
 		if (eventsAfterSnapshot.length === 0) {
-			return snapshot.state;
+			const goal = await eventStoreRepo.getGoalByAccount(accountId);
+			return { ...snapshot.state, goal };
 		}
 
 		// Project from snapshot + new events

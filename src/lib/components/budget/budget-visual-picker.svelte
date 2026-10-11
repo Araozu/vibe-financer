@@ -39,7 +39,10 @@
 			{#each BUDGET_ICON_OPTIONS as option (option.key)}
 				<button
 					type="button"
-					class="flex flex-col items-center gap-1 rounded-lg border p-2 text-[11px] transition-colors hover:bg-accent {selectedIcon === option.key ? 'border-primary bg-accent text-foreground' : 'border-border text-muted-foreground'}"
+					class="flex flex-col items-center gap-1 rounded-lg border p-2 text-[11px] transition-colors hover:bg-accent {selectedIcon ===
+					option.key
+						? 'border-primary bg-accent text-foreground'
+						: 'border-border text-muted-foreground'}"
 					onclick={() => selectIcon(option.key)}
 					aria-pressed={selectedIcon === option.key}
 				>
@@ -56,7 +59,10 @@
 			{#each BUDGET_COLOR_OPTIONS as option (option)}
 				<button
 					type="button"
-					class="h-8 w-8 rounded-full border-2 transition-transform hover:scale-105 {selectedColor === option ? 'border-foreground' : 'border-transparent'}"
+					class="h-8 w-8 rounded-full border-2 transition-transform hover:scale-105 {selectedColor ===
+					option
+						? 'border-foreground'
+						: 'border-transparent'}"
 					style="background-color: {option}"
 					onclick={() => selectColor(option)}
 					aria-label={`Select ${option}`}

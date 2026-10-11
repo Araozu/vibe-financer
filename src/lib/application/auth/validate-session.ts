@@ -2,6 +2,7 @@ import { sessionRepo } from '$lib/infra/repos/session.repo';
 import { userRepo } from '$lib/infra/repos/user.repo';
 import { generateSessionId } from '$lib/domain/auth';
 import type { User } from '$lib/domain/user';
+import { addDays } from 'date-fns';
 
 export interface ValidateSessionResult {
 	session: { id: string; userId: string; expiresAt: Date } | null;
@@ -16,8 +17,9 @@ export async function validateSession(sessionToken: string): Promise<ValidateSes
 		return { session: null, user: null };
 	}
 
+	const now = new Date();
 	// Check if session is expired
-	if (session.expiresAt < new Date()) {
+	if (session.expiresAt <= now) {
 		await sessionRepo.deleteById(sessionId);
 		return { session: null, user: null };
 	}
@@ -30,25 +32,12 @@ export async function validateSession(sessionToken: string): Promise<ValidateSes
 	}
 
 	// Extend session if it's close to expiring (less than 15 days left)
-	const fifteenDaysFromNow = new Date();
-	fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
+	const fifteenDaysFromNow = addDays(now, 15);
 
 	if (session.expiresAt < fifteenDaysFromNow) {
-		const newExpiresAt = new Date();
-		newExpiresAt.setDate(newExpiresAt.getDate() + 30);
-
-		// Update session expiration (we'll need to add this to the repo)
-		await sessionRepo.deleteById(sessionId);
-		await sessionRepo.create({
-			id: sessionId,
-			userId: user.id,
-			expiresAt: newExpiresAt
-		});
-
-		return {
-			session: { id: sessionId, userId: user.id, expiresAt: newExpiresAt },
-			user
-		};
+		const renewedSession = await sessionRepo.updateExpiration(sessionId, addDays(now, 30));
+		// Logout may have removed the session since it was read. Never recreate it.
+		return renewedSession ? { session: renewedSession, user } : { session: null, user: null };
 	}
 
 	return { session, user };

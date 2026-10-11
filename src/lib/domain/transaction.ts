@@ -28,7 +28,7 @@ export type CreateTransactionDTO = Omit<Transaction, 'id' | 'createdAt' | 'updat
 };
 
 export function validateTransactionAmount(amount: number): boolean {
-	return amount > 0;
+	return Number.isSafeInteger(amount) && amount > 0;
 }
 
 /**
@@ -44,9 +44,9 @@ export function validateExchangeRate(rate: number | null | undefined): rate is n
  * Returns the parsed number or null when absent/empty.
  */
 export function parseExchangeRate(value: string | null): number | null {
-	if (value == null || value === '') return null;
-	const parsed = parseFloat(value);
-	return Number.isNaN(parsed) ? null : parsed;
+	if (value == null || value.trim() === '') return null;
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function calculateNewBalance(

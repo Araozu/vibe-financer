@@ -1,9 +1,13 @@
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { budgetRepo } from '$lib/infra/repos/budget.repo';
 import { transactionRepo } from '$lib/infra/repos/transaction.repo';
-import { getAccountState, getAccountVersion } from '../account/account-projection';
+import { getAccountState } from '../account/account-projection';
 import { canAcceptTransaction } from '$lib/domain/account-aggregate';
-import { calculateNewBalance, type Transaction } from '$lib/domain/transaction';
+import {
+	calculateNewBalance,
+	validateTransactionAmount,
+	type Transaction
+} from '$lib/domain/transaction';
 import { createTransactionUpdatedEvent, type TransactionUpdatedPayload } from '$lib/domain/events';
 import { error } from '@sveltejs/kit';
 import { toUTC } from '$lib/domain/date-formatter';
@@ -42,9 +46,15 @@ export async function editTransaction(
 	// 1. Get the current transaction from the read model
 	const currentTransaction = await transactionRepo.findById(transactionId);
 
-	if (!currentTransaction) {
+	if (!currentTransaction || currentTransaction.deletedAt) {
 		throw error(404, 'Transaction not found');
 	}
+	const sourceAccount = await getAccountState(currentTransaction.accountId);
+	if (!sourceAccount || !canAcceptTransaction(sourceAccount) || sourceAccount.userId !== userId) {
+		throw error(404, 'Transaction not found');
+	}
+	// Auto-clearing a carried-over budget must not mutate the caller's input.
+	updates = { ...updates };
 
 	const isAccountChangeEarly =
 		updates.accountId !== undefined && updates.accountId !== currentTransaction.accountId;
@@ -91,8 +101,8 @@ export async function editTransaction(
 	}
 
 	// 1b. Validate inputs
-	if (updates.amount !== undefined && (!Number.isFinite(updates.amount) || updates.amount <= 0)) {
-		throw error(400, 'Transaction amount must be greater than zero');
+	if (updates.amount !== undefined && !validateTransactionAmount(updates.amount)) {
+		throw error(400, 'Transaction amount must be a positive safe integer in cents');
 	}
 
 	if (updates.type !== undefined && !VALID_TRANSACTION_TYPES.has(updates.type)) {
@@ -166,6 +176,9 @@ export async function editTransaction(
 	if (updates.transactionDate !== undefined) {
 		const currentDate = currentTransaction.createdAt;
 		const newDate = toUTC(updates.transactionDate);
+		if (!Number.isFinite(newDate.getTime())) {
+			throw error(400, 'Invalid transaction date');
+		}
 		if (currentDate.getTime() !== newDate.getTime()) {
 			changes.transactionDate = newDate;
 			previousValues.transactionDate = currentDate;
@@ -227,7 +240,7 @@ async function handleSameAccountEdit(
 	if (account.userId !== userId) {
 		throw error(403, 'Forbidden');
 	}
-	const accountVersion = await getAccountVersion(currentTransaction.accountId);
+	const accountVersion = account.version;
 
 	// Reverse old transaction impact, then apply new
 	let balanceAfter = account.currentBalance;
@@ -305,7 +318,7 @@ async function handleSameAccountEdit(
 		destAccountId = currentTransaction.toAccountId;
 		const destAccount = await getAccountState(destAccountId);
 		if (destAccount && canAcceptTransaction(destAccount) && destAccount.userId === userId) {
-			destVersion = await getAccountVersion(destAccountId);
+			destVersion = destAccount.version;
 			const destChanges: UpdateTransactionDTO = {};
 			if (changes.name !== undefined) destChanges.name = changes.name;
 			if (changes.description !== undefined) destChanges.description = changes.description;
@@ -335,6 +348,9 @@ async function handleSameAccountEdit(
 
 	try {
 		await eventStoreRepo.runInTransaction(async (tx) => {
+			if (!(await transactionRepo.isCurrentForUpdate(currentTransaction, tx))) {
+				throw error(409, 'Transaction changed while editing. Please retry.');
+			}
 			await eventStoreRepo.append(event, { expectedVersion: accountVersion }, tx);
 			if (destEvent && destAccountId) {
 				await eventStoreRepo.append(destEvent, { expectedVersion: destVersion }, tx);
@@ -395,10 +411,8 @@ async function handleAccountChange(
 		throw error(404, 'Target account not found, deleted, or access denied');
 	}
 
-	const [oldAccountVersion, newAccountVersion] = await Promise.all([
-		getAccountVersion(currentTransaction.accountId),
-		getAccountVersion(newAccountId)
-	]);
+	const oldAccountVersion = oldAccount.version;
+	const newAccountVersion = newAccount.version;
 
 	// A. Reverse the transaction's impact on the OLD account
 	let oldBalanceAdjustment: number;
@@ -485,6 +499,9 @@ async function handleAccountChange(
 	// C. Append events and update projections atomically
 	try {
 		await eventStoreRepo.runInTransaction(async (tx) => {
+			if (!(await transactionRepo.isCurrentForUpdate(currentTransaction, tx))) {
+				throw error(409, 'Transaction changed while editing. Please retry.');
+			}
 			await eventStoreRepo.append(oldEvent, { expectedVersion: oldAccountVersion }, tx);
 			await eventStoreRepo.append(newEvent, { expectedVersion: newAccountVersion }, tx);
 

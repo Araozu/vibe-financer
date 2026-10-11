@@ -48,7 +48,7 @@
 		selectedYear?: number;
 	} = $props();
 
-	let activeAccountIds = $state(new SvelteSet<string>());
+	const activeAccountIds = new SvelteSet<string>();
 
 	$effect(() => {
 		const accountIds = new Set(accounts.map((account) => account.id));
@@ -162,7 +162,7 @@
 			const balances: Record<string, number> = {};
 			for (const account of accounts) {
 				let currentBalance = runningBalanceByAccount.get(account.id) ?? 0;
-				const dayEnd = new Date(dayDate);
+				const dayEnd = new SvelteDate(dayDate);
 				dayEnd.setHours(23, 59, 59, 999);
 				if (!openingBalanceApplied.has(account.id) && new Date(account.createdAt) <= dayEnd) {
 					currentBalance += account.initialBalance;
@@ -271,7 +271,7 @@
 						highlight: { points: { r: 3.5 } }
 					}}
 				>
-					{#snippet marks({ context }: { context: any })}
+					{#snippet marks({ context })}
 						{@const todayKey = toLocalDateKey(new Date())}
 						{#each context.series.visibleSeries as series (series.key)}
 							<Spline

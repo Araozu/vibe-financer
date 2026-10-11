@@ -1,5 +1,5 @@
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
-import { getAccountState, getAccountVersion } from './account-projection';
+import { getAccountState } from './account-projection';
 import { validateAccountName, type UpdateAccountDTO, type Account } from '$lib/domain/account';
 import { createAccountUpdatedEvent, type AccountUpdatedPayload } from '$lib/domain/events';
 import { error } from '@sveltejs/kit';
@@ -91,24 +91,13 @@ export async function updateAccount(
 		};
 	}
 
-	// Get current version for optimistic concurrency
-	const currentVersion = await getAccountVersion(id);
+	// The version must belong to the state used to calculate this update.
+	const currentVersion = currentState.version;
 	const newVersion = currentVersion + 1;
 
 	// Create the update event
 	const payload: AccountUpdatedPayload = { changes, previousValues };
 	const event = createAccountUpdatedEvent(id, userId, payload, newVersion);
-
-	// Append to event store with optimistic concurrency check
-	try {
-		await eventStoreRepo.append(event, { expectedVersion: currentVersion });
-	} catch (err: unknown) {
-		const e = err as { name?: string };
-		if (e?.name === 'ConcurrencyError') {
-			throw error(409, 'Concurrent update detected while updating account. Please retry.');
-		}
-		throw err;
-	}
 
 	// Calculate new balance if initial balance changed
 	let newBalance = currentState.currentBalance;
@@ -118,11 +107,22 @@ export async function updateAccount(
 		newBalance = currentState.currentBalance + diff;
 	}
 
-	// Update read model (projection)
-	await eventStoreRepo.updateAccountProjection(id, {
-		...changes,
-		currentBalance: newBalance
-	});
+	try {
+		await eventStoreRepo.runInTransaction(async (tx) => {
+			await eventStoreRepo.append(event, { expectedVersion: currentVersion }, tx);
+			await eventStoreRepo.updateAccountProjection(
+				id,
+				{ ...changes, currentBalance: newBalance },
+				tx
+			);
+		});
+	} catch (err: unknown) {
+		const e = err as { name?: string };
+		if (e?.name === 'ConcurrencyError') {
+			throw error(409, 'Concurrent update detected while updating account. Please retry.');
+		}
+		throw err;
+	}
 
 	// Return updated account
 	return {

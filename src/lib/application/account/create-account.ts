@@ -27,22 +27,25 @@ export async function createAccount(data: CreateAccountDTO): Promise<Account> {
 
 	const event = createAccountCreatedEvent(accountId, data.userId, payload, 1);
 
-	// Append to event store
-	await eventStoreRepo.append(event);
-
-	// Update read model (projection) for fast queries
-	await eventStoreRepo.createAccountProjection({
-		id: accountId,
-		userId: data.userId,
-		name: data.name,
-		description: data.description,
-		type: data.type,
-		initialBalance,
-		currentBalance: initialBalance,
-		currencyId: data.currencyId,
-		color: data.color,
-		createdAt: event.occurredAt,
-		updatedAt: event.occurredAt
+	// Keep the event and read model in the same atomic write.
+	await eventStoreRepo.runInTransaction(async (tx) => {
+		await eventStoreRepo.append(event, { expectedVersion: 0 }, tx);
+		await eventStoreRepo.createAccountProjection(
+			{
+				id: accountId,
+				userId: data.userId,
+				name: data.name,
+				description: data.description,
+				type: data.type,
+				initialBalance,
+				currentBalance: initialBalance,
+				currencyId: data.currencyId,
+				color: data.color,
+				createdAt: event.occurredAt,
+				updatedAt: event.occurredAt
+			},
+			tx
+		);
 	});
 
 	// Return the created account

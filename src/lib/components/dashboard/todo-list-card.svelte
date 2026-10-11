@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 	import { untrack } from 'svelte';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -35,9 +36,9 @@
 	let newTitle = $state('');
 	let creating = $state(false);
 	let saveError = $state<string | null>(null);
-	let savingIds = $state(new Set<string>());
-	let deletingIds = $state(new Set<string>());
-	const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	const savingIds = new SvelteSet<string>();
+	const deletingIds = new SvelteSet<string>();
+	const saveTimers = new SvelteMap<string, ReturnType<typeof setTimeout>>();
 
 	let hasBackgroundWork = $derived(creating || savingIds.size > 0 || deletingIds.size > 0);
 	let remainingCount = $derived(todos.filter((todo) => !todo.completed).length);
@@ -55,17 +56,13 @@
 	});
 
 	function setSaving(id: string, saving: boolean) {
-		const next = new Set(savingIds);
-		if (saving) next.add(id);
-		else next.delete(id);
-		savingIds = next;
+		if (saving) savingIds.add(id);
+		else savingIds.delete(id);
 	}
 
 	function setDeleting(id: string, deleting: boolean) {
-		const next = new Set(deletingIds);
-		if (deleting) next.add(id);
-		else next.delete(id);
-		deletingIds = next;
+		if (deleting) deletingIds.add(id);
+		else deletingIds.delete(id);
 	}
 
 	function updateLocal(id: string, patch: Partial<TodoDraft>) {

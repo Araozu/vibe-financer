@@ -6,6 +6,7 @@
  */
 
 import type { Account, Goal } from './account';
+import { toDateObject } from './date-formatter';
 import type {
 	AccountCreatedEvent,
 	AccountDeletedEvent,
@@ -125,7 +126,7 @@ export function projectBalanceHistory(events: DomainEvent[]): BalanceSnapshot[] 
 				currentBalance = e.payload.balanceAfter;
 				history.push({
 					balance: currentBalance,
-					timestamp: e.payload.transactionDate,
+					timestamp: toDateObject(e.payload.transactionDate),
 					eventId: e.id,
 					eventType: 'TransactionCreated',
 					transactionId: e.payload.transactionId
@@ -138,7 +139,7 @@ export function projectBalanceHistory(events: DomainEvent[]): BalanceSnapshot[] 
 				currentBalance = e.payload.fromBalanceAfter;
 				history.push({
 					balance: currentBalance,
-					timestamp: e.payload.transactionDate,
+					timestamp: toDateObject(e.payload.transactionDate),
 					eventId: e.id,
 					eventType: 'TransferCreated',
 					transactionId: e.payload.transactionId
@@ -150,7 +151,7 @@ export function projectBalanceHistory(events: DomainEvent[]): BalanceSnapshot[] 
 				currentBalance = e.payload.balanceAfter;
 				history.push({
 					balance: currentBalance,
-					timestamp: e.payload.transactionDate ?? e.occurredAt,
+					timestamp: toDateObject(e.payload.transactionDate ?? e.occurredAt),
 					eventId: e.id,
 					eventType: 'TransactionUpdated',
 					transactionId: e.payload.transactionId
@@ -223,7 +224,7 @@ function applyGoalEvent(state: GoalState | null, event: DomainEvent): GoalState 
 				accountId: e.payload.accountId,
 				name: e.payload.name,
 				targetAmount: e.payload.targetAmount,
-				targetDate: e.payload.targetDate,
+				targetDate: e.payload.targetDate === null ? null : toDateObject(e.payload.targetDate),
 				createdAt: e.occurredAt,
 				updatedAt: e.occurredAt,
 				isRemoved: false,
@@ -240,7 +241,12 @@ function applyGoalEvent(state: GoalState | null, event: DomainEvent): GoalState 
 				...state,
 				name: changes.name ?? state.name,
 				targetAmount: changes.targetAmount ?? state.targetAmount,
-				targetDate: changes.targetDate !== undefined ? changes.targetDate : state.targetDate,
+				targetDate:
+					changes.targetDate !== undefined
+						? changes.targetDate === null
+							? null
+							: toDateObject(changes.targetDate)
+						: state.targetDate,
 				updatedAt: e.occurredAt,
 				version: e.version
 			};

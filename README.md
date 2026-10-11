@@ -24,10 +24,16 @@ The development server runs on port 5124.
 
 ```sh
 pnpm run check
+pnpm test
+pnpm run lint
 pnpm run build
 ```
 
 Use `pnpm run preview` to preview the build locally.
+
+Tests use Node's test runner with mocked persistence. Database access is disabled in the test harness,
+so `pnpm test` does not require `DATABASE_URL` or connect to PostgreSQL. Linting checks files without
+rewriting them; use `pnpm run format` when you want to apply formatting.
 
 ## Production
 

@@ -86,18 +86,18 @@
 		return 'U';
 	});
 
-	function isActive(href: string) {
+	function isActive(href: string, pathname = page.url.pathname) {
 		if (href === '/') {
-			return page.url.pathname === href;
+			return pathname === href;
 		}
 
-		return page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
+		return pathname === href || pathname.startsWith(`${href}/`);
 	}
 
-	async function syncNavIndicator() {
+	async function syncNavIndicator(pathname = page.url.pathname) {
 		await tick();
 
-		const activeItem = navItems.find((item) => isActive(item.href));
+		const activeItem = navItems.find((item) => isActive(item.href, pathname));
 		const activeLink = activeItem ? navLinkRefs[activeItem.href] : null;
 
 		if (!navList || !activeLink) {
@@ -111,8 +111,7 @@
 	}
 
 	$effect(() => {
-		page.url.pathname;
-		void syncNavIndicator();
+		void syncNavIndicator(page.url.pathname);
 	});
 
 	onMount(() => {

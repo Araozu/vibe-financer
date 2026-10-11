@@ -1,4 +1,4 @@
-import { db } from '../db';
+import { db, type DatabaseTransaction } from '../db';
 import { transaction, account, budget } from '../db/schema';
 import {
 	and,
@@ -74,6 +74,34 @@ export const transactionRepo = {
 			.leftJoin(budget, eq(transaction.budgetId, budget.id))
 			.where(eq(transaction.id, id));
 		return result;
+	},
+
+	/** Lock the projection and check that it still matches the state used for this command. */
+	async isCurrentForUpdate(expected: Transaction, tx: DatabaseTransaction): Promise<boolean> {
+		const [current] = await tx
+			.select()
+			.from(transaction)
+			.where(eq(transaction.id, expected.id))
+			.for('update');
+		if (!current || current.deletedAt) return false;
+
+		const fields = [
+			'accountId',
+			'type',
+			'amount',
+			'destinationAmount',
+			'name',
+			'description',
+			'category',
+			'budgetId',
+			'payee',
+			'toAccountId'
+		] as const;
+		return (
+			fields.every((key) => (current[key] ?? null) === (expected[key] ?? null)) &&
+			current.createdAt.getTime() === expected.createdAt.getTime() &&
+			current.updatedAt.getTime() === expected.updatedAt.getTime()
+		);
 	},
 
 	async findByAccountId(accountId: string): Promise<Transaction[]> {

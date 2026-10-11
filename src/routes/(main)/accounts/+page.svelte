@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createQuery } from '@tanstack/svelte-query';
+	import { SvelteMap } from 'svelte/reactivity';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
@@ -11,7 +12,6 @@
 		Coins,
 		Wallet,
 		Landmark,
-		CircleDollarSign,
 		Plus
 	} from '@lucide/svelte';
 	import type { Account, AccountType } from '$lib/domain/account';
@@ -96,7 +96,7 @@
 	// Pick a representative currency symbol for the total (use the most common one)
 	let primaryCurrencySymbol = $derived.by(() => {
 		if (accounts.length === 0) return '$';
-		const symbolCounts = new Map<string, number>();
+		const symbolCounts = new SvelteMap<string, number>();
 		for (const acc of accounts) {
 			const sym = acc.currencySymbol ?? '$';
 			symbolCounts.set(sym, (symbolCounts.get(sym) ?? 0) + 1);
@@ -132,7 +132,7 @@
 <!-- Summary Cards -->
 {#if isLoadingAccounts}
 	<div class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-		{#each Array.from({ length: 3 }) as _}
+		{#each Array.from({ length: 3 }) as _, index (index)}
 			<Card.Root class="shadow-sm">
 				<Card.Content class="space-y-3 p-6">
 					<Skeleton class="h-4 w-28" />
@@ -189,7 +189,7 @@
 <!-- Account List -->
 {#if isLoadingAccounts}
 	<div class="flex flex-col gap-4">
-		{#each Array.from({ length: 4 }) as _}
+		{#each Array.from({ length: 4 }) as _, index (index)}
 			<Card.Root class="shadow-sm">
 				<Card.Content class="p-5">
 					<div class="flex items-center justify-between gap-4">

@@ -1,6 +1,6 @@
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { budgetRepo } from '$lib/infra/repos/budget.repo';
-import { getAccountState, getAccountVersion } from '../account/account-projection';
+import { getAccountState } from '../account/account-projection';
 import { calculateBalanceChange, canAcceptTransaction } from '$lib/domain/account-aggregate';
 import type { CreateTransactionDTO, Transaction } from '$lib/domain/transaction';
 import { validateExchangeRate, validateTransactionAmount } from '$lib/domain/transaction';
@@ -28,8 +28,8 @@ export async function createTransaction(
 	data: CreateTransactionDTO,
 	userId: string
 ): Promise<Transaction> {
-	if (!Number.isFinite(data.amount) || !validateTransactionAmount(data.amount)) {
-		throw error(400, 'Transaction amount must be greater than zero');
+	if (!validateTransactionAmount(data.amount)) {
+		throw error(400, 'Transaction amount must be a positive safe integer in cents');
 	}
 
 	if (data.type !== 'expense' && data.type !== 'income' && data.type !== 'transfer') {
@@ -45,7 +45,10 @@ export async function createTransaction(
 
 	const transactionId = crypto.randomUUID();
 	const transactionDate = toUTC(data.createdAt ?? new Date());
-	const sourceVersion = await getAccountVersion(data.accountId);
+	if (!Number.isFinite(transactionDate.getTime())) {
+		throw error(400, 'Invalid transaction date');
+	}
+	const sourceVersion = sourceAccount.version;
 	// Transfers never participate in budgets: they are movements of money, not spend.
 	// This keeps create/edit/delete/rebuild/list consistent (all budget queries are expense-only).
 	const budgetId = data.type === 'transfer' ? null : (data.budgetId ?? null);
@@ -63,6 +66,9 @@ export async function createTransaction(
 	if (data.type === 'transfer') {
 		if (!data.toAccountId) {
 			throw error(400, 'Transfer requires a destination account');
+		}
+		if (data.toAccountId === data.accountId) {
+			throw error(400, 'Transfer requires two different accounts');
 		}
 
 		const destAccount = await getAccountState(data.toAccountId);
@@ -83,12 +89,15 @@ export async function createTransaction(
 		const exchangeRate =
 			sourceAccount.currencyId !== destAccount.currencyId ? (data.exchangeRate ?? null) : null;
 
-		const destVersion = await getAccountVersion(data.toAccountId);
+		const destVersion = destAccount.version;
 
 		// Calculate new balances
 		const fromBalanceAfter = sourceAccount.currentBalance - data.amount;
 		const destinationAmount =
 			exchangeRate != null ? Math.round(data.amount * exchangeRate) : data.amount;
+		if (!validateTransactionAmount(destinationAmount)) {
+			throw error(400, 'Converted transfer amount must be a positive safe integer in cents');
+		}
 		const toBalanceAfter = destAccount.currentBalance + destinationAmount;
 
 		// Create transfer event (stored in source account's stream)

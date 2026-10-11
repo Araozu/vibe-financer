@@ -54,9 +54,7 @@ export const BUDGET_COLOR_OPTIONS = [
 ] as const;
 
 export function normalizeBudgetIcon(value: string | null | undefined): BudgetIconKey {
-	return (
-		BUDGET_ICON_OPTIONS.find((option) => option.key === value)?.key ?? DEFAULT_BUDGET_ICON
-	);
+	return BUDGET_ICON_OPTIONS.find((option) => option.key === value)?.key ?? DEFAULT_BUDGET_ICON;
 }
 
 export function normalizeBudgetColor(value: string | null | undefined): string {

@@ -5,7 +5,7 @@
  * All state changes are persisted as immutable events.
  */
 
-import { db } from '../db';
+import { db, type DatabaseTransaction } from '../db';
 import {
 	eventStore,
 	account,
@@ -17,8 +17,6 @@ import {
 } from '../db/schema';
 import { eq, and, asc, desc, lte, gt, sql, inArray } from 'drizzle-orm';
 import type { DomainEvent, StreamType, EventType, TransferCreatedEvent } from '$lib/domain/events';
-import type { PgTransaction } from 'drizzle-orm/pg-core';
-import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
 import type { AccountState } from '$lib/domain/account-aggregate';
 
 export interface StoredEvent {
@@ -53,16 +51,28 @@ type TransactionProjectionData = {
 };
 
 export class ConcurrencyError extends Error {
-	constructor(
-		public streamId: string,
-		public expectedVersion: number,
-		public actualVersion: number
-	) {
+	public streamId: string;
+	public expectedVersion: number;
+	public actualVersion: number | null;
+
+	constructor(streamId: string, expectedVersion: number, actualVersion: number | null = null) {
 		super(
-			`Concurrency conflict on stream ${streamId}: expected version ${expectedVersion}, but found ${actualVersion}`
+			`Concurrency conflict on stream ${streamId}: expected version ${expectedVersion}, ${
+				actualVersion === null ? 'but a concurrent write occurred' : `but found ${actualVersion}`
+			}`
 		);
 		this.name = 'ConcurrencyError';
+		this.streamId = streamId;
+		this.expectedVersion = expectedVersion;
+		this.actualVersion = actualVersion;
 	}
+}
+
+function isStreamVersionConflict(err: unknown): boolean {
+	if (typeof err !== 'object' || err === null) return false;
+	const cause = err as { code?: string; constraint?: string; cause?: unknown };
+	if (cause.code === '23505' && cause.constraint === 'idx_event_store_stream') return true;
+	return cause.cause !== undefined && cause.cause !== err && isStreamVersionConflict(cause.cause);
 }
 
 /**
@@ -88,10 +98,7 @@ export const eventStoreRepo = {
 	 * Use this to wrap multi-stream appends and projection updates atomically.
 	 */
 
-	async runInTransaction<T>(
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		callback: (tx: PgTransaction<NodePgQueryResultHKT, any, any>) => Promise<T>
-	): Promise<T> {
+	async runInTransaction<T>(callback: (tx: DatabaseTransaction) => Promise<T>): Promise<T> {
 		return db.transaction(callback);
 	},
 
@@ -103,37 +110,41 @@ export const eventStoreRepo = {
 	async append(
 		event: DomainEvent,
 		options?: AppendEventOptions,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
+		externalTx?: DatabaseTransaction
 	): Promise<DomainEvent> {
-		const execute = async (
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			tx: PgTransaction<NodePgQueryResultHKT, any, any>
-		): Promise<DomainEvent> => {
-			// Check for optimistic concurrency if expected version provided
-			if (options?.expectedVersion !== undefined) {
-				const currentVersion = await eventStoreRepo.getStreamVersion(event.streamId, tx);
-				if (currentVersion !== options.expectedVersion) {
-					throw new ConcurrencyError(event.streamId, options.expectedVersion, currentVersion);
-				}
+		const execute = async (tx: DatabaseTransaction): Promise<DomainEvent> => {
+			const currentVersion = await eventStoreRepo.getStreamVersion(event.streamId, tx);
+			const expectedVersion = options?.expectedVersion ?? event.version - 1;
+			if (currentVersion !== expectedVersion) {
+				throw new ConcurrencyError(event.streamId, expectedVersion, currentVersion);
+			}
+			if (!Number.isSafeInteger(event.version) || event.version !== currentVersion + 1) {
+				throw new Error(`Event version must be ${currentVersion + 1} for stream ${event.streamId}`);
 			}
 
-			const [result] = await tx
-				.insert(eventStore)
-				.values({
-					id: event.id,
-					streamId: event.streamId,
-					streamType: event.streamType,
-					eventType: event.eventType,
-					payload: event.payload,
-					version: event.version,
-					userId: event.userId,
-					metadata: event.metadata ?? null,
-					occurredAt: event.occurredAt
-				})
-				.returning();
-
-			return toDomainEvent(result as StoredEvent);
+			try {
+				const [result] = await tx
+					.insert(eventStore)
+					.values({
+						id: event.id,
+						streamId: event.streamId,
+						streamType: event.streamType,
+						eventType: event.eventType,
+						payload: event.payload,
+						version: event.version,
+						userId: event.userId,
+						metadata: event.metadata ?? null,
+						occurredAt: event.occurredAt
+					})
+					.returning();
+				return toDomainEvent(result as StoredEvent);
+			} catch (err) {
+				// The unique stream/version index also catches writers that raced past the check.
+				if (isStreamVersionConflict(err)) {
+					throw new ConcurrencyError(event.streamId, expectedVersion);
+				}
+				throw err;
+			}
 		};
 
 		if (externalTx) {
@@ -149,32 +160,11 @@ export const eventStoreRepo = {
 		if (events.length === 0) return [];
 
 		return db.transaction(async (tx) => {
-			// Check for optimistic concurrency on the first event's stream
-			if (options?.expectedVersion !== undefined && events.length > 0) {
-				const currentVersion = await eventStoreRepo.getStreamVersion(events[0].streamId, tx);
-				if (currentVersion !== options.expectedVersion) {
-					throw new ConcurrencyError(events[0].streamId, options.expectedVersion, currentVersion);
-				}
+			const results: DomainEvent[] = [];
+			for (const [index, event] of events.entries()) {
+				results.push(await eventStoreRepo.append(event, index === 0 ? options : undefined, tx));
 			}
-
-			const results = await tx
-				.insert(eventStore)
-				.values(
-					events.map((e) => ({
-						id: e.id,
-						streamId: e.streamId,
-						streamType: e.streamType,
-						eventType: e.eventType,
-						payload: e.payload,
-						version: e.version,
-						userId: e.userId,
-						metadata: e.metadata ?? null,
-						occurredAt: e.occurredAt
-					}))
-				)
-				.returning();
-
-			return results.map((r) => toDomainEvent(r as StoredEvent));
+			return results;
 		});
 	},
 
@@ -323,11 +313,7 @@ export const eventStoreRepo = {
 	/**
 	 * Get the current version of a stream
 	 */
-	async getStreamVersion(
-		streamId: string,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		tx?: PgTransaction<NodePgQueryResultHKT, any, any>
-	): Promise<number> {
+	async getStreamVersion(streamId: string, tx?: DatabaseTransaction): Promise<number> {
 		const dbInstance = tx ?? db;
 		const [result] = await dbInstance
 			.select({ maxVersion: sql<number>`MAX(${eventStore.version})` })
@@ -404,8 +390,7 @@ export const eventStoreRepo = {
 			currencyId?: string;
 			color?: string;
 		},
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
+		externalTx?: DatabaseTransaction
 	): Promise<void> {
 		const dbInstance = externalTx ?? db;
 		await dbInstance
@@ -417,20 +402,24 @@ export const eventStoreRepo = {
 	/**
 	 * Create read model (projection) for a new account
 	 */
-	async createAccountProjection(data: {
-		id: string;
-		userId: string;
-		name: string;
-		description: string | null;
-		type: 'asset' | 'expense' | 'revenue' | 'liability' | 'savings';
-		initialBalance: number;
-		currentBalance: number;
-		currencyId: string;
-		color: string;
-		createdAt?: Date;
-		updatedAt?: Date;
-	}): Promise<void> {
-		await db.insert(account).values(data);
+	async createAccountProjection(
+		data: {
+			id: string;
+			userId: string;
+			name: string;
+			description: string | null;
+			type: 'asset' | 'expense' | 'revenue' | 'liability' | 'savings';
+			initialBalance: number;
+			currentBalance: number;
+			currencyId: string;
+			color: string;
+			createdAt?: Date;
+			updatedAt?: Date;
+		},
+		externalTx?: DatabaseTransaction
+	): Promise<void> {
+		const dbInstance = externalTx ?? db;
+		await dbInstance.insert(account).values(data);
 	},
 
 	/** Rebuild an account projection without cascading related transactions. */
@@ -473,15 +462,14 @@ export const eventStoreRepo = {
 	 */
 	async createTransactionProjection(
 		data: TransactionProjectionData,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
+		externalTx?: DatabaseTransaction
 	): Promise<void> {
 		const dbInstance = externalTx ?? db;
 		await dbInstance.insert(transaction).values(data);
 	},
 
 	async upsertTransactionProjection(data: TransactionProjectionData): Promise<void> {
-		const { id, ...updateData } = data;
+		const { id: _id, ...updateData } = data;
 		await db
 			.insert(transaction)
 			.values(data)
@@ -511,8 +499,7 @@ export const eventStoreRepo = {
 			deletedAt?: Date;
 			createdAt?: Date;
 		},
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
+		externalTx?: DatabaseTransaction
 	): Promise<void> {
 		const dbInstance = externalTx ?? db;
 		await dbInstance
@@ -625,8 +612,7 @@ export const eventStoreRepo = {
 	 */
 	async deleteAccountProjection(
 		accountId: string,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
+		externalTx?: DatabaseTransaction
 	): Promise<void> {
 		const dbInstance = externalTx ?? db;
 		await dbInstance.delete(account).where(eq(account.id, accountId));
@@ -822,8 +808,7 @@ export const eventStoreRepo = {
 	async incrementBudgetSpent(
 		budgetId: string,
 		delta: number,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
+		externalTx?: DatabaseTransaction
 	): Promise<void> {
 		if (!Number.isFinite(delta) || delta === 0) return;
 		const dbInstance = externalTx ?? db;
@@ -844,8 +829,7 @@ export const eventStoreRepo = {
 		date: Date,
 		userId: string,
 		currencyId: string,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		externalTx?: PgTransaction<NodePgQueryResultHKT, any, any>
+		externalTx?: DatabaseTransaction
 	): Promise<
 		Array<{
 			id: string;

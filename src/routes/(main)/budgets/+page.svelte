@@ -176,7 +176,11 @@
 							<Input id="category" name="category" placeholder="e.g. Groceries, Rent" required />
 						</div>
 
-						<BudgetVisualPicker bind:icon={createIcon} bind:color={createColor} idPrefix="create-budget" />
+						<BudgetVisualPicker
+							bind:icon={createIcon}
+							bind:color={createColor}
+							idPrefix="create-budget"
+						/>
 
 						<div class="space-y-2">
 							<Label for="limit">Monthly Limit</Label>

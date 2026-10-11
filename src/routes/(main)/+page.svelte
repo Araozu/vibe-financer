@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
+	import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -301,7 +302,7 @@
 
 	let defaultCurrencySymbol = $derived(defaultAccount?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL);
 	let tomorrowStart = $derived.by(() => {
-		const tomorrow = new Date(dashboardNow);
+		const tomorrow = new SvelteDate(dashboardNow);
 		tomorrow.setHours(24, 0, 0, 0);
 		return tomorrow;
 	});
@@ -315,7 +316,7 @@
 	);
 
 	let recentCategorySelectOptions = $derived.by(() => {
-		const seen = new Set<string>();
+		const seen = new SvelteSet<string>();
 		for (const tx of postedTransactions) {
 			const c = tx.category?.trim();
 			if (c) seen.add(c);

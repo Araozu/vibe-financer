@@ -1,6 +1,6 @@
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
 import { transactionRepo } from '$lib/infra/repos/transaction.repo';
-import { getAccountState, getAccountVersion } from '../account/account-projection';
+import { getAccountState } from '../account/account-projection';
 import { canAcceptTransaction } from '$lib/domain/account-aggregate';
 import { createTransactionDeletedEvent, type TransactionDeletedPayload } from '$lib/domain/events';
 import { toUTC } from '$lib/domain/date-formatter';
@@ -55,7 +55,7 @@ export async function deleteTransaction(
 		throw error(403, 'Forbidden');
 	}
 
-	const accountVersion = await getAccountVersion(tx.accountId);
+	const accountVersion = account.version;
 	const deletedAt = toUTC(new Date());
 
 	// Budgets are expense-only; resolve the decrement list before the write.
@@ -101,7 +101,7 @@ export async function deleteTransaction(
 			throw error(403, 'Destination account access denied');
 		}
 		if (destAccount && canAcceptTransaction(destAccount) && destAccount.userId === userId) {
-			const destVersion = await getAccountVersion(tx.toAccountId);
+			const destVersion = destAccount.version;
 
 			const destBalanceAdjustment = -(tx.destinationAmount ?? tx.amount);
 			const destPayload: TransactionDeletedPayload = {
@@ -120,6 +120,9 @@ export async function deleteTransaction(
 			// Append both events and update projections atomically in a single transaction
 			try {
 				await eventStoreRepo.runInTransaction(async (dbTx) => {
+					if (!(await transactionRepo.isCurrentForUpdate(tx, dbTx))) {
+						throw error(409, 'Transaction changed while deleting. Please retry.');
+					}
 					await eventStoreRepo.append(event, { expectedVersion: accountVersion }, dbTx);
 					await eventStoreRepo.append(destEvent, { expectedVersion: destVersion }, dbTx);
 
@@ -137,11 +140,7 @@ export async function deleteTransaction(
 					);
 
 					// Update transaction projection to mark as deleted
-					await eventStoreRepo.updateTransactionProjection(
-						transactionId,
-						{ deletedAt },
-						dbTx
-					);
+					await eventStoreRepo.updateTransactionProjection(transactionId, { deletedAt }, dbTx);
 				});
 			} catch (err: unknown) {
 				const e = err as { name?: string };
@@ -154,6 +153,9 @@ export async function deleteTransaction(
 			// Destination account not found/deleted - only append source event
 			try {
 				await eventStoreRepo.runInTransaction(async (dbTx) => {
+					if (!(await transactionRepo.isCurrentForUpdate(tx, dbTx))) {
+						throw error(409, 'Transaction changed while deleting. Please retry.');
+					}
 					await eventStoreRepo.append(event, { expectedVersion: accountVersion }, dbTx);
 					const newBalance = account.currentBalance + balanceAdjustment;
 					await eventStoreRepo.updateAccountProjection(
@@ -161,11 +163,7 @@ export async function deleteTransaction(
 						{ currentBalance: newBalance },
 						dbTx
 					);
-					await eventStoreRepo.updateTransactionProjection(
-						transactionId,
-						{ deletedAt },
-						dbTx
-					);
+					await eventStoreRepo.updateTransactionProjection(transactionId, { deletedAt }, dbTx);
 				});
 			} catch (err: unknown) {
 				const e = err as { name?: string };
@@ -179,6 +177,9 @@ export async function deleteTransaction(
 		// Non-transfer transaction
 		try {
 			await eventStoreRepo.runInTransaction(async (dbTx) => {
+				if (!(await transactionRepo.isCurrentForUpdate(tx, dbTx))) {
+					throw error(409, 'Transaction changed while deleting. Please retry.');
+				}
 				await eventStoreRepo.append(event, { expectedVersion: accountVersion }, dbTx);
 				const newBalance = account.currentBalance + balanceAdjustment;
 				await eventStoreRepo.updateAccountProjection(
@@ -186,11 +187,7 @@ export async function deleteTransaction(
 					{ currentBalance: newBalance },
 					dbTx
 				);
-				await eventStoreRepo.updateTransactionProjection(
-					transactionId,
-					{ deletedAt },
-					dbTx
-				);
+				await eventStoreRepo.updateTransactionProjection(transactionId, { deletedAt }, dbTx);
 				for (const b of budgetsToDecrement) {
 					await eventStoreRepo.incrementBudgetSpent(b.id, -tx.amount, dbTx);
 				}

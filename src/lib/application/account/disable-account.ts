@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { createAccountDeletedEvent, type AccountDeletedPayload } from '$lib/domain/events';
 import { eventStoreRepo } from '$lib/infra/repos/event-store.repo';
-import { getAccountState, getAccountVersion } from './account-projection';
+import { getAccountState } from './account-projection';
 
 export async function disableAccount(
 	accountId: string,
@@ -21,7 +21,7 @@ export async function disableAccount(
 		throw error(400, 'Account already disabled');
 	}
 
-	const currentVersion = await getAccountVersion(accountId);
+	const currentVersion = account.version;
 	const payload: AccountDeletedPayload = { reason };
 	const event = createAccountDeletedEvent(accountId, userId, payload, currentVersion + 1);
 
