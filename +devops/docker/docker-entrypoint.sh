@@ -2,8 +2,7 @@
 set -eu
 
 # Run migrations
-bun i drizzle-kit
-bun x drizzle-kit migrate
+node --env-file-if-exists=.env ./node_modules/drizzle-kit/bin.cjs migrate
 
 # Run the application
-bun --bun ./build/index.js
+exec node --env-file-if-exists=.env ./build/index.js

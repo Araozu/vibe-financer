@@ -4,7 +4,7 @@ This project follows a simplified layered architecture to maintain separation of
 
 ## Platform
 
-- Use bun
+- Use Node.js 26 and pnpm
 - Database: PostgreSQL (using `node-postgres` / `pg` driver and `drizzle-orm/node-postgres`)
 - Timestamps: Always use `timestampz` (timestamps with timezones) in the database.
 
@@ -61,7 +61,7 @@ src/lib/
 ## UI
 
 - Always prefer shadcn components.
-- If a shadcn component is not available, install it: `bun x shadcn-svelte@latest add card -y`
+- If a shadcn component is not available, install it: `pnpm dlx shadcn-svelte@latest add card -y`
 - When installing, use the `-y` flag for autoinstall
 - Always prefer shadcn styles, variants, etc; rather than manual tailwind classes
 

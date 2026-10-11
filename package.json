@@ -3,8 +3,12 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
+	"packageManager": "pnpm@12.11.2",
+	"engines": {
+		"node": "26.x"
+	},
 	"scripts": {
-		"start": "bun i drizzle-kit && bun x drizzle-kit migrate && bun --bun ./build/index.js",
+		"start": "pnpm run db:migrate && node --env-file-if-exists=.env ./build/index.js",
 		"dev": "vite dev --port 5124",
 		"build": "vite build",
 		"preview": "vite preview",
@@ -12,10 +16,10 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check --write . && eslint --fix .",
-		"db:push": "drizzle-kit push",
-		"db:generate": "drizzle-kit generate",
-		"db:migrate": "bun x drizzle-kit migrate",
-		"db:studio": "drizzle-kit studio",
+		"db:push": "node --env-file-if-exists=.env ./node_modules/drizzle-kit/bin.cjs push",
+		"db:generate": "node --env-file-if-exists=.env ./node_modules/drizzle-kit/bin.cjs generate",
+		"db:migrate": "node --env-file-if-exists=.env ./node_modules/drizzle-kit/bin.cjs migrate",
+		"db:studio": "node --env-file-if-exists=.env ./node_modules/drizzle-kit/bin.cjs studio",
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
@@ -26,9 +30,8 @@
 		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@tailwindcss/vite": "^4.2.4",
-		"@types/bun": "^1.3.13",
 		"@types/d3-scale": "^4.0.9",
-		"@types/node": "^24.12.2",
+		"@types/node": "^26.6.5",
 		"@types/pg": "^8.20.0",
 		"bits-ui": "^2.18.1",
 		"clsx": "^2.1.1",
@@ -41,7 +44,6 @@
 		"prettier-plugin-svelte": "^3.5.1",
 		"prettier-plugin-tailwindcss": "^0.7.4",
 		"svelte": "^5.55.5",
-		"svelte-adapter-bun": "^1.0.1",
 		"svelte-check": "^4.4.7",
 		"svelte-sonner": "^1.1.1",
 		"tailwind-merge": "^3.5.0",

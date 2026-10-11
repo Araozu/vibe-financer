@@ -1,38 +1,47 @@
-# sv
+# Vibe Financer
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
-
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
-```
+Requires Node.js 26, pnpm 12.11.2, and PostgreSQL. The Node version is recorded in `.nvmrc`, and the pnpm version is pinned in `package.json`.
 
 ## Developing
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+nvm install
+nvm use
+pnpm install --frozen-lockfile
+cp .env.example .env
 ```
 
-## Building
-
-To create a production version of your app:
+Set `DATABASE_URL` in `.env` to your PostgreSQL connection string, then run:
 
 ```sh
-npm run build
+pnpm run db:migrate
+pnpm run dev
 ```
 
-You can preview the production build with `npm run preview`.
+The development server runs on port 5124.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## Checking and building
+
+```sh
+pnpm run check
+pnpm run build
+```
+
+Use `pnpm run preview` to preview the build locally.
+
+## Production
+
+```sh
+pnpm run build
+pnpm start
+```
+
+Startup applies database migrations, then runs the SvelteKit Node server on port 3000. `DATABASE_URL` can be supplied through the environment or a local `.env` file. Set `ORIGIN` to the public application URL when running behind a reverse proxy.
+
+To build the production image:
+
+```sh
+docker build -f +devops/docker/Dockerfile -t vibe-financer .
+```
+
+The image includes production dependencies and migrations, and runs as the non-root `node` user.

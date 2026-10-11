@@ -2,8 +2,8 @@
  * One-time script: set transaction.budget_id by matching budget.category + user,
  * preferring budget.currency_id = account.currency_id when multiple budgets share a category.
  *
- * Run from repo root (loads .env via Bun):
- *   bun run src/lib/infra/db/backfill-budget-ids.ts
+ * Run from repo root (loads .env via Node.js):
+ *   node --env-file-if-exists=.env src/lib/infra/db/backfill-budget-ids.ts
  */
 import pg from 'pg';
 
