@@ -1,6 +1,8 @@
 import { userRepo } from '$lib/infra/repos/user.repo';
 import { sessionRepo } from '$lib/infra/repos/session.repo';
-import { verifyPassword, generateSessionToken, generateSessionId } from '$lib/domain/auth';
+import { generateSessionToken, generateSessionId } from '$lib/domain/auth';
+import { hashPassword, isLegacyPasswordHash, verifyPassword } from '$lib/infra/auth/password';
+import { addDays } from 'date-fns';
 
 export interface LoginInput {
 	email: string;
@@ -17,8 +19,24 @@ export async function login(
 	}
 
 	// Verify password
-	if (!verifyPassword(input.password, user.passwordHash)) {
+	if (!(await verifyPassword(input.password, user.passwordHash))) {
 		return { success: false, error: 'Invalid email or password' };
+	}
+
+	if (isLegacyPasswordHash(user.passwordHash)) {
+		const upgradedHash = await hashPassword(input.password);
+		const upgradedUser = await userRepo.replacePasswordHash(
+			user.id,
+			user.passwordHash,
+			upgradedHash
+		);
+		if (!upgradedUser) {
+			// Another login may have upgraded the hash, or the password may have changed.
+			const currentUser = await userRepo.findById(user.id);
+			if (!currentUser || !(await verifyPassword(input.password, currentUser.passwordHash))) {
+				return { success: false, error: 'Invalid email or password' };
+			}
+		}
 	}
 
 	// Create session
@@ -26,8 +44,7 @@ export async function login(
 	const sessionId = generateSessionId(sessionToken);
 
 	// Session expires in 30 days
-	const expiresAt = new Date();
-	expiresAt.setDate(expiresAt.getDate() + 30);
+	const expiresAt = addDays(new Date(), 30);
 
 	await sessionRepo.create({
 		id: sessionId,

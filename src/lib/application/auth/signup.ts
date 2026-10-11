@@ -1,5 +1,6 @@
 import { userRepo } from '$lib/infra/repos/user.repo';
-import { hashPassword, isValidEmail, validatePassword } from '$lib/domain/auth';
+import { isValidEmail, validatePassword } from '$lib/domain/auth';
+import { hashPassword } from '$lib/infra/auth/password';
 
 export interface SignupInput {
 	email: string;
@@ -33,7 +34,7 @@ export async function signup(
 	}
 
 	// Create user
-	const passwordHash = hashPassword(input.password);
+	const passwordHash = await hashPassword(input.password);
 	const user = await userRepo.create({
 		email: input.email,
 		passwordHash,

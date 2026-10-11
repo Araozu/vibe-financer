@@ -2,27 +2,6 @@ import { sha256 } from '@oslojs/crypto/sha2';
 import { encodeBase64, encodeHexLowerCase } from '@oslojs/encoding';
 
 /**
- * Hash a password using SHA-256
- * @param password - Plain text password
- * @returns Hashed password as hex string
- */
-export function hashPassword(password: string): string {
-	const passwordBytes = new TextEncoder().encode(password);
-	const hash = sha256(passwordBytes);
-	return encodeHexLowerCase(hash);
-}
-
-/**
- * Verify a password against a hash
- * @param password - Plain text password to verify
- * @param hash - Stored password hash
- * @returns True if password matches hash
- */
-export function verifyPassword(password: string, hash: string): boolean {
-	return hashPassword(password) === hash;
-}
-
-/**
  * Generate a random session token
  * @returns Base64 encoded session token
  */

@@ -35,6 +35,12 @@ Tests use Node's test runner with mocked persistence. Database access is disable
 so `pnpm test` does not require `DATABASE_URL` or connect to PostgreSQL. Linting checks files without
 rewriting them; use `pnpm run format` when you want to apply formatting.
 
+Passwords use salted Argon2id hashes with Node's asynchronous crypto API and the
+[OWASP minimum configuration](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id)
+(19 MiB memory, two passes, one lane). Existing SHA-256 passwords continue to work and are upgraded
+after a successful login. Upgrades and password changes check the previous hash to avoid overwriting
+a concurrent change. No database migration or password reset is required.
+
 ## Production
 
 ```sh

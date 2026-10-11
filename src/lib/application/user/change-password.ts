@@ -1,5 +1,6 @@
 import { userRepo } from '$lib/infra/repos/user.repo';
-import { hashPassword, verifyPassword, validatePassword } from '$lib/domain/auth';
+import { validatePassword } from '$lib/domain/auth';
+import { hashPassword, verifyPassword } from '$lib/infra/auth/password';
 
 export interface ChangePasswordInput {
 	userId: string;
@@ -23,15 +24,22 @@ export async function changePassword(
 	}
 
 	// Verify current password
-	if (!verifyPassword(input.currentPassword, user.passwordHash)) {
+	if (!(await verifyPassword(input.currentPassword, user.passwordHash))) {
 		return { success: false, error: 'Current password is incorrect' };
 	}
 
 	// Hash new password
-	const newPasswordHash = hashPassword(input.newPassword);
+	const newPasswordHash = await hashPassword(input.newPassword);
 
 	// Update password
-	await userRepo.update(input.userId, { passwordHash: newPasswordHash });
+	const updatedUser = await userRepo.replacePasswordHash(
+		input.userId,
+		user.passwordHash,
+		newPasswordHash
+	);
+	if (!updatedUser) {
+		return { success: false, error: 'Password changed while updating. Please retry.' };
+	}
 
 	return { success: true };
 }

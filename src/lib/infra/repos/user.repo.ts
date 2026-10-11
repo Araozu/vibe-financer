@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { user } from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { User, CreateUserDTO, UpdateUserDTO } from '../../domain/user';
 
 // Internal update type that allows updating sensitive fields
@@ -14,6 +14,20 @@ export const userRepo = {
 
 	async update(id: string, data: UpdateUserDTO | InternalUpdateUserDTO): Promise<User | undefined> {
 		const [result] = await db.update(user).set(data).where(eq(user.id, id)).returning();
+		return result;
+	},
+
+	/** Replace a password only if it still matches the hash verified by the caller. */
+	async replacePasswordHash(
+		id: string,
+		expectedHash: string,
+		passwordHash: string
+	): Promise<User | undefined> {
+		const [result] = await db
+			.update(user)
+			.set({ passwordHash })
+			.where(and(eq(user.id, id), eq(user.passwordHash, expectedHash)))
+			.returning();
 		return result;
 	},
 
