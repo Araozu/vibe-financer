@@ -41,6 +41,7 @@
 	--expense: oklch(0.645 0.246 16.439);
 	--savings: oklch(0.627 0.265 303.9);
 	--investment: oklch(0.488 0.243 264.376);
+	--warning: oklch(0.769 0.188 70.08);
 }
 
 .dark {
@@ -80,6 +81,7 @@
 	--expense: oklch(0.645 0.246 16.439);
 	--savings: oklch(0.627 0.265 303.9);
 	--investment: oklch(0.488 0.243 264.376);
+	--warning: oklch(0.828 0.189 84.429);
 }
 
 @theme inline {
@@ -123,6 +125,7 @@
 	--color-expense: var(--expense);
 	--color-savings: var(--savings);
 	--color-investment: var(--investment);
+	--color-warning: var(--warning);
 }
 
 @layer base {

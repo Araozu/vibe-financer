@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { validateTransactionAmount, parseExchangeRate } from '../src/lib/domain/transaction.ts';
 import { projectBalanceHistory, projectGoalState } from '../src/lib/domain/account-aggregate.ts';
+import { formatMoney } from '../src/lib/domain/currency.ts';
+import { getBudgetStatus } from '../src/lib/domain/spending-analytics.ts';
 
 test('transaction amounts must be positive, safe whole cents', () => {
 	for (const amount of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
@@ -74,4 +76,21 @@ test('goal replay hydrates target dates and still permits clearing them', () => 
 		]).targetDate,
 		null
 	);
+});
+
+test('money formatting keeps the sign ahead of the currency symbol', () => {
+	assert.equal(formatMoney(123456, '$'), '$1,234.56');
+	assert.equal(formatMoney(-4250, '€'), '-€42.50');
+	assert.equal(formatMoney(0, '$'), '$0.00');
+	assert.equal(formatMoney(59950, '$', { wholeUnits: true }), '$600');
+});
+
+test('budget status flags budgets near and over their limit', () => {
+	assert.equal(getBudgetStatus(0, 60000), 'on-track');
+	assert.equal(getBudgetStatus(42600, 60000), 'on-track');
+	assert.equal(getBudgetStatus(51000, 60000), 'near-limit');
+	assert.equal(getBudgetStatus(60000, 60000), 'near-limit');
+	assert.equal(getBudgetStatus(60001, 60000), 'over');
+	assert.equal(getBudgetStatus(0, 0), 'on-track');
+	assert.equal(getBudgetStatus(100, 0), 'over');
 });

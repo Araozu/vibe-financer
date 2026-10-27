@@ -98,6 +98,15 @@
 		});
 	}
 
+	const axisNumberFormat = new Intl.NumberFormat('en-US', {
+		notation: 'compact',
+		maximumFractionDigits: 1
+	});
+
+	function formatAxisNumber(amountInCents: number): string {
+		return axisNumberFormat.format(amountInCents / 100);
+	}
+
 	let monthToDateBalancePoints = $derived.by(() => {
 		if (accounts.length === 0) {
 			return [] as MonthToDateBalancePoint[];
@@ -228,7 +237,7 @@
 		top: 16,
 		right: 16,
 		bottom: 34,
-		left: 56
+		left: 40
 	};
 </script>
 
@@ -258,7 +267,7 @@
 						},
 						yAxis: {
 							ticks: 5,
-							format: (value: number) => formatNumber(Math.round(value))
+							format: (value: number) => formatAxisNumber(value)
 						},
 						tooltip: {
 							header: {

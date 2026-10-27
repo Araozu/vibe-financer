@@ -170,7 +170,7 @@
 	}
 </script>
 
-<Card.Root>
+<Card.Root class="h-full">
 	<Card.Header class="flex flex-row items-center justify-between gap-3">
 		<div>
 			<Card.Title>Peace of Mind</Card.Title>
