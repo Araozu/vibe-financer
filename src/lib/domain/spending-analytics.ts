@@ -49,3 +49,14 @@ export function calculateDailySpending(
 
 	return result;
 }
+
+export type BudgetStatus = 'on-track' | 'near-limit' | 'over';
+
+/** Share of the limit at which a budget is flagged as close to running out. */
+export const BUDGET_NEAR_LIMIT_RATIO = 0.85;
+
+export function getBudgetStatus(spent: number, limit: number): BudgetStatus {
+	if (spent > limit) return 'over';
+	if (limit > 0 && spent / limit >= BUDGET_NEAR_LIMIT_RATIO) return 'near-limit';
+	return 'on-track';
+}

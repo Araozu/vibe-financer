@@ -2,9 +2,9 @@
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 	import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import * as InputGroup from '$lib/components/ui/input-group/index.js';
+	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
@@ -12,6 +12,8 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import { toast } from 'svelte-sonner';
+	import { format } from 'date-fns';
 	import CreateAccountDialog from '$lib/components/account/create-account-dialog.svelte';
 	import CreateTransactionForm from '$lib/components/transaction/create-transaction-form.svelte';
 	import EditTransactionDialog from '$lib/components/transaction/edit-transaction-dialog.svelte';
@@ -30,11 +32,13 @@
 		CalendarClock,
 		ChevronDown,
 		Pencil,
-		Search
+		Search,
+		Trash2
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
 	import { calculateAccountBalanceDelta, type Transaction } from '$lib/domain/transaction';
-	import { DEFAULT_CURRENCY_SYMBOL } from '$lib/domain/currency';
+	import { DEFAULT_CURRENCY_SYMBOL, formatMoney } from '$lib/domain/currency';
+	import { getBudgetStatus, type BudgetStatus } from '$lib/domain/spending-analytics';
 	import { formatLocalDate } from '$lib/domain/date-formatter';
 	import {
 		DASHBOARD_MONTHS,
@@ -83,6 +87,18 @@
 
 	const RECENT_TX_FILTER_ALL = 'all';
 	const RECENT_TX_FILTER_UNCATEGORIZED = '__uncategorized__';
+
+	const BUDGET_PROGRESS_CLASS: Record<BudgetStatus, string> = {
+		'on-track': 'bg-income/15 *:data-[slot=progress-indicator]:bg-income',
+		'near-limit': 'bg-warning/20 *:data-[slot=progress-indicator]:bg-warning',
+		over: 'bg-expense/15 *:data-[slot=progress-indicator]:bg-expense'
+	};
+
+	const BUDGET_STATUS_TEXT_CLASS: Record<BudgetStatus, string> = {
+		'on-track': 'text-muted-foreground',
+		'near-limit': 'font-medium text-foreground',
+		over: 'font-medium text-expense'
+	};
 
 	function transactionMatchesTableFilters(
 		tx: SerializedTransaction,
@@ -236,6 +252,8 @@
 	let editingTransaction = $state<SerializedTransaction | null>(null);
 	let editDialogOpen = $state(false);
 	let deletingTransactionId = $state<string | null>(null);
+	let pendingDeleteTransaction = $state<SerializedTransaction | null>(null);
+	let deleteDialogOpen = $state(false);
 	let upcomingTransactionsOpen = $state(false);
 	let recentTxSearch = $state('');
 	let recentCategoryFilter = $state(RECENT_TX_FILTER_ALL);
@@ -253,15 +271,18 @@
 		editDialogOpen = true;
 	}
 
-	async function handleDeleteTransaction(transactionId: string) {
-		if (
-			!confirm(
-				'Are you sure you want to delete this transaction? This will adjust the account balance accordingly.'
-			)
-		) {
-			return;
-		}
+	function requestDeleteTransaction(transactionId: string) {
+		pendingDeleteTransaction = transactions.find((tx) => tx.id === transactionId) ?? null;
+		deleteDialogOpen = pendingDeleteTransaction !== null;
+	}
 
+	async function confirmDeleteTransaction() {
+		const tx = pendingDeleteTransaction;
+		deleteDialogOpen = false;
+		if (tx) await handleDeleteTransaction(tx.id);
+	}
+
+	async function handleDeleteTransaction(transactionId: string) {
 		deletingTransactionId = transactionId;
 
 		try {
@@ -280,9 +301,10 @@
 				queryClient.invalidateQueries({ queryKey: ['accounts'] }),
 				queryClient.invalidateQueries({ queryKey: ['budgets'] })
 			]);
+			toast.success('Transaction deleted');
 		} catch (error) {
 			console.error('Error deleting transaction:', error);
-			alert(error instanceof Error ? error.message : 'Failed to delete transaction');
+			toast.error(error instanceof Error ? error.message : 'Failed to delete transaction');
 		} finally {
 			deletingTransactionId = null;
 		}
@@ -342,13 +364,20 @@
 		);
 	});
 
-	let recentTransactions = $derived.by(() => {
-		const filtersActive =
-			recentTxSearch.trim() !== '' || recentCategoryFilter !== RECENT_TX_FILTER_ALL;
-		return filtersActive
+	let filtersActive = $derived(
+		recentTxSearch.trim() !== '' || recentCategoryFilter !== RECENT_TX_FILTER_ALL
+	);
+
+	function clearTransactionFilters() {
+		recentTxSearch = '';
+		recentCategoryFilter = RECENT_TX_FILTER_ALL;
+	}
+
+	let recentTransactions = $derived(
+		filtersActive
 			? filteredRecentTransactions.slice(0, 500)
-			: filteredRecentTransactions.slice(0, 10);
-	});
+			: filteredRecentTransactions.slice(0, 10)
+	);
 
 	let filteredUpcomingTransactions = $derived.by(() => {
 		const q = recentTxSearch.trim().toLowerCase();
@@ -359,12 +388,21 @@
 		);
 	});
 
-	let upcomingTransactions = $derived.by(() => {
-		const filtersActive =
-			recentTxSearch.trim() !== '' || recentCategoryFilter !== RECENT_TX_FILTER_ALL;
-		return filtersActive
+	let upcomingTransactions = $derived(
+		filtersActive
 			? filteredUpcomingTransactions.slice(0, 500)
-			: filteredUpcomingTransactions.slice(0, 10);
+			: filteredUpcomingTransactions.slice(0, 10)
+	);
+
+	let recentTransactionsSummary = $derived.by(() => {
+		const monthName = DASHBOARD_MONTHS[selectedMonth];
+		const total = filteredRecentTransactions.length;
+		if (filtersActive) return `${total} ${total === 1 ? 'match' : 'matches'} in ${monthName}`;
+		if (total === 0) return `Nothing recorded in ${monthName} yet`;
+		if (recentTransactions.length < total) {
+			return `Latest ${recentTransactions.length} of ${total} in ${monthName}`;
+		}
+		return `${total} ${total === 1 ? 'transaction' : 'transactions'} in ${monthName}`;
 	});
 
 	let recentTransactionGroups = $derived(
@@ -387,7 +425,7 @@
 	);
 
 	function formatDayTotal(totals: TransactionDayTotal[]): string {
-		if (totals.length === 0) return `${defaultCurrencySymbol}0.00`;
+		if (totals.length === 0) return formatMoney(0, defaultCurrencySymbol);
 		const hasDuplicateSymbol = totals.some(
 			(total, index) =>
 				totals.findIndex((candidate) => candidate.currencySymbol === total.currencySymbol) !== index
@@ -396,10 +434,7 @@
 		return totals
 			.map(
 				({ amount, currencyCode, currencySymbol }) =>
-					`-${currencySymbol}${(amount / 100).toLocaleString('en-US', {
-						minimumFractionDigits: 2,
-						maximumFractionDigits: 2
-					})}${hasDuplicateSymbol ? ` ${currencyCode}` : ''}`
+					`${formatMoney(-amount, currencySymbol)}${hasDuplicateSymbol ? ` ${currencyCode}` : ''}`
 			)
 			.join(' · ');
 	}
@@ -433,11 +468,7 @@
 		);
 	});
 
-	function formatWithSymbol(amountInCents: number, symbol: string): string {
-		return `${symbol}${(amountInCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-	}
-
-	let formattedTotalBalance = $derived(formatWithSymbol(totalBalance, defaultCurrencySymbol));
+	let formattedTotalBalance = $derived(formatMoney(totalBalance, defaultCurrencySymbol));
 
 	// Projected balance at the end of the selected month (includes future-dated transactions
 	// within the selected month, e.g. scheduled bills or upcoming income).
@@ -455,7 +486,7 @@
 	});
 
 	let formattedProjectedEndOfMonthBalance = $derived(
-		formatWithSymbol(projectedEndOfMonthBalance, defaultCurrencySymbol)
+		formatMoney(projectedEndOfMonthBalance, defaultCurrencySymbol)
 	);
 
 	let monthlyIncome = $derived(
@@ -480,8 +511,8 @@
 			.reduce((acc: number, curr) => acc + curr.amount, 0)
 	);
 
-	let formattedMonthlyIncome = $derived(formatWithSymbol(monthlyIncome, defaultCurrencySymbol));
-	let formattedMonthlyExpenses = $derived(formatWithSymbol(monthlyExpenses, defaultCurrencySymbol));
+	let formattedMonthlyIncome = $derived(formatMoney(monthlyIncome, defaultCurrencySymbol));
+	let formattedMonthlyExpenses = $derived(formatMoney(monthlyExpenses, defaultCurrencySymbol));
 
 	let savingsRate = $derived(
 		monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0
@@ -510,45 +541,68 @@
 
 	let goalProgress = $derived(
 		goal && accountWithGoal
-			? Math.min((currentBalanceForGoalAccount / goal.targetAmount) * 100, 100)
+			? Math.max(Math.min((currentBalanceForGoalAccount / goal.targetAmount) * 100, 100), 0)
 			: 0
+	);
+	let goalRemaining = $derived(
+		goal ? Math.max(goal.targetAmount - currentBalanceForGoalAccount, 0) : 0
+	);
+	let savingsAccounts = $derived(accounts.filter((a) => a.type === 'savings'));
+
+	let budgetStatusSummary = $derived.by(() => {
+		if (budgets.length === 0) return 'Track spending by category';
+		const statuses = budgets.map((b) => getBudgetStatus(b.periodSpent, b.limit));
+		const over = statuses.filter((status) => status === 'over').length;
+		const near = statuses.filter((status) => status === 'near-limit').length;
+		const parts = [];
+		if (over > 0) parts.push(`${over} over limit`);
+		if (near > 0) parts.push(`${near} close to limit`);
+		return parts.length > 0 ? parts.join(' · ') : 'All budgets on track';
+	});
+
+	let periodLabel = $derived(
+		isCurrentMonth
+			? `${DASHBOARD_MONTHS[selectedMonth].slice(0, 3)} 1 – today`
+			: `All of ${DASHBOARD_MONTHS[selectedMonth]}`
 	);
 
 	const summaryStats = $derived([
 		{
-			title: 'Total Balance',
+			title: 'Current Balance',
 			amount: formattedTotalBalance,
 			subtitle: defaultAccount?.name ?? '',
 			icon: Wallet,
-			color: 'text-blue-500'
+			color: 'text-investment',
+			class: 'md:col-span-2 lg:col-span-1'
 		},
 		{
-			title: 'Projected (End of Month)',
+			title: 'Projected Balance',
 			amount: formattedProjectedEndOfMonthBalance,
-			subtitle: `Incl. upcoming · ${DASHBOARD_MONTHS[selectedMonth]}`,
+			subtitle: `End of ${DASHBOARD_MONTHS[selectedMonth]} · incl. upcoming`,
 			icon: CalendarClock,
 			color: 'text-savings'
 		},
 		{
-			title: 'Monthly Income',
+			title: 'Income',
 			amount: formattedMonthlyIncome,
-			subtitle: isCurrentMonth ? '1st until today' : 'Full month',
+			subtitle: periodLabel,
 			icon: TrendingUp,
 			color: 'text-income'
 		},
 		{
-			title: 'Monthly Expenses',
+			title: 'Expenses',
 			amount: formattedMonthlyExpenses,
-			subtitle: isCurrentMonth ? '1st until today' : 'Full month',
+			subtitle: periodLabel,
 			icon: TrendingDown,
 			color: 'text-expense'
 		},
 		{
 			title: 'Savings Rate',
 			amount: `${savingsRate.toFixed(1)}%`,
-			subtitle: 'Monthly performance',
+			subtitle: monthlyIncome > 0 ? 'Of income kept this month' : 'No income yet',
 			icon: PiggyBank,
-			color: 'text-savings'
+			color: 'text-savings',
+			amountClass: savingsRate < 0 ? 'text-expense' : ''
 		}
 	]);
 </script>
@@ -557,172 +611,204 @@
 	<title>Dashboard - {DASHBOARD_MONTHS[selectedMonth]} {selectedYear}</title>
 </svelte:head>
 
-{#if defaultAccount}
-	<!-- Mobile-only compact summary: keeps focus on the create transaction card -->
-	<div
-		class="mb-6 flex items-center justify-between gap-4 rounded-xl border bg-muted/30 px-4 py-3 shadow-sm md:hidden"
-	>
-		<div class="flex items-center gap-2">
-			<Wallet class="h-4 w-4 text-blue-500" />
-			<div class="flex flex-col">
-				<span class="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
-					Now
-				</span>
-				<span class="text-base leading-tight font-bold tracking-tight">
-					{formattedTotalBalance}
-				</span>
-			</div>
-		</div>
-		<div class="h-8 w-px bg-border"></div>
-		<div class="flex items-center gap-2">
-			<CalendarClock class="h-4 w-4 text-savings" />
-			<div class="flex flex-col">
-				<span class="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
-					End of month
-				</span>
-				<span class="text-base leading-tight font-bold tracking-tight">
-					{formattedProjectedEndOfMonthBalance}
-				</span>
-			</div>
-		</div>
-	</div>
+{#snippet transactionGroups(groups: TransactionDayGroup[], isFuture: boolean)}
+	{#each groups as group (group.date)}
+		<Table.Body>
+			<Table.Row class="border-b-0 hover:bg-transparent">
+				<Table.Head
+					colspan={3}
+					scope="rowgroup"
+					class="h-auto border-b-0 pt-4 pb-1.5 text-xs font-medium text-foreground/80"
+				>
+					<span class="flex items-center gap-2">
+						{group.date}
+						{#if isFuture}
+							<Badge variant="outline" class="font-normal text-muted-foreground">Upcoming</Badge>
+						{/if}
+					</span>
+				</Table.Head>
+				<Table.Head
+					class="h-auto border-b-0 pt-4 pb-1.5 text-right text-xs font-normal text-muted-foreground tabular-nums"
+				>
+					<span class="sr-only">Total spent </span>
+					{formatDayTotal(group.totals)}
+				</Table.Head>
+				<Table.Head class="h-auto border-b-0 pt-4 pb-1.5" aria-hidden="true" />
+			</Table.Row>
+			{#each group.transactions as tx, i (tx.id)}
+				<TransactionRow
+					{tx}
+					account={accounts.find((a) => a.id === tx.accountId) ?? null}
+					{deletingTransactionId}
+					{isFuture}
+					showSeparator={i === group.transactions.length - 1}
+					onEdit={openEditDialog}
+					onDelete={requestDeleteTransaction}
+				/>
+			{/each}
+		</Table.Body>
+	{/each}
+{/snippet}
 
-	<div class="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-5">
-		{#each summaryStats as stat (stat.title)}
-			<Card.Root>
-				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-					<Card.Title class="text-sm font-medium">{stat.title}</Card.Title>
-					<stat.icon class="h-4 w-4 {stat.color}" />
-				</Card.Header>
-				<Card.Content>
-					<div class="text-2xl font-bold">{stat.amount}</div>
-					<p class="mt-1 text-xs text-muted-foreground">
-						{stat.subtitle}
-					</p>
-				</Card.Content>
-			</Card.Root>
-		{/each}
-	</div>
-{:else}
-	<Card.Root class="mb-0 hidden border-dashed bg-muted/30 md:block">
-		<Card.Content class="flex items-center justify-center gap-3 py-6 text-center">
-			<Wallet class="h-5 w-5 text-muted-foreground" />
-			<p class="text-sm text-muted-foreground">
-				Set a <a href="/settings" class="font-medium text-primary underline underline-offset-4"
-					>default account</a
-				> in settings to see your summary stats here.
-			</p>
-		</Card.Content>
-	</Card.Root>
-{/if}
+<div class="flex flex-col gap-6">
+	{#if defaultAccount}
+		<!-- Mobile-only compact summary: keeps focus on the create transaction card -->
+		<Card.Root class="flex-row items-center justify-between gap-4 px-4 py-3 md:hidden">
+			<div class="flex items-center gap-2.5">
+				<Wallet class="size-4 text-investment" />
+				<div class="flex flex-col">
+					<span class="text-xs text-muted-foreground">Now</span>
+					<span class="leading-tight font-semibold tracking-tight tabular-nums">
+						{formattedTotalBalance}
+					</span>
+				</div>
+			</div>
+			<div class="h-8 w-px bg-border"></div>
+			<div class="flex items-center gap-2.5">
+				<CalendarClock class="size-4 text-savings" />
+				<div class="flex flex-col">
+					<span class="text-xs text-muted-foreground">End of month</span>
+					<span class="leading-tight font-semibold tracking-tight tabular-nums">
+						{formattedProjectedEndOfMonthBalance}
+					</span>
+				</div>
+			</div>
+		</Card.Root>
 
-<div class="grid gap-8 md:grid-cols-7">
-	<div class="space-y-8 md:col-span-4">
-		{#if isLoadingAccounts}
-			<Card.Root class="border-dashed bg-muted/30">
-				<Card.Content class="space-y-5 py-10">
-					<div class="flex items-center gap-3">
-						<Skeleton class="h-10 w-10 rounded-full" />
-						<div class="space-y-2">
-							<Skeleton class="h-4 w-36" />
-							<Skeleton class="h-3 w-52 max-w-[60vw]" />
+		<div class="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-5">
+			{#each summaryStats as stat (stat.title)}
+				<Card.Root class="gap-3 {stat.class ?? ''}">
+					<Card.Header class="flex flex-row items-center justify-between gap-2">
+						<Card.Description class="truncate font-medium">{stat.title}</Card.Description>
+						<div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+							<stat.icon class="size-4 {stat.color}" />
 						</div>
-					</div>
-					<div class="grid gap-3 sm:grid-cols-2">
+					</Card.Header>
+					<Card.Content class="space-y-1">
+						<div
+							class="text-2xl font-semibold tracking-tight tabular-nums {stat.amountClass ?? ''}"
+						>
+							{stat.amount}
+						</div>
+						<p class="truncate text-xs text-muted-foreground">{stat.subtitle}</p>
+					</Card.Content>
+				</Card.Root>
+			{/each}
+		</div>
+	{:else if !isLoadingAccounts}
+		<Card.Root class="border-dashed bg-muted/30 py-4">
+			<Card.Content class="flex items-center justify-center gap-3 text-center">
+				<Wallet class="size-5 shrink-0 text-muted-foreground" />
+				<p class="text-sm text-muted-foreground">
+					Set a <a href="/settings" class="font-medium text-primary underline underline-offset-4"
+						>default account</a
+					> in settings to see your summary stats here.
+				</p>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
+	<div class="grid grid-cols-1 gap-6 md:grid-cols-7">
+		<div class="min-w-0 md:col-span-4">
+			{#if isLoadingAccounts}
+				<Card.Root class="border-dashed bg-muted/30">
+					<Card.Content class="space-y-5 py-4">
+						<div class="flex items-center gap-3">
+							<Skeleton class="size-10 rounded-full" />
+							<div class="space-y-2">
+								<Skeleton class="h-4 w-36" />
+								<Skeleton class="h-3 w-52 max-w-[60vw]" />
+							</div>
+						</div>
+						<div class="grid gap-3 sm:grid-cols-2">
+							<Skeleton class="h-10 w-full" />
+							<Skeleton class="h-10 w-full" />
+						</div>
+						<Skeleton class="h-24 w-full" />
 						<Skeleton class="h-10 w-full" />
-						<Skeleton class="h-10 w-full" />
-					</div>
-					<Skeleton class="h-24 w-full" />
-					<Skeleton class="h-10 w-full" />
-				</Card.Content>
-			</Card.Root>
-		{:else if accounts.length > 0}
-			<Card.Root class="overflow-hidden py-0">
-				<CreateTransactionForm {accounts} showCreateMore={false} />
-			</Card.Root>
-		{:else}
-			<Card.Root class="border-dashed bg-muted/30">
-				<Card.Content class="flex flex-col items-center justify-center space-y-4 py-10 text-center">
-					<div class="rounded-full bg-background p-3 shadow-sm">
-						<Wallet class="h-6 w-6 text-muted-foreground" />
-					</div>
-					<div class="max-w-[250px] space-y-1">
-						<h3 class="font-semibold">No accounts found</h3>
-						<p class="text-xs text-muted-foreground">
-							You need to create at least one account before you can record transactions.
-						</p>
-					</div>
-					<CreateAccountDialog />
-				</Card.Content>
-			</Card.Root>
-		{/if}
+					</Card.Content>
+				</Card.Root>
+			{:else if accounts.length > 0}
+				<Card.Root class="overflow-hidden py-0">
+					<CreateTransactionForm {accounts} showCreateMore={false} />
+				</Card.Root>
+			{:else}
+				<Card.Root class="border-dashed bg-muted/30">
+					<Card.Content
+						class="flex flex-col items-center justify-center space-y-4 py-4 text-center"
+					>
+						<div class="rounded-full bg-background p-3 shadow-sm">
+							<Wallet class="size-6 text-muted-foreground" />
+						</div>
+						<div class="max-w-[250px] space-y-1">
+							<h3 class="font-semibold">No accounts yet</h3>
+							<p class="text-sm text-muted-foreground">
+								Create an account to start recording transactions.
+							</p>
+						</div>
+						<CreateAccountDialog />
+					</Card.Content>
+				</Card.Root>
+			{/if}
+		</div>
+
+		<div class="min-w-0 md:col-span-3">
+			<TodoListCard />
+		</div>
 	</div>
 
-	<div class="md:col-span-3">
-		<TodoListCard />
-	</div>
-</div>
-
-<div class="mt-8">
 	<MtdBalanceChart {accounts} {transactions} {initialBalances} {selectedMonth} {selectedYear} />
-</div>
 
-{#if goalAccount}
-	<SetGoalDialog
-		bind:open={goalDialogOpen}
-		accountId={goalAccount.id}
-		accountName={goalAccount.name}
-		existingGoal={goalAccount.goal}
-	/>
-{/if}
-
-<div class="mt-8 grid gap-8 md:grid-cols-7">
-	<!-- Main Content -->
-	<div class="space-y-8 md:col-span-4">
-		<Card.Root>
-			<Collapsible.Root bind:open={upcomingTransactionsOpen}>
-				<Card.Header class="flex flex-row items-center justify-between gap-3">
-					<div>
+	<div class="grid grid-cols-1 gap-6 md:grid-cols-7">
+		<div class="min-w-0 md:col-span-4">
+			<Card.Root>
+				<Collapsible.Root bind:open={upcomingTransactionsOpen} class="flex flex-col gap-6">
+					<Card.Header>
 						<Card.Title>Recent Transactions</Card.Title>
-						<Card.Description
-							>You have {transactions.length} transactions recorded.</Card.Description
-						>
-					</div>
-					{#if futureTransactions.length > 0}
-						<Collapsible.Trigger
-							class={`${buttonVariants({ variant: 'ghost', size: 'sm' })} h-7 px-2 text-xs text-muted-foreground hover:text-foreground`}
-						>
-							<span>Upcoming ({upcomingTransactions.length})</span>
-							<ChevronDown
-								class={`h-3.5 w-3.5 transition-transform ${upcomingTransactionsOpen ? 'rotate-180' : ''}`}
-							/>
-						</Collapsible.Trigger>
-					{/if}
-				</Card.Header>
-				<Card.Content>
-					<div class="space-y-4">
+						<Card.Description>{recentTransactionsSummary}</Card.Description>
+						{#if futureTransactions.length > 0}
+							<Card.Action>
+								<Collapsible.Trigger
+									class={buttonVariants({ variant: 'outline', size: 'sm' })}
+									aria-label="Upcoming transactions ({upcomingTransactions.length})"
+								>
+									<CalendarClock />
+									<span class="hidden sm:inline">Upcoming</span>
+									<Badge variant="secondary" class="h-5 min-w-5 px-1.5 tabular-nums">
+										{upcomingTransactions.length}
+									</Badge>
+									<ChevronDown
+										class="transition-transform {upcomingTransactionsOpen ? 'rotate-180' : ''}"
+									/>
+								</Collapsible.Trigger>
+							</Card.Action>
+						{/if}
+					</Card.Header>
+					<Card.Content class="space-y-4">
 						<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-							<div class="relative min-w-0 flex-1">
-								<Search
-									class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-								/>
-								<Input
+							<InputGroup.Root class="min-w-0 flex-1">
+								<InputGroup.Addon>
+									<Search />
+								</InputGroup.Addon>
+								<InputGroup.Input
 									type="search"
-									placeholder="Search name, payee, description, category…"
+									placeholder="Search name, payee, description…"
+									aria-label="Search transactions"
 									bind:value={recentTxSearch}
-									class="pl-9"
 									autocomplete="off"
 								/>
-							</div>
+							</InputGroup.Root>
 							<Select.Root type="single" bind:value={recentCategoryFilter}>
-								<Select.Trigger class="w-full sm:w-[min(100%,220px)] sm:shrink-0">
-									{#if recentCategoryFilter === RECENT_TX_FILTER_ALL}
-										All categories
-									{:else if recentCategoryFilter === RECENT_TX_FILTER_UNCATEGORIZED}
-										Uncategorized
-									{:else}
-										{recentCategoryFilter}
-									{/if}
+								<Select.Trigger class="w-full sm:w-48 sm:shrink-0" aria-label="Filter by category">
+									<span class="truncate">
+										{#if recentCategoryFilter === RECENT_TX_FILTER_ALL}
+											All categories
+										{:else if recentCategoryFilter === RECENT_TX_FILTER_UNCATEGORIZED}
+											Uncategorized
+										{:else}
+											{recentCategoryFilter}
+										{/if}
+									</span>
 								</Select.Trigger>
 								<Select.Content>
 									<Select.Item value={RECENT_TX_FILTER_ALL} label="All categories">
@@ -746,256 +832,230 @@
 									<Table.Head class="hidden md:table-cell">Account</Table.Head>
 									<Table.Head class="hidden md:table-cell">Category</Table.Head>
 									<Table.Head class="text-right">Amount</Table.Head>
-									<Table.Head class="w-12"></Table.Head>
+									<Table.Head class="w-12"><span class="sr-only">Actions</span></Table.Head>
 								</Table.Row>
 							</Table.Header>
 							{#if futureTransactions.length > 0 && upcomingTransactionsOpen}
-								{#each upcomingTransactionGroups as group (group.date)}
-									<Table.Body>
-										<Table.Row class="border-b-0 hover:bg-transparent">
-											<Table.Head
-												colspan={3}
-												scope="rowgroup"
-												class="h-auto border-b-0 pt-3 pb-1 text-xs text-muted-foreground"
-											>
-												{group.date}
-											</Table.Head>
-											<Table.Head
-												class="h-auto border-b-0 pt-3 pb-1 text-right text-xs text-muted-foreground"
-											>
-												<span class="sr-only">Total spent </span>
-												{formatDayTotal(group.totals)}
-											</Table.Head>
-											<Table.Head class="h-auto border-b-0 pt-3 pb-1" aria-hidden="true" />
-										</Table.Row>
-										{#each group.transactions as tx, i (tx.id)}
-											<TransactionRow
-												{tx}
-												account={accounts.find((a) => a.id === tx.accountId) ?? null}
-												{deletingTransactionId}
-												isFuture
-												showSeparator={i === group.transactions.length - 1}
-												onEdit={openEditDialog}
-												onDelete={handleDeleteTransaction}
-											/>
-										{/each}
-									</Table.Body>
-								{/each}
+								{@render transactionGroups(upcomingTransactionGroups, true)}
 							{/if}
 
 							{#if postedTransactions.length === 0 && futureTransactions.length === 0}
 								<Table.Body>
-									<Table.Row>
-										<Table.Cell colspan={5} class="py-6 text-center text-sm text-muted-foreground">
-											No posted transactions yet for this view.
+									<Table.Row class="hover:bg-transparent">
+										<Table.Cell colspan={5} class="py-10 text-center text-sm text-muted-foreground">
+											No transactions in {DASHBOARD_MONTHS[selectedMonth]} yet.
 										</Table.Cell>
 									</Table.Row>
 								</Table.Body>
 							{:else if recentTransactions.length === 0 && upcomingTransactions.length === 0}
 								<Table.Body>
-									<Table.Row>
-										<Table.Cell colspan={5} class="py-6 text-center text-sm text-muted-foreground">
-											No transactions match your search or category filter.
+									<Table.Row class="hover:bg-transparent">
+										<Table.Cell colspan={5} class="py-10 text-center">
+											<p class="text-sm text-muted-foreground">
+												No transactions match your filters.
+											</p>
+											<Button variant="link" size="sm" onclick={clearTransactionFilters}>
+												Clear filters
+											</Button>
 										</Table.Cell>
 									</Table.Row>
 								</Table.Body>
 							{:else if recentTransactions.length > 0}
-								{#each recentTransactionGroups as group (group.date)}
-									<Table.Body>
-										<Table.Row class="border-b-0 hover:bg-transparent">
-											<Table.Head
-												colspan={3}
-												scope="rowgroup"
-												class="h-auto border-b-0 pt-3 pb-1 text-xs text-muted-foreground"
-											>
-												{group.date}
-											</Table.Head>
-											<Table.Head
-												class="h-auto border-b-0 pt-3 pb-1 text-right text-xs text-muted-foreground"
-											>
-												<span class="sr-only">Total spent </span>
-												{formatDayTotal(group.totals)}
-											</Table.Head>
-											<Table.Head class="h-auto border-b-0 pt-3 pb-1" aria-hidden="true" />
-										</Table.Row>
-										{#each group.transactions as tx, i (tx.id)}
-											<TransactionRow
-												{tx}
-												account={accounts.find((a) => a.id === tx.accountId) ?? null}
-												{deletingTransactionId}
-												showSeparator={i === group.transactions.length - 1}
-												onEdit={openEditDialog}
-												onDelete={handleDeleteTransaction}
-											/>
-										{/each}
-									</Table.Body>
-								{/each}
+								{@render transactionGroups(recentTransactionGroups, false)}
 							{/if}
 						</Table.Root>
-					</div>
-				</Card.Content>
-			</Collapsible.Root>
-		</Card.Root>
-	</div>
+					</Card.Content>
+				</Collapsible.Root>
+			</Card.Root>
+		</div>
 
-	<!-- Sidebar Content: Budgets & Quick Actions -->
-	<div class="space-y-8 md:col-span-3">
-		<!-- Budgets -->
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between">
-				<div>
+		<!-- Sidebar Content: Budgets & Savings Goal -->
+		<div class="flex min-w-0 flex-col gap-6 md:col-span-3">
+			<Card.Root>
+				<Card.Header>
 					<Card.Title>Budgets</Card.Title>
-					<Card.Description>Budget tracking by period</Card.Description>
-				</div>
-				<a href="/budgets">
-					<Button variant="ghost" size="icon" class="h-8 w-8">
-						<Plus class="h-4 w-4" />
-					</Button>
-				</a>
-			</Card.Header>
-			<Card.Content class="space-y-6">
-				{#if budgets.length === 0}
-					<div class="py-4 text-center text-sm text-muted-foreground">No budgets set up yet.</div>
-				{:else}
-					{#each budgets as budget (budget.id)}
-						{@const spent = budget.periodSpent}
-						<div class="space-y-2">
-							<div class="flex items-center justify-between text-sm">
-								<div class="flex min-w-0 items-center gap-2">
-									<BudgetIcon icon={budget.icon} color={budget.color} size="sm" />
-									<div class="min-w-0">
-										<div class="truncate font-medium">{budget.category}</div>
-										<Badge variant="outline" class="text-[10px] capitalize">{budget.period}</Badge>
-									</div>
-								</div>
-								<span class="text-muted-foreground">
-									{budget.currencySymbol ?? '$'}{(spent / 100).toFixed(0)} /
-									<span class="font-semibold"
-										>{budget.currencySymbol ?? '$'}{(budget.limit / 100).toFixed(0)}</span
-									>
-								</span>
-							</div>
-							<Progress value={Math.min((spent / budget.limit) * 100, 100)} class="h-2" />
-							{#if spent > budget.limit}
-								<p class="text-[10px] font-medium text-rose-500">
-									Over budget by {budget.currencySymbol ?? '$'}{(
-										(spent - budget.limit) /
-										100
-									).toFixed(2)}
-								</p>
-							{/if}
-						</div>
-					{/each}
-				{/if}
-			</Card.Content>
-			<Card.Footer>
-				<a href="/budgets" class="w-full">
-					<Button variant="outline" class="w-full" size="sm">Manage Budgets</Button>
-				</a>
-			</Card.Footer>
-		</Card.Root>
-
-		<!-- Savings Goal -->
-		{#if goal && accountWithGoal}
-			<Card.Root
-				class="relative overflow-hidden border-none bg-muted/40 shadow-sm transition-all hover:bg-muted/50"
-			>
-				<div
-					class="absolute top-0 left-0 h-full w-1"
-					style="background-color: {accountWithGoal.color}"
-				></div>
-				<Card.Header class="pb-2">
-					<div class="flex items-center justify-between">
-						<Card.Title class="text-xs font-bold tracking-wider text-muted-foreground uppercase">
-							Savings Goal
-						</Card.Title>
-						<PiggyBank class="h-4 w-4 text-muted-foreground/60" />
-					</div>
-					<Card.Description class="text-base font-semibold text-foreground">
-						{goal.name}
-					</Card.Description>
+					<Card.Description>{budgetStatusSummary}</Card.Description>
+					<Card.Action>
+						<Button href="/budgets" variant="ghost" size="icon-sm" aria-label="Add budget">
+							<Plus />
+						</Button>
+					</Card.Action>
 				</Card.Header>
 				<Card.Content>
-					<div class="space-y-4">
-						<div class="flex items-baseline gap-1">
-							<span class="text-3xl font-bold tracking-tight">
-								{accountWithGoal.currencySymbol ?? '$'}{(
-									currentBalanceForGoalAccount / 100
-								).toLocaleString('en-US', {
-									minimumFractionDigits: 2,
-									maximumFractionDigits: 2
-								})}
-							</span>
-						</div>
-						<div class="space-y-2">
-							<div
-								class="flex justify-between text-[10px] font-medium tracking-wider text-muted-foreground uppercase"
-							>
-								<span>{goalProgress.toFixed(0)}% achieved</span>
-								<span>
-									Goal: {accountWithGoal.currencySymbol ?? '$'}{(
-										goal.targetAmount / 100
-									).toLocaleString('en-US', {
-										maximumFractionDigits: 0
-									})}
-								</span>
-							</div>
-							<Progress value={goalProgress} class="h-1.5" />
-						</div>
-					</div>
+					{#if budgets.length === 0}
+						<p class="py-4 text-center text-sm text-muted-foreground">No budgets set up yet.</p>
+					{:else}
+						<ul class="space-y-5">
+							{#each budgets as budget (budget.id)}
+								{@const spent = budget.periodSpent}
+								{@const status = getBudgetStatus(spent, budget.limit)}
+								{@const symbol = budget.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL}
+								<li class="space-y-2.5">
+									<div class="flex items-center gap-3">
+										<BudgetIcon icon={budget.icon} color={budget.color} size="sm" />
+										<div class="min-w-0 flex-1">
+											<div class="flex items-baseline justify-between gap-2 text-sm">
+												<span class="truncate font-medium">{budget.category}</span>
+												<span class="shrink-0 tabular-nums">
+													<span class="font-medium"
+														>{formatMoney(spent, symbol, { wholeUnits: true })}</span
+													>
+													<span class="text-muted-foreground">
+														/ {formatMoney(budget.limit, symbol, { wholeUnits: true })}</span
+													>
+												</span>
+											</div>
+											<div class="flex items-baseline justify-between gap-2 text-xs">
+												<span class="text-muted-foreground capitalize">{budget.period}</span>
+												<span class="tabular-nums {BUDGET_STATUS_TEXT_CLASS[status]}">
+													{#if status === 'over'}
+														{formatMoney(spent - budget.limit, symbol)} over
+													{:else}
+														{formatMoney(budget.limit - spent, symbol)} left
+													{/if}
+												</span>
+											</div>
+										</div>
+									</div>
+									<Progress
+										value={budget.limit > 0 ? Math.min((spent / budget.limit) * 100, 100) : 100}
+										class="h-1.5 {BUDGET_PROGRESS_CLASS[status]}"
+										aria-label="{budget.category} budget used"
+									/>
+								</li>
+							{/each}
+						</ul>
+					{/if}
 				</Card.Content>
-				<Card.Footer class="pt-0">
-					<Button
-						variant="ghost"
-						size="sm"
-						class="h-8 w-full text-xs text-muted-foreground hover:bg-background/50 hover:text-foreground"
-						onclick={() => openGoalDialog(accountWithGoal)}
-					>
-						<Pencil class="mr-2 h-3 w-3" />
-						Edit Goal
-					</Button>
+				<Card.Footer>
+					<Button href="/budgets" variant="outline" size="sm" class="w-full">Manage budgets</Button>
 				</Card.Footer>
 			</Card.Root>
-		{:else}
-			<Card.Root class="border-dashed bg-muted/30">
-				<Card.Content class="flex flex-col items-center justify-center space-y-4 py-10 text-center">
-					<div class="rounded-full bg-background p-3 shadow-sm">
-						<PiggyBank class="h-6 w-6 text-muted-foreground" />
-					</div>
-					<div class="max-w-[200px] space-y-1">
-						<h3 class="text-sm font-semibold">No savings goal</h3>
-						<p class="text-xs text-muted-foreground">
-							Set a goal for one of your accounts to track your progress here.
-						</p>
-					</div>
-					<DropdownMenu.Root>
-						<DropdownMenu.Trigger>
-							<Button variant="outline" size="sm">
-								<Target class="mr-2 h-4 w-4" />
-								Set a Goal
+
+			{#if goal && accountWithGoal}
+				{@const goalSymbol = accountWithGoal.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL}
+				<Card.Root>
+					<Card.Header>
+						<Card.Title>{goal.name}</Card.Title>
+						<Card.Description class="flex items-center gap-2">
+							<span
+								class="size-2 shrink-0 rounded-full"
+								style="background-color: {accountWithGoal.color}"
+							></span>
+							<span class="truncate">Savings goal · {accountWithGoal.name}</span>
+						</Card.Description>
+						<Card.Action>
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								aria-label="Edit goal"
+								onclick={() => openGoalDialog(accountWithGoal)}
+							>
+								<Pencil />
 							</Button>
-						</DropdownMenu.Trigger>
-						<DropdownMenu.Content align="center">
-							<DropdownMenu.Label>Select Account</DropdownMenu.Label>
-							<DropdownMenu.Separator />
-							{#each accounts.filter((a) => a.type === 'savings') as account (account.id)}
-								<DropdownMenu.Item onclick={() => openGoalDialog(account)}>
-									<div class="flex items-center gap-2">
-										<div
-											class="h-2 w-2 rounded-full"
-											style="background-color: {account.color}"
-										></div>
-										<span>{account.name}</span>
-									</div>
-								</DropdownMenu.Item>
-							{/each}
-						</DropdownMenu.Content>
-					</DropdownMenu.Root>
-				</Card.Content>
-			</Card.Root>
-		{/if}
+						</Card.Action>
+					</Card.Header>
+					<Card.Content class="space-y-3">
+						<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+							<span class="text-3xl font-semibold tracking-tight tabular-nums">
+								{formatMoney(currentBalanceForGoalAccount, goalSymbol)}
+							</span>
+							<span class="text-sm text-muted-foreground tabular-nums">
+								of {formatMoney(goal.targetAmount, goalSymbol, { wholeUnits: true })}
+							</span>
+						</div>
+						<Progress
+							value={goalProgress}
+							class="h-2 bg-savings/15 *:data-[slot=progress-indicator]:bg-savings"
+							aria-label="{goal.name} progress"
+						/>
+						<div class="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+							<span>
+								<span class="font-medium text-foreground tabular-nums"
+									>{goalProgress.toFixed(0)}%</span
+								> saved
+							</span>
+							<span class="tabular-nums">
+								{goalRemaining > 0
+									? `${formatMoney(goalRemaining, goalSymbol, { wholeUnits: true })} to go`
+									: 'Goal reached'}{goal.targetDate
+									? ` · by ${format(new Date(goal.targetDate), 'MMM yyyy')}`
+									: ''}
+							</span>
+						</div>
+					</Card.Content>
+				</Card.Root>
+			{:else}
+				<Card.Root class="border-dashed bg-muted/30">
+					<Card.Content
+						class="flex flex-col items-center justify-center space-y-4 py-4 text-center"
+					>
+						<div class="rounded-full bg-background p-3 shadow-sm">
+							<PiggyBank class="size-6 text-muted-foreground" />
+						</div>
+						<div class="max-w-[220px] space-y-1">
+							<h3 class="text-sm font-semibold">No savings goal</h3>
+							<p class="text-sm text-muted-foreground">
+								Set a goal on a savings account to track your progress here.
+							</p>
+						</div>
+						<DropdownMenu.Root>
+							<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}>
+								<Target />
+								Set a goal
+							</DropdownMenu.Trigger>
+							<DropdownMenu.Content align="center">
+								<DropdownMenu.Label>Select account</DropdownMenu.Label>
+								<DropdownMenu.Separator />
+								{#each savingsAccounts as account (account.id)}
+									<DropdownMenu.Item onclick={() => openGoalDialog(account)}>
+										<span class="size-2 rounded-full" style="background-color: {account.color}"
+										></span>
+										{account.name}
+									</DropdownMenu.Item>
+								{:else}
+									<DropdownMenu.Item disabled>No savings accounts yet</DropdownMenu.Item>
+								{/each}
+							</DropdownMenu.Content>
+						</DropdownMenu.Root>
+					</Card.Content>
+				</Card.Root>
+			{/if}
+		</div>
 	</div>
 </div>
+
+{#if goalAccount}
+	<SetGoalDialog
+		bind:open={goalDialogOpen}
+		accountId={goalAccount.id}
+		accountName={goalAccount.name}
+		existingGoal={goalAccount.goal}
+	/>
+{/if}
+
+<AlertDialog.Root bind:open={deleteDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Media class="bg-destructive/10 text-destructive">
+				<Trash2 />
+			</AlertDialog.Media>
+			<AlertDialog.Title>Delete transaction?</AlertDialog.Title>
+			<AlertDialog.Description>
+				{#if pendingDeleteTransaction}
+					“{pendingDeleteTransaction.name ?? 'Untitled'}” will be removed and the account balance
+					adjusted. This can’t be undone.
+				{/if}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Action variant="destructive" onclick={confirmDeleteTransaction}>
+				Delete
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
 
 <!-- Edit Transaction Dialog -->
 {#if editingTransaction}

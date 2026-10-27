@@ -18,3 +18,17 @@ export function validateCurrencySymbol(symbol: string): boolean {
 export function validateCurrencyName(name: string): boolean {
 	return name.trim().length >= 1;
 }
+
+/** Formats cents as `-$1,234.56`, keeping the sign ahead of the symbol. */
+export function formatMoney(
+	amountInCents: number,
+	symbol: string = DEFAULT_CURRENCY_SYMBOL,
+	{ wholeUnits = false }: { wholeUnits?: boolean } = {}
+): string {
+	const digits = wholeUnits ? 0 : 2;
+	const formatted = (Math.abs(amountInCents) / 100).toLocaleString('en-US', {
+		minimumFractionDigits: digits,
+		maximumFractionDigits: digits
+	});
+	return `${amountInCents < 0 ? '-' : ''}${symbol}${formatted}`;
+}
