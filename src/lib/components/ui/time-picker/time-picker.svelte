@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
+	import { Input } from '$lib/components/ui/input/index.js';
 
 	interface Props {
 		value?: string; // "HH:mm"
@@ -62,9 +63,16 @@
 	}
 </script>
 
+<!-- Native wheel picker on small screens, segmented editor on md+ -->
+<Input
+	type="time"
+	bind:value
+	style="color-scheme: dark"
+	class={cn('w-auto font-mono md:hidden', className)}
+/>
 <div
 	class={cn(
-		'inline-flex items-center gap-0.5 rounded-md border border-border/20 bg-background/50 px-1.5 py-0.5 font-mono text-xs shadow-sm transition-colors select-none hover:border-border/40',
+		'hidden items-center gap-0.5 rounded-md border border-border/20 bg-background/50 px-1.5 py-0.5 font-mono text-xs shadow-sm transition-colors select-none hover:border-border/40 md:inline-flex',
 		className
 	)}
 >
