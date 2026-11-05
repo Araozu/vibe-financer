@@ -222,3 +222,11 @@ When working on UI:
 - Use colors/variables/values from the shadcn theme at ~/src/routes/layout.css
 - Add new variables only if needed
 - Avoid inlining css, use the shadcn components & values
+
+---
+
+## Android app (`android/`)
+
+`android/` is a separate git repo (ignored by this one) with the native Android client. It
+mirrors the main page only. Its build steps, the T3 Android emulator flow, and conventions are
+in `android/AGENTS.md`.
