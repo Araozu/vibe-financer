@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { listAccountsByUser } from '$lib/application/account/list-accounts';
 import { listTransactionsByAccount } from '$lib/application/transaction/list-transactions';
+import { calculateAccountBalanceDelta } from '$lib/domain/transaction';
 import { toUTC } from '$lib/domain/date-formatter';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
@@ -51,11 +52,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 			for (const tx of allTransactionsSorted) {
 				if (tx.createdAt <= lastDayOfMonth) {
-					if (tx.type === 'income') {
-						balanceAtEndOfMonth += tx.amount;
-					} else {
-						balanceAtEndOfMonth -= tx.amount;
-					}
+					balanceAtEndOfMonth += calculateAccountBalanceDelta(tx, account.id);
 				} else {
 					break;
 				}
@@ -92,11 +89,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 					sortedTransactions[txIndex].createdAt <= dayEnd
 				) {
 					const tx = sortedTransactions[txIndex];
-					if (tx.type === 'income') {
-						runningBalance -= tx.amount;
-					} else {
-						runningBalance += tx.amount;
-					}
+					runningBalance -= calculateAccountBalanceDelta(tx, account.id);
 					txIndex++;
 				}
 			}

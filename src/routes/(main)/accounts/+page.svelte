@@ -67,18 +67,40 @@
 		return `${currencySymbol}${formatted}`;
 	}
 
+	// Real (as-of-now) balance: for the current month, chartData's last point
+	// is the end of the month (includes upcoming transactions). Use today's
+	// point so the list matches the account detail page. For past months the
+	// last point is already the real end-of-month balance.
+	function getRealBalance(account: DetailedAccount): number {
+		if (account.chartData.length === 0) return account.currentBalance;
+		const now = new Date();
+		const isTargetCurrentMonth =
+			selectedYear === now.getUTCFullYear() && selectedMonth === now.getUTCMonth();
+		if (!isTargetCurrentMonth) return account.currentBalance;
+		const idx = Math.min(Math.max(now.getUTCDate() - 1, 0), account.chartData.length - 1);
+		const point = account.chartData[idx];
+		if (!point) return account.currentBalance;
+		return Math.round(point.balance * 100);
+	}
+
+	function getChartStartBalance(account: DetailedAccount): number {
+		if (account.chartData.length === 0) return getRealBalance(account) / 100;
+		return account.chartData[0].balance;
+	}
+
 	// Compute summary stats
-	let totalBalance = $derived(accounts.reduce((sum, acc) => sum + acc.currentBalance, 0));
+	let totalBalance = $derived(accounts.reduce((sum, acc) => sum + getRealBalance(acc), 0));
 
 	let activeAccountCount = $derived(accounts.length);
 
-	// Monthly change: difference between end-of-month balance and start-of-month balance across all accounts
+	// Monthly change: month-to-date (now vs start) for the current month,
+	// end vs start for past months.
 	let monthlyChange = $derived(
 		accounts.reduce((sum, acc) => {
 			if (acc.chartData.length >= 2) {
-				const startBalance = acc.chartData[0].balance;
-				const endBalance = acc.chartData[acc.chartData.length - 1].balance;
-				return sum + (endBalance - startBalance);
+				const startBalance = getChartStartBalance(acc);
+				const endBalance = getRealBalance(acc) / 100;
+				return sum + Math.round((endBalance - startBalance) * 100);
 			}
 			return sum;
 		}, 0)
@@ -87,8 +109,8 @@
 	// Monthly change per account as percentage
 	function getMonthlyChangePercent(account: DetailedAccount): number | null {
 		if (account.chartData.length < 2) return null;
-		const startBalance = account.chartData[0].balance;
-		const endBalance = account.chartData[account.chartData.length - 1].balance;
+		const startBalance = getChartStartBalance(account);
+		const endBalance = getRealBalance(account) / 100;
 		if (startBalance === 0) return null;
 		return ((endBalance - startBalance) / Math.abs(startBalance)) * 100;
 	}
@@ -251,7 +273,7 @@
 					<!-- Right: Balance + Change -->
 					<div class="text-right">
 						<p class="text-lg font-bold">
-							{formatAmount(account.currentBalance, account.currencySymbol ?? '$')}
+							{formatAmount(getRealBalance(account), account.currencySymbol ?? '$')}
 						</p>
 						{#if changePercent !== null}
 							<p class="text-sm {changePercent >= 0 ? 'text-emerald-500' : 'text-destructive'}">
