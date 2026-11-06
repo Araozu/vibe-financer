@@ -219,7 +219,8 @@
 					queryClient.invalidateQueries({ queryKey: ['transactions'] }),
 					queryClient.invalidateQueries({ queryKey: ['chart-transactions'] }),
 					queryClient.invalidateQueries({ queryKey: ['accounts'] }),
-					queryClient.invalidateQueries({ queryKey: ['budgets'] })
+					queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+					queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] })
 				]);
 				resetForm();
 

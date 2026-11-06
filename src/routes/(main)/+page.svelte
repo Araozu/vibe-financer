@@ -36,7 +36,7 @@
 		Trash2
 	} from '@lucide/svelte';
 	import type { Account } from '$lib/domain/account';
-	import { calculateAccountBalanceDelta, type Transaction } from '$lib/domain/transaction';
+	import type { Transaction } from '$lib/domain/transaction';
 	import { DEFAULT_CURRENCY_SYMBOL, formatMoney } from '$lib/domain/currency';
 	import { getBudgetStatus, type BudgetStatus } from '$lib/domain/spending-analytics';
 	import { formatLocalDate } from '$lib/domain/date-formatter';
@@ -226,10 +226,28 @@
 		}
 	}));
 
-	// Query for user (to get defaultAccountId)
-	const userQuery = createQuery<{ defaultAccountId: string | null }>(() => ({
-		queryKey: ['user'],
-		queryFn: async () => (await fetch('/api/user')).json()
+	// Server-computed dashboard balances (single source of truth for web + mobile)
+	const summaryQuery = createQuery<{
+		defaultAccountId: string | null;
+		currentBalance: number;
+		projectedBalance: number;
+		income: number;
+		expenses: number;
+		accountBalances: Record<string, number>;
+	}>(() => ({
+		queryKey: [
+			'dashboard-summary',
+			selectedMonth,
+			selectedYear,
+			Intl.DateTimeFormat().resolvedOptions().timeZone
+		],
+		queryFn: async () => {
+			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+			const res = await fetch(
+				`/api/dashboard/summary?month=${selectedMonth}&year=${selectedYear}&tz=${tz}`
+			);
+			return res.json();
+		}
 	}));
 
 	const queryClient = useQueryClient();
@@ -246,8 +264,10 @@
 			return a.id.localeCompare(b.id);
 		})
 	);
-	let defaultAccountId = $derived(userQuery.data?.defaultAccountId ?? null);
+	let summary = $derived(summaryQuery.data ?? null);
+	let defaultAccountId = $derived(summary?.defaultAccountId ?? null);
 	let defaultAccount = $derived(accounts.find((a) => a.id === defaultAccountId) ?? null);
+	let accountBalances = $derived<Record<string, number>>(summary?.accountBalances ?? {});
 
 	let editingTransaction = $state<SerializedTransaction | null>(null);
 	let editDialogOpen = $state(false);
@@ -299,7 +319,8 @@
 				queryClient.invalidateQueries({ queryKey: ['transactions'] }),
 				queryClient.invalidateQueries({ queryKey: ['chart-transactions'] }),
 				queryClient.invalidateQueries({ queryKey: ['accounts'] }),
-				queryClient.invalidateQueries({ queryKey: ['budgets'] })
+				queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+				queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] })
 			]);
 			toast.success('Transaction deleted');
 		} catch (error) {
@@ -310,17 +331,9 @@
 		}
 	}
 
-	// Calculate real stats (filtered for selected month and capped at today)
-	let firstDayOfSelectedMonth = $derived(new Date(selectedYear, selectedMonth, 1));
-	let lastDayOfSelectedMonth = $derived(
-		new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999)
-	);
-
 	let isCurrentMonth = $derived(
 		selectedMonth === dashboardNow.getMonth() && selectedYear === dashboardNow.getFullYear()
 	);
-
-	let effectiveEndDate = $derived(isCurrentMonth ? dashboardNow : lastDayOfSelectedMonth);
 
 	let defaultCurrencySymbol = $derived(defaultAccount?.currencySymbol ?? DEFAULT_CURRENCY_SYMBOL);
 	let tomorrowStart = $derived.by(() => {
@@ -439,77 +452,22 @@
 			.join(' · ');
 	}
 
-	let defaultAccountTransactions = $derived(
-		defaultAccount
-			? transactions.filter(
-					(tx) => tx.accountId === defaultAccount.id || tx.toAccountId === defaultAccount.id
-				)
-			: []
-	);
-
-	function getMidMonthOpeningBalance(
-		account: { createdAt: string | Date; initialBalance: number },
-		endDate: Date
-	): number {
-		const createdAt = new Date(account.createdAt);
-		return createdAt > firstDayOfSelectedMonth && createdAt <= endDate ? account.initialBalance : 0;
-	}
-
-	let totalBalance = $derived.by(() => {
-		if (!defaultAccount) return 0;
-		const initialBalance =
-			(initialBalances[defaultAccount.id] ?? 0) +
-			getMidMonthOpeningBalance(defaultAccount, effectiveEndDate);
-		return (
-			initialBalance +
-			defaultAccountTransactions
-				.filter((tx) => new Date(tx.createdAt) <= effectiveEndDate)
-				.reduce((acc: number, tx) => acc + calculateAccountBalanceDelta(tx, defaultAccount.id), 0)
-		);
-	});
+	// All balance numbers come from the server (/api/dashboard/summary).
+	let totalBalance = $derived(summary?.currentBalance ?? 0);
 
 	let formattedTotalBalance = $derived(formatMoney(totalBalance, defaultCurrencySymbol));
 
 	// Projected balance at the end of the selected month (includes future-dated transactions
 	// within the selected month, e.g. scheduled bills or upcoming income).
-	let projectedEndOfMonthBalance = $derived.by(() => {
-		if (!defaultAccount) return 0;
-		const initialBalance =
-			(initialBalances[defaultAccount.id] ?? 0) +
-			getMidMonthOpeningBalance(defaultAccount, lastDayOfSelectedMonth);
-		return (
-			initialBalance +
-			defaultAccountTransactions
-				.filter((tx) => new Date(tx.createdAt) <= lastDayOfSelectedMonth)
-				.reduce((acc: number, tx) => acc + calculateAccountBalanceDelta(tx, defaultAccount.id), 0)
-		);
-	});
+	let projectedEndOfMonthBalance = $derived(summary?.projectedBalance ?? 0);
 
 	let formattedProjectedEndOfMonthBalance = $derived(
 		formatMoney(projectedEndOfMonthBalance, defaultCurrencySymbol)
 	);
 
-	let monthlyIncome = $derived(
-		defaultAccountTransactions
-			.filter(
-				(tx) =>
-					tx.type === 'income' &&
-					new Date(tx.createdAt) >= firstDayOfSelectedMonth &&
-					new Date(tx.createdAt) <= effectiveEndDate
-			)
-			.reduce((acc: number, curr) => acc + curr.amount, 0)
-	);
+	let monthlyIncome = $derived(summary?.income ?? 0);
 
-	let monthlyExpenses = $derived(
-		defaultAccountTransactions
-			.filter(
-				(tx) =>
-					tx.type === 'expense' &&
-					new Date(tx.createdAt) >= firstDayOfSelectedMonth &&
-					new Date(tx.createdAt) <= effectiveEndDate
-			)
-			.reduce((acc: number, curr) => acc + curr.amount, 0)
-	);
+	let monthlyExpenses = $derived(summary?.expenses ?? 0);
 
 	let formattedMonthlyIncome = $derived(formatMoney(monthlyIncome, defaultCurrencySymbol));
 	let formattedMonthlyExpenses = $derived(formatMoney(monthlyExpenses, defaultCurrencySymbol));
@@ -522,22 +480,9 @@
 	let accountWithGoal = $derived(accounts.find((a) => a.goal !== null));
 	let goal = $derived(accountWithGoal?.goal);
 
-	let currentBalanceForGoalAccount = $derived.by(() => {
-		if (!accountWithGoal) return 0;
-
-		const initialBalance =
-			(initialBalances[accountWithGoal.id] ?? 0) +
-			getMidMonthOpeningBalance(accountWithGoal, effectiveEndDate);
-		const netChange = transactions
-			.filter(
-				(tx) =>
-					(tx.accountId === accountWithGoal.id || tx.toAccountId === accountWithGoal.id) &&
-					new Date(tx.createdAt) <= effectiveEndDate
-			)
-			.reduce((acc, tx) => acc + calculateAccountBalanceDelta(tx, accountWithGoal.id), 0);
-
-		return initialBalance + netChange;
-	});
+	let currentBalanceForGoalAccount = $derived(
+		accountWithGoal ? (accountBalances[accountWithGoal.id] ?? 0) : 0
+	);
 
 	let goalProgress = $derived(
 		goal && accountWithGoal
